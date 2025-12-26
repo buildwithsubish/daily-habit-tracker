@@ -36,6 +36,10 @@ yarn-error.log*
 *.key
 oracle-key.pem
 
+# Ngrok
+ngrok
+ngrok-*
+
 # Deployment scripts (keep in repo but make executable)
 # setup-server.sh
 # deploy.sh
