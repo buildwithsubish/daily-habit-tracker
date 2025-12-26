@@ -359,7 +359,7 @@ ADMIN_PASSWORD=YourSuperSecurePassword123!@#Min12Chars
 
 # Environment
 NODE_ENV=production  # or development
-PORT=3000  # optional, defaults to 3000
+# PORT=3000  # DO NOT SET in production - let platform assign dynamically
 ```
 
 ## 🔒 Admin Access
