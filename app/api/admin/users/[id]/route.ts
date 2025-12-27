@@ -23,22 +23,39 @@ export async function GET(
     const user = await User.findById(userIdObj)
       .select('email username passwordHash createdAt timeZone notificationPreferences')
       .lean();
-
+    
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    
+    type UserLean = { 
+      _id: mongoose.Types.ObjectId; 
+      email: string; 
+      username?: string; 
+      passwordHash: string; 
+      createdAt: Date; 
+      timeZone: string; 
+      notificationPreferences: any;
+    };
+    const typedUser = user as unknown as UserLean;
 
     // Get user habits
     const habits = await Habit.find({ userId: userIdObj })
       .select('name category type steps order createdAt')
       .sort({ order: 1, createdAt: 1 })
       .lean();
+    
+    type HabitLean = { _id: mongoose.Types.ObjectId; name: string; category: string; type: string; steps: any[]; order: number; createdAt: Date };
+    const typedHabits = habits as unknown as HabitLean[];
 
     // Get daily logs with completion stats
     const logs = await DailyLog.find({ userId: userIdObj })
       .sort({ date: -1 })
       .limit(100)
       .lean();
+    
+    type LogLean = { _id: mongoose.Types.ObjectId; habitId: mongoose.Types.ObjectId; date: string; completed: boolean; stepIndex: number | null; completedAt: Date | null };
+    const typedLogs = logs as unknown as LogLean[];
 
     // Calculate statistics
     const totalLogs = await DailyLog.countDocuments({ userId: userIdObj });
@@ -48,24 +65,27 @@ export async function GET(
     // Get streaks
     const habitStreaks: Record<string, { current: number; longest: number }> = {};
     
-    for (const habit of habits) {
+    for (const habit of typedHabits) {
       const habitLogs = await DailyLog.find({ userId: userIdObj, habitId: habit._id })
         .sort({ date: -1 })
         .lean();
+      
+      type StreakLogLean = { date: string; completed: boolean };
+      const typedHabitLogs = habitLogs as unknown as StreakLogLean[];
       
       let currentStreak = 0;
       let longestStreak = 0;
       let tempStreak = 0;
       const today = new Date().toISOString().split('T')[0];
       
-      for (let i = 0; i < habitLogs.length; i++) {
-        const log = habitLogs[i];
+      for (let i = 0; i < typedHabitLogs.length; i++) {
+        const log = typedHabitLogs[i];
         if (log.completed) {
           if (i === 0 && log.date === today) {
             currentStreak = 1;
             tempStreak = 1;
           } else if (i > 0) {
-            const prevDate = new Date(habitLogs[i - 1].date);
+            const prevDate = new Date(typedHabitLogs[i - 1].date);
             const currDate = new Date(log.date);
             const diffDays = Math.floor((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
             
@@ -91,7 +111,7 @@ export async function GET(
     }
 
     // Get activity by date
-    const activityByDate = await DailyLog.aggregate([
+    const activityByDate = await DailyLog.aggregate<{ _id: string; total: number; completed: number }>([
       { $match: { userId: userIdObj } },
       {
         $group: {
@@ -106,15 +126,15 @@ export async function GET(
 
     return NextResponse.json({
       user: {
-        id: user._id.toString(),
-        email: user.email,
-        username: user.username || 'N/A',
-        createdAt: user.createdAt,
-        timeZone: user.timeZone,
-        passwordHash: user.passwordHash, // Secured - this is hashed, not plain text
-        notificationPreferences: user.notificationPreferences,
+        id: typedUser._id.toString(),
+        email: typedUser.email,
+        username: typedUser.username || 'N/A',
+        createdAt: typedUser.createdAt,
+        timeZone: typedUser.timeZone,
+        passwordHash: typedUser.passwordHash, // Secured - this is hashed, not plain text
+        notificationPreferences: typedUser.notificationPreferences,
       },
-      habits: habits.map(h => ({
+      habits: typedHabits.map(h => ({
         id: h._id.toString(),
         name: h.name,
         category: h.category,
@@ -124,7 +144,7 @@ export async function GET(
         createdAt: h.createdAt,
         streak: habitStreaks[h._id.toString()] || { current: 0, longest: 0 },
       })),
-      logs: logs.map(l => ({
+      logs: typedLogs.map(l => ({
         id: l._id.toString(),
         habitId: l.habitId.toString(),
         date: l.date,
@@ -133,7 +153,7 @@ export async function GET(
         completedAt: l.completedAt,
       })),
       statistics: {
-        totalHabits: habits.length,
+        totalHabits: typedHabits.length,
         totalLogs,
         completedLogs,
         completionRate: completionRate.toFixed(1),

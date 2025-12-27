@@ -16,7 +16,22 @@ export async function GET(request: NextRequest) {
     
     // Get user's habits
     const habits = await Habit.find({ userId: userIdObj }).lean();
-    const formattedHabits: HabitType[] = habits.map(h => ({
+    
+    type HabitLean = { 
+      _id: mongoose.Types.ObjectId; 
+      userId: mongoose.Types.ObjectId; 
+      name: string; 
+      category: 'Health' | 'Productivity' | 'Mindfulness' | 'Fitness' | 'Diet'; 
+      type: 'single-step' | 'multi-step'; 
+      steps: any[]; 
+      targetPerDay: number; 
+      schedule: any; 
+      createdAt: Date;
+      order?: number;
+    };
+    const typedHabits = habits as unknown as HabitLean[];
+    
+    const formattedHabits: HabitType[] = typedHabits.map(h => ({
       id: h._id.toString(),
       userId: h.userId.toString(),
       name: h.name,
@@ -26,6 +41,7 @@ export async function GET(request: NextRequest) {
       targetPerDay: h.targetPerDay,
       schedule: h.schedule,
       createdAt: h.createdAt.toISOString(),
+      order: h.order || 0,
     }));
     
     // Get recent logs
@@ -37,12 +53,23 @@ export async function GET(request: NextRequest) {
       .sort({ date: -1 })
       .lean();
     
-    const formattedLogs: DailyLogType[] = logs.map(l => ({
+    type LogLean = { 
+      _id: mongoose.Types.ObjectId; 
+      userId: mongoose.Types.ObjectId; 
+      habitId: mongoose.Types.ObjectId; 
+      date: string; 
+      stepIndex: number | null; 
+      completed: boolean; 
+      completedAt: Date | null;
+    };
+    const typedLogs = logs as unknown as LogLean[];
+    
+    const formattedLogs: DailyLogType[] = typedLogs.map(l => ({
       id: l._id.toString(),
       userId: l.userId.toString(),
       habitId: l.habitId.toString(),
       date: l.date,
-      stepIndex: l.stepIndex,
+      stepIndex: l.stepIndex ?? undefined,
       completed: l.completed,
       completedAt: l.completedAt?.toISOString(),
     }));

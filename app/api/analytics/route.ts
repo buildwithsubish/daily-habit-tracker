@@ -55,20 +55,31 @@ export async function GET(request: NextRequest) {
     
     // Get habit-wise stats
     const habits = await Habit.find({ userId: userIdObj }).lean();
+    
+    type HabitLean = { 
+      _id: mongoose.Types.ObjectId; 
+      name: string; 
+      category: string;
+    };
+    const typedHabits = habits as unknown as HabitLean[];
+    
     const habitStats = await Promise.all(
-      habits.map(async (habit) => {
+      typedHabits.map(async (habit) => {
         const logs = await DailyLog.find({
           userId: userIdObj,
           habitId: habit._id,
           date: { $gte: startDate, $lte: endDate },
         }).lean();
         
+        type LogLean = { completed: boolean };
+        const typedLogs = logs as unknown as LogLean[];
+        
         return {
           id: habit._id.toString(),
           name: habit.name,
           category: habit.category,
-          totalLogs: logs.length,
-          completedLogs: logs.filter(l => l.completed).length,
+          totalLogs: typedLogs.length,
+          completedLogs: typedLogs.filter(l => l.completed).length,
         };
       })
     );
@@ -81,9 +92,12 @@ export async function GET(request: NextRequest) {
       .sort({ habitId: 1, date: -1 })
       .lean();
     
+    type StreakLogLean = { habitId: mongoose.Types.ObjectId; date: string; completed: boolean };
+    const typedAllLogs = allLogs as unknown as StreakLogLean[];
+    
     const streakMap = new Map<string, { current: number; longest: number; lastDate: string | null }>();
     
-    for (const log of allLogs) {
+    for (const log of typedAllLogs) {
       const habitId = log.habitId.toString();
       if (!streakMap.has(habitId)) {
         streakMap.set(habitId, { current: 0, longest: 0, lastDate: null });

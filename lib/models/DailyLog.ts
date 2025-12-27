@@ -1,7 +1,7 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { DailyLog } from '@/types';
 
-const DailyLogSchema = new Schema<DailyLog>({
+const DailyLogSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',

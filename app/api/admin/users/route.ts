@@ -37,10 +37,13 @@ export async function GET(request: NextRequest) {
         .lean(),
       User.countDocuments(query),
     ]);
+    
+    type UserLean = { _id: mongoose.Types.ObjectId; email: string; username?: string; createdAt: Date; timeZone: string };
+    const typedUsers = users as unknown as UserLean[];
 
     // Get additional stats for each user
     const usersWithStats = await Promise.all(
-      users.map(async (user) => {
+      typedUsers.map(async (user) => {
         const userId = new mongoose.Types.ObjectId(user._id);
         
         const [habitCount, logCount, completedLogs] = await Promise.all([
@@ -52,7 +55,7 @@ export async function GET(request: NextRequest) {
         const lastActivity = await DailyLog.findOne({ userId })
           .sort({ date: -1 })
           .select('date')
-          .lean();
+          .lean() as unknown as { date?: string } | null;
 
         return {
           id: user._id.toString(),

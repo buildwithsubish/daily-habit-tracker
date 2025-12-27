@@ -1,7 +1,7 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { User } from '@/types';
 
-const UserSchema = new Schema<User>({
+const UserSchema = new Schema({
   email: {
     type: String,
     required: true,

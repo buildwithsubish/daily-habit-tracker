@@ -24,7 +24,18 @@ export async function GET(request: NextRequest) {
     
     const logs = await DailyLog.find(query).lean();
     
-    const formattedLogs = logs.map(log => ({
+    type LogLean = { 
+      _id: mongoose.Types.ObjectId; 
+      userId: mongoose.Types.ObjectId; 
+      habitId: mongoose.Types.ObjectId; 
+      date: string; 
+      stepIndex: number | null; 
+      completed: boolean; 
+      completedAt: Date | null;
+    };
+    const typedLogs = logs as unknown as LogLean[];
+    
+    const formattedLogs = typedLogs.map(log => ({
       id: log._id.toString(),
       userId: log.userId.toString(),
       habitId: log.habitId.toString(),

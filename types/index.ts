@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
   username?: string;
   passwordHash: string;
@@ -23,7 +23,7 @@ export interface HabitStep {
 
 export interface Habit {
   id: string;
-  userId: number;
+  userId: string;
   name: string;
   order: number;
   category: 'Health' | 'Productivity' | 'Mindfulness' | 'Fitness' | 'Diet';
@@ -40,7 +40,7 @@ export interface Habit {
 
 export interface DailyLog {
   id: string;
-  userId: number;
+  userId: string;
   habitId: string;
   date: string; // YYYY-MM-DD
   stepIndex?: number; // for multi-step habits
@@ -64,17 +64,17 @@ export interface Preset {
 }
 
 export interface Streak {
-  habitId: number;
+  habitId: string;
   currentStreak: number;
   longestStreak: number;
   lastCompletedDate: string | null;
 }
 
 export interface MotivationTip {
-  id: number;
+  id: string;
   date: string;
   message: string;
   type: 'diet' | 'hydration' | 'sleep' | 'exercise' | 'general';
-  userId?: number;
+  userId?: string;
 }
 

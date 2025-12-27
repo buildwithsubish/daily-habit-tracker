@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     });
     
     // Get habits by category
-    const habitsByCategory = await Habit.aggregate([
+    const habitsByCategory = await Habit.aggregate<{ _id: string; count: number }>([
       {
         $group: {
           _id: '$category',
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Get top habits
-    const topHabits = await DailyLog.aggregate([
+    const topHabits = await DailyLog.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
       {
         $match: { completed: true },
       },
@@ -63,14 +63,23 @@ export async function GET(request: NextRequest) {
     ]);
     
     // Get habit details for top habits
-    const topHabitIds = topHabits.map(h => new mongoose.Types.ObjectId(h._id));
+    const topHabitIds = topHabits.map(h => {
+      const id = h._id instanceof mongoose.Types.ObjectId ? h._id : new mongoose.Types.ObjectId(h._id);
+      return id;
+    });
     const topHabitDetails = await Habit.find({
       _id: { $in: topHabitIds },
     }).lean();
     
+    type HabitDetail = { _id: mongoose.Types.ObjectId; name: string; category: string };
+    const typedHabitDetails = topHabitDetails as unknown as HabitDetail[];
+    
     const topHabitsWithNames = topHabits.map(habit => {
-      const habitDetail = topHabitDetails.find(
-        h => h._id.toString() === habit._id.toString()
+      const habitId = habit._id instanceof mongoose.Types.ObjectId 
+        ? habit._id.toString() 
+        : new mongoose.Types.ObjectId(habit._id).toString();
+      const habitDetail = typedHabitDetails.find(
+        h => h._id.toString() === habitId
       );
       return {
         name: habitDetail?.name || 'Unknown',
@@ -83,7 +92,7 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const dailyActivity = await DailyLog.aggregate([
+    const dailyActivity = await DailyLog.aggregate<{ _id: string; total: number; completed: number }>([
       {
         $match: {
           date: { $gte: thirtyDaysAgo.toISOString().split('T')[0] },

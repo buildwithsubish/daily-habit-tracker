@@ -13,11 +13,25 @@ export async function GET(request: NextRequest) {
       .sort({ order: 1, createdAt: -1 })
       .lean();
     
-    const formattedHabits = habits.map(h => ({
+    type HabitLean = { 
+      _id: mongoose.Types.ObjectId; 
+      userId: mongoose.Types.ObjectId; 
+      name: string; 
+      order?: number;
+      category: string; 
+      type: string; 
+      steps: any[]; 
+      targetPerDay: number; 
+      schedule: any; 
+      createdAt: Date;
+    };
+    const typedHabits = habits as unknown as HabitLean[];
+    
+    const formattedHabits = typedHabits.map(h => ({
       id: h._id.toString(),
       userId: h.userId.toString(),
       name: h.name,
-      order: h.order,
+      order: h.order || 0,
       category: h.category,
       type: h.type,
       steps: h.steps,
@@ -54,8 +68,8 @@ export async function POST(request: NextRequest) {
     const lastHabit = await Habit.findOne({ userId: new mongoose.Types.ObjectId(userId) })
       .sort({ order: -1 })
       .select('order')
-      .lean();
-    const nextOrder = lastHabit ? lastHabit.order + 1 : 0;
+      .lean() as unknown as { order?: number } | null;
+    const nextOrder = lastHabit && lastHabit.order !== undefined ? lastHabit.order + 1 : 0;
     
     const habit = await Habit.create({
       userId: new mongoose.Types.ObjectId(userId),

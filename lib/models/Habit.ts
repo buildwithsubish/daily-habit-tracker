@@ -7,7 +7,7 @@ const HabitStepSchema = new Schema({
   duration: { type: Number },
 });
 
-const HabitSchema = new Schema<Habit>({
+const HabitSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',

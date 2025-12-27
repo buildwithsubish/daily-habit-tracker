@@ -16,7 +16,15 @@ export async function GET(request: NextRequest) {
     const query = type ? { type } : {};
     const presets = await Preset.find(query).lean();
     
-    const formattedPresets = presets.map(p => ({
+    type PresetLean = { 
+      _id: mongoose.Types.ObjectId; 
+      name: string; 
+      type: string; 
+      structure: any;
+    };
+    const typedPresets = presets as unknown as PresetLean[];
+    
+    const formattedPresets = typedPresets.map(p => ({
       id: p._id.toString(),
       name: p.name,
       type: p.type,
