@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Habit } from '@/types';
-import { Plus, Trash2, Edit, ChevronUp, ChevronDown, X, Layers } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronUp, ChevronDown, X, Layers, Search, Filter, Sparkles } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -41,6 +41,8 @@ export default function HabitsPage() {
   const [presets, setPresets] = useState<any[]>([]);
   const [presetsLoading, setPresetsLoading] = useState(false);
   const [applyingPresetId, setApplyingPresetId] = useState<string | null>(null);
+  const [presetSearchTerm, setPresetSearchTerm] = useState('');
+  const [selectedPresetCategory, setSelectedPresetCategory] = useState('all');
 
   useEffect(() => {
     fetchHabits();
@@ -75,6 +77,74 @@ export default function HabitsPage() {
     } finally {
       setPresetsLoading(false);
     }
+  };
+
+  const getPresetCategory = (preset: any) => {
+    const type = preset.type?.toLowerCase();
+    if (type.includes('gym') || type.includes('fitness') || type.includes('weight')) return 'Fitness';
+    if (type.includes('diet') || type.includes('nutrition') || type.includes('bulk')) return 'Diet';
+    if (type.includes('mental') || type.includes('mindfulness') || type.includes('meditation')) return 'Mindfulness';
+    if (type.includes('productivity') || type.includes('study') || type.includes('learning')) return 'Productivity';
+    if (type.includes('health') || type.includes('morning') || type.includes('evening')) return 'Health';
+    return 'General';
+  };
+
+  const getPresetIcon = (preset: any) => {
+    const type = preset.type?.toLowerCase();
+    if (type.includes('gym') || type.includes('fitness')) return '🏋️';
+    if (type.includes('diet') || type.includes('nutrition')) return '🥗';
+    if (type.includes('mental') || type.includes('mindfulness')) return '🧘';
+    if (type.includes('productivity') || type.includes('study')) return '📚';
+    if (type.includes('morning')) return '🌅';
+    if (type.includes('evening')) return '🌙';
+    if (type.includes('health')) return '💊';
+    return '⚡';
+  };
+
+  const getPresetDescription = (preset: any) => {
+    const descriptions: Record<string, string> = {
+      'weekday': 'Complete daily routine for productive weekdays',
+      'sunday': 'Relaxed Sunday routine for reflection and planning',
+      'gym': 'Structured workout plan for strength and fitness',
+      'diet': 'Healthy eating habits and nutrition tracking',
+      'morning-productivity': 'Powerful morning routine to start your day',
+      'evening-winddown': 'Peaceful evening routine for better sleep',
+      'study-learning': 'Focused learning and study habits',
+      'weight-loss': 'Healthy habits for weight management',
+      'mental-health': 'Wellness habits for mental health',
+      'lean-bulk': 'Nutrition plan for lean muscle building'
+    };
+    return descriptions[preset.type] || 'Pre-built habit collection';
+  };
+
+  const getHabitCount = (preset: any) => {
+    return preset.structure?.habits?.length || 0;
+  };
+
+  const getFilteredPresets = () => {
+    let filtered = presets;
+    
+    // Filter by category
+    if (selectedPresetCategory !== 'all') {
+      filtered = filtered.filter(preset => getPresetCategory(preset) === selectedPresetCategory);
+    }
+    
+    // Filter by search term
+    if (presetSearchTerm) {
+      const searchLower = presetSearchTerm.toLowerCase();
+      filtered = filtered.filter(preset => 
+        preset.name?.toLowerCase().includes(searchLower) ||
+        preset.type?.toLowerCase().includes(searchLower) ||
+        getPresetDescription(preset).toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  };
+
+  const getUniqueCategories = () => {
+    const categories = presets.map(getPresetCategory);
+    return [...new Set(categories)].sort();
   };
 
   const handleApplyPreset = async (presetId: string) => {
@@ -301,63 +371,176 @@ export default function HabitsPage() {
             loading={deleteAllLoading}
           />
 
-          {/* Preset Selection Modal */}
+          {/* Enhanced Preset Selection Modal */}
           {showPresetModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">Choose a Preset</h2>
-                  <button
-                    onClick={() => setShowPresetModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={24} />
-                  </button>
+              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                      <Sparkles size={28} />
+                      <h2 className="text-2xl font-bold">Choose a Preset</h2>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowPresetModal(false);
+                        setPresetSearchTerm('');
+                        setSelectedPresetCategory('all');
+                      }}
+                      className="text-white hover:text-gray-200 transition-colors"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <p className="text-blue-100">Pre-built habit collections to jumpstart your journey</p>
                 </div>
 
-                {presetsLoading ? (
-                  <div className="flex items-center justify-center h-32">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : presets.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No presets available</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {presets.map((preset) => (
-                      <div
-                        key={preset.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                {/* Search and Filter Section */}
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Search Input */}
+                    <div className="relative flex-1">
+                      <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search presets..."
+                        value={presetSearchTerm}
+                        onChange={(e) => setPresetSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    {/* Category Filter */}
+                    <div className="relative">
+                      <Filter size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <select
+                        value={selectedPresetCategory}
+                        onChange={(e) => setSelectedPresetCategory(e.target.value)}
+                        className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[150px]"
                       >
-                        <h3 className="font-semibold text-gray-900 mb-2">{preset.name}</h3>
-                        <p className="text-sm text-gray-600 mb-3">{preset.type}</p>
-                        <button
-                          onClick={() => handleApplyPreset(preset.id)}
-                          disabled={applyingPresetId === preset.id}
-                          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          {applyingPresetId === preset.id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              Applying...
-                            </>
-                          ) : (
-                            'Apply Preset'
-                          )}
-                        </button>
-                      </div>
-                    ))}
+                        <option value="all">All Categories</option>
+                        {getUniqueCategories().map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                )}
+                </div>
 
-                <div className="flex gap-3 justify-end pt-4">
-                  <button
-                    onClick={() => setShowPresetModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
-                  >
-                    Cancel
-                  </button>
+                {/* Presets Grid */}
+                <div className="p-6">
+                  {presetsLoading ? (
+                    <div className="flex items-center justify-center h-48">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-500">Loading presets...</p>
+                      </div>
+                    </div>
+                  ) : getFilteredPresets().length === 0 ? (
+                    <div className="text-center py-12">
+                      <Sparkles size={48} className="mx-auto text-gray-300 mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No presets found</h3>
+                      <p className="text-gray-500">
+                        {presetSearchTerm || selectedPresetCategory !== 'all' 
+                          ? 'Try adjusting your search or filter criteria'
+                          : 'No presets available at the moment'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {getFilteredPresets().map((preset) => (
+                        <div
+                          key={preset.id}
+                          className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 overflow-hidden group"
+                        >
+                          {/* Preset Header */}
+                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 border-b border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl">{getPresetIcon(preset)}</span>
+                                <span className="text-xs font-semibold px-2 py-1 bg-white rounded-full text-gray-700">
+                                  {getPresetCategory(preset)}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500 font-medium">
+                                {getHabitCount(preset)} habits
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-gray-900 text-lg leading-tight">
+                              {preset.name}
+                            </h3>
+                          </div>
+
+                          {/* Preset Content */}
+                          <div className="p-4">
+                            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                              {getPresetDescription(preset)}
+                            </p>
+
+                            {/* Habit Preview */}
+                            <div className="mb-4">
+                              <p className="text-xs font-semibold text-gray-700 mb-2">Includes:</p>
+                              <div className="space-y-1">
+                                {preset.structure?.habits?.slice(0, 3).map((habit: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-2 text-xs text-gray-600">
+                                    <div className="w-1.5 h-1.5 bg-blue-400 rounded-full flex-shrink-0"></div>
+                                    <span className="truncate">{habit.name}</span>
+                                  </div>
+                                ))}
+                                {preset.structure?.habits?.length > 3 && (
+                                  <p className="text-xs text-gray-400 italic">
+                                    +{preset.structure.habits.length - 3} more habits
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Action Button */}
+                            <button
+                              onClick={() => handleApplyPreset(preset.id)}
+                              disabled={applyingPresetId === preset.id}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-semibold flex items-center justify-center gap-2"
+                            >
+                              {applyingPresetId === preset.id ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  Applying...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles size={16} />
+                                  Apply Preset
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-4 rounded-b-lg border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-600">
+                      {getFilteredPresets().length} preset{getFilteredPresets().length !== 1 ? 's' : ''} available
+                    </p>
+                    <button
+                      onClick={() => {
+                        setShowPresetModal(false);
+                        setPresetSearchTerm('');
+                        setSelectedPresetCategory('all');
+                      }}
+                      className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -374,46 +557,6 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
   const [type, setType] = useState<'single-step' | 'multi-step'>(habit?.type || 'single-step');
   const [steps, setSteps] = useState(habit?.steps || [{ order: 0, name: '' }]);
   const [loading, setLoading] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-
-  const fetchTemplates = async () => {
-    setTemplatesLoading(true);
-    try {
-      const res = await fetch('/api/presets-templates');
-      if (res.ok) {
-        const data = await res.json();
-        setTemplates(data.presets || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch templates:', error);
-    } finally {
-      setTemplatesLoading(false);
-    }
-  };
-
-  const applyTemplate = (template: any) => {
-    // Pre-populate the form with template data
-    setName(template.name || '');
-    setCategory(template.category || 'Health');
-    setType(template.type || 'single-step');
-    
-    if (template.habits && template.habits.length > 0) {
-      // If template has multiple habits, we'll just use the first one for this single habit creation
-      const firstHabit = template.habits[0];
-      setType(firstHabit.type || 'single-step');
-      if (firstHabit.steps && firstHabit.steps.length > 0) {
-        setSteps(firstHabit.steps.map((step: any, idx: number) => ({ order: idx, name: step.name || step })));
-      } else {
-        setSteps([{ order: 0, name: firstHabit.name || '' }]);
-      }
-    } else {
-      setSteps([{ order: 0, name: template.name || '' }]);
-    }
-    
-    setShowTemplates(false);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -574,17 +717,6 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
           <div className="flex gap-3 justify-end pt-4">
             <button
               type="button"
-              onClick={async () => {
-                await fetchTemplates();
-                setShowTemplates(true);
-              }}
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2"
-            >
-              <Layers size={16} />
-              Use Template
-            </button>
-            <button
-              type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
             >
@@ -598,63 +730,6 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
               {loading ? 'Creating...' : habit ? 'Update Habit' : 'Create Habit'}
             </button>
           </div>
-
-          {/* Template Selection Modal */}
-          {showTemplates && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold text-gray-900">Choose a Template</h3>
-                  <button
-                    onClick={() => setShowTemplates(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {templatesLoading ? (
-                  <div className="flex items-center justify-center h-32">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : templates.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No templates available</p>
-                    <button
-                      onClick={() => {
-                        setShowTemplates(false);
-                        window.open('/presets-templates', '_blank');
-                      }}
-                      className="text-blue-600 hover:text-blue-700 underline"
-                    >
-                      Visit Templates Page
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {templates.map((template) => (
-                      <div
-                        key={template._id}
-                        className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                        onClick={() => applyTemplate(template)}
-                      >
-                        <h4 className="font-semibold text-gray-900 mb-1">{template.displayName}</h4>
-                        <p className="text-sm text-gray-600 mb-2">{template.description}</p>
-                        <div className="flex gap-2">
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                            {template.category || template.type}
-                          </span>
-                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                            {template.habits?.length || 0} habits
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </form>
       </div>
     </div>

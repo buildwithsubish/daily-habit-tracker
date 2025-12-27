@@ -24,12 +24,30 @@ export async function GET(request: NextRequest) {
     };
     const typedPresets = presets as unknown as PresetLean[];
     
-    const formattedPresets = typedPresets.map(p => ({
-      id: p._id.toString(),
-      name: p.name,
-      type: p.type,
-      structure: p.structure,
-    }));
+    // Enhanced preset formatting with display names and descriptions
+    const formattedPresets = typedPresets.map(p => {
+      // Generate display name from type
+      const displayNameMap: Record<string, string> = {
+        'weekday': 'Weekday Routine',
+        'sunday': 'Sunday Routine',
+        'gym': 'Gym Workout Plan',
+        'diet': 'Diet Guidelines',
+        'morning-productivity': 'Morning Productivity',
+        'evening-winddown': 'Evening Wind-Down',
+        'study-learning': 'Study & Learning',
+        'weight-loss': 'Weight Loss Plan',
+        'mental-health': 'Mental Health & Wellness',
+        'lean-bulk': 'Lean Bulk Diet'
+      };
+      
+      return {
+        id: p._id.toString(),
+        name: displayNameMap[p.type] || p.name,
+        originalName: p.name,
+        type: p.type,
+        structure: p.structure,
+      };
+    });
     
     return NextResponse.json({ presets: formattedPresets });
   } catch (error: any) {

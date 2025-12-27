@@ -38,8 +38,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find preset
-    const preset = await Preset.findOne({ name: presetName });
+    // Find preset by type (which is the unique identifier)
+    // Since our presets API returns display names, we need to map back to types
+    const displayNameToTypeMap: Record<string, string> = {
+      'Weekday Routine': 'weekday',
+      'Sunday Routine': 'sunday',
+      'Gym Workout Plan': 'gym',
+      'Diet Guidelines': 'diet',
+      'Morning Productivity': 'morning-productivity',
+      'Evening Wind-Down': 'evening-winddown',
+      'Study & Learning': 'study-learning',
+      'Weight Loss Plan': 'weight-loss',
+      'Mental Health & Wellness': 'mental-health',
+      'Lean Bulk Diet': 'lean-bulk'
+    };
+
+    const presetType = displayNameToTypeMap[presetName] || presetName;
+    const preset = await Preset.findOne({ type: presetType });
+    
     if (!preset) {
       return NextResponse.json(
         { error: 'Preset not found' },
