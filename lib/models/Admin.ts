@@ -16,7 +16,6 @@ const AdminSchema = new Schema<Admin>({
   email: {
     type: String,
     required: true,
-    unique: true,
     lowercase: true,
     trim: true,
   },
@@ -54,8 +53,8 @@ const AdminSchema = new Schema<Admin>({
   },
 });
 
-// Index for faster lookups
-AdminSchema.index({ email: 1 });
+// Create unique index on email
+AdminSchema.index({ email: 1 }, { unique: true });
 
 export default mongoose.models.Admin || mongoose.model<Admin>('Admin', AdminSchema);
 

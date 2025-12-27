@@ -5,13 +5,11 @@ const UserSchema = new Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
     lowercase: true,
     trim: true,
   },
   username: {
     type: String,
-    unique: true,
     trim: true,
   },
   passwordHash: {
@@ -36,6 +34,10 @@ const UserSchema = new Schema({
     default: Date.now,
   },
 });
+
+// Create indexes
+UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.User || mongoose.model<User>('User', UserSchema);
 
