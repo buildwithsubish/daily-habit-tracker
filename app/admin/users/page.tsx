@@ -5,8 +5,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Users, Search, Eye, EyeOff, ChevronRight, 
-  Shield, Calendar, Target, TrendingUp, LogOut 
+  Shield, Calendar, Target, TrendingUp, LogOut, Lock, AlertCircle, CheckCircle, Palette
 } from 'lucide-react';
+
+interface Theme {
+  _id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  colors: Record<string, string>;
+}
 
 interface User {
   id: string;
@@ -30,11 +38,28 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [selectedUserForTheme, setSelectedUserForTheme] = useState<User | null>(null);
+  const [assigningTheme, setAssigningTheme] = useState(false);
+  const [themeMessage, setThemeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchUsers();
+    fetchThemes();
   }, [page, search]);
+
+  const fetchThemes = async () => {
+    try {
+      const res = await fetch('/api/themes?includeCustom=false');
+      if (res.ok) {
+        const data = await res.json();
+        setThemes(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch themes:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -53,14 +78,34 @@ export default function AdminUsersPage() {
     }
   };
 
-  const togglePasswordVisibility = (userId: string) => {
-    const newSet = new Set(revealedPasswords);
-    if (newSet.has(userId)) {
-      newSet.delete(userId);
-    } else {
-      newSet.add(userId);
+  const assignThemeToUser = async (themeId: string) => {
+    if (!selectedUserForTheme) return;
+    
+    setAssigningTheme(true);
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUserForTheme.id}/theme`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themeId }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setThemeMessage({ type: 'success', text: `Theme assigned to ${selectedUserForTheme.email}` });
+        setShowThemeModal(false);
+        setTimeout(() => {
+          setThemeMessage(null);
+          setSelectedUserForTheme(null);
+        }, 3000);
+      } else {
+        const error = await res.json();
+        setThemeMessage({ type: 'error', text: error.error || 'Failed to assign theme' });
+      }
+    } catch (error) {
+      setThemeMessage({ type: 'error', text: 'Failed to assign theme' });
+    } finally {
+      setAssigningTheme(false);
     }
-    setRevealedPasswords(newSet);
   };
 
   const handleLogout = async () => {
@@ -134,7 +179,6 @@ export default function AdminUsersPage() {
                 <tr>
                   <th className="text-left py-4 px-4 font-bold text-gray-900">Email</th>
                   <th className="text-left py-4 px-4 font-bold text-gray-900">Username</th>
-                  <th className="text-left py-4 px-4 font-bold text-gray-900">Password Hash</th>
                   <th className="text-left py-4 px-4 font-bold text-gray-900">Habits</th>
                   <th className="text-left py-4 px-4 font-bold text-gray-900">Completion</th>
                   <th className="text-left py-4 px-4 font-bold text-gray-900">Last Activity</th>
@@ -157,23 +201,6 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-4 px-4">
                       <span className="text-gray-700 font-medium">{user.username}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                          {revealedPasswords.has(user.id)
-                            ? '••••••••••••••••••••••••••••••••'
-                            : '••••••••••••••••••••••••••••••••'}
-                        </code>
-                        <button
-                          onClick={() => togglePasswordVisibility(user.id)}
-                          className="text-gray-500 hover:text-red-600 transition-colors"
-                          title={revealedPasswords.has(user.id) ? 'Hide' : 'Show'}
-                        >
-                          {revealedPasswords.has(user.id) ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">(Secured hash - cannot be decrypted)</p>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-2">
@@ -200,13 +227,27 @@ export default function AdminUsersPage() {
                       )}
                     </td>
                     <td className="py-4 px-4">
-                      <Link
-                        href={`/admin/users/${user.id}`}
-                        className="inline-flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm"
-                      >
-                        View Details
-                        <ChevronRight size={16} />
-                      </Link>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedUserForTheme(user);
+                            setShowThemeModal(true);
+                            setThemeMessage(null);
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold text-sm"
+                          title="Assign Theme"
+                        >
+                          <Palette size={16} />
+                          Theme
+                        </button>
+                        <Link
+                          href={`/admin/users/${user.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold text-sm"
+                        >
+                          View Details
+                          <ChevronRight size={16} />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -237,6 +278,84 @@ export default function AdminUsersPage() {
             </div>
           )}
         </div>
+
+        {/* Theme Assignment Message */}
+        {themeMessage && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            themeMessage.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {themeMessage.text}
+          </div>
+        )}
+
+        {/* Theme Assignment Modal */}
+        {showThemeModal && selectedUserForTheme && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+              <div className="flex items-center gap-3 mb-4">
+                <Palette className="text-purple-600" size={24} />
+                <h3 className="text-xl font-bold text-gray-900">Assign Theme</h3>
+              </div>
+
+              <div className="bg-blue-50 border-l-4 border-blue-600 p-3 mb-4 rounded">
+                <p className="text-sm text-blue-800">
+                  <AlertCircle className="inline mr-2" size={16} />
+                  Assigning a theme to: <strong>{selectedUserForTheme.email}</strong>
+                </p>
+              </div>
+
+              {themes.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">
+                  No themes available
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {themes.map((theme) => (
+                    <button
+                      key={theme._id}
+                      onClick={() => assignThemeToUser(theme._id)}
+                      disabled={assigningTheme}
+                      className="w-full p-3 text-left rounded-lg border-2 border-gray-200 hover:border-purple-600 hover:bg-purple-50 transition-all disabled:opacity-50"
+                    >
+                      <div className="font-semibold text-gray-900">{theme.displayName}</div>
+                      <p className="text-xs text-gray-500 mt-1">{theme.description}</p>
+                      <div className="flex gap-1 mt-2">
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: theme.colors.primary }}
+                        />
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: theme.colors.accent }}
+                        />
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: theme.colors.secondary }}
+                        />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowThemeModal(false);
+                    setSelectedUserForTheme(null);
+                    setThemeMessage(null);
+                  }}
+                  disabled={assigningTheme}
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

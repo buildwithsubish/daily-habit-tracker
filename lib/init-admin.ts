@@ -18,7 +18,13 @@ export async function initAdmin() {
     const existingAdmin = await Admin.findOne({ email: adminEmail });
 
     if (existingAdmin) {
-      // Update password if it's different (for password changes)
+      // Always update password to ensure it matches .env.local
+      const passwordHash = await hashAdminPassword(adminPassword);
+      await Admin.updateOne(
+        { email: adminEmail },
+        { passwordHash, loginAttempts: 0, lockUntil: null }
+      );
+      console.log('✅ Admin password updated from .env.local');
       return;
     }
 

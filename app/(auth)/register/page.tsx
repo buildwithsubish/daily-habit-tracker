@@ -51,88 +51,225 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-100 flex items-center justify-center p-3 sm:p-4 md:p-6">
-      <div className="max-w-md w-full bg-white/90 backdrop-blur-lg rounded-2xl shadow-2xl p-5 sm:p-6 md:p-8 border border-gray-200/50 animate-scale-in">
-        <div className="text-center mb-5 sm:mb-6 md:mb-8 animate-fade-in-up">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+    <div 
+      className="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6 relative overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, var(--color-background, #f8fafc) 0%, var(--color-surface, #e2e8f0) 50%, var(--color-success, #10b981) 100%)`
+      }}
+    >
+      {/* Animated background elements using theme colors */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div 
+          className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"
+          style={{ backgroundColor: 'var(--color-success, #10b981)' }}
+        ></div>
+        <div 
+          className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"
+          style={{ backgroundColor: 'var(--color-primary, #3b82f6)' }}
+        ></div>
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"
+          style={{ backgroundColor: 'var(--color-accent, #8b5cf6)' }}
+        ></div>
+      </div>
+      
+      <div 
+        className="max-w-md w-full rounded-2xl shadow-2xl p-5 sm:p-6 md:p-8 border animate-scale-in relative z-10 backdrop-blur-lg"
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderColor: 'var(--color-border, #e2e8f0)'
+        }}
+      >
+        <div className="text-center mb-6 sm:mb-8 animate-fade-in-up">
+          <div className="relative inline-block mb-4">
+            <div 
+              className="absolute inset-0 rounded-full blur-lg opacity-30 animate-pulse"
+              style={{ 
+                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+              }}
+            ></div>
+            <div 
+              className="relative w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ 
+                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+              }}
+            >
+              <span className="text-white font-bold text-xl">+</span>
+            </div>
+          </div>
+          <h1 
+            className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 animate-slide-in-right"
+            style={{ 
+              background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
+          >
             Get Started
           </h1>
-          <p className="text-sm sm:text-base text-gray-600 font-medium">Create your account to start tracking habits</p>
+          <p className="text-sm sm:text-base font-medium animate-fade-in-up animation-delay-200" style={{ color: 'var(--color-textSecondary, #6b7280)' }}>
+            Create your account to start tracking habits
+          </p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-800 px-4 py-3 rounded-lg font-semibold text-sm">
+            <div 
+              className="border-2 px-4 py-3 rounded-lg font-semibold text-sm animate-shake"
+              style={{
+                backgroundColor: 'var(--color-error, #fef2f2)',
+                borderColor: 'var(--color-error, #ef4444)',
+                color: 'var(--color-error, #dc2626)'
+              }}
+            >
               {error}
             </div>
           )}
-          <div>
-            <label htmlFor="email" className="block text-sm font-bold text-gray-900 mb-1.5">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all font-medium text-base"
-              placeholder="Enter your email"
-            />
+          <div className="space-y-4">
+            <div className="animate-fade-in-up animation-delay-300">
+              <label htmlFor="email" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
+                Email
+              </label>
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
+                  style={{
+                    borderColor: 'var(--color-border, #d1d5db)',
+                    color: 'var(--color-text, #111827)',
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                  } as React.CSSProperties}
+                  placeholder="Enter your email"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                />
+                <div 
+                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
+                  style={{ 
+                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+                  }}
+                ></div>
+              </div>
+            </div>
+            <div className="animate-fade-in-up animation-delay-400">
+              <label htmlFor="username" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
+                Username <span className="font-normal" style={{ color: 'var(--color-textSecondary, #6b7280)' }}>(optional)</span>
+              </label>
+              <div className="relative">
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
+                  style={{
+                    borderColor: 'var(--color-border, #d1d5db)',
+                    color: 'var(--color-text, #111827)',
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                  } as React.CSSProperties}
+                  placeholder="Enter your username"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                />
+                <div 
+                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
+                  style={{ 
+                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+                  }}
+                ></div>
+              </div>
+            </div>
+            <div className="animate-fade-in-up animation-delay-500">
+              <label htmlFor="password" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
+                  style={{
+                    borderColor: 'var(--color-border, #d1d5db)',
+                    color: 'var(--color-text, #111827)',
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                  } as React.CSSProperties}
+                  placeholder="Create a password (min 6 characters)"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                />
+                <div 
+                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
+                  style={{ 
+                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+                  }}
+                ></div>
+              </div>
+            </div>
+            <div className="animate-fade-in-up animation-delay-600">
+              <label htmlFor="confirmPassword" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
+                  style={{
+                    borderColor: 'var(--color-border, #d1d5db)',
+                    color: 'var(--color-text, #111827)',
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                  } as React.CSSProperties}
+                  placeholder="Confirm your password"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                />
+                <div 
+                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
+                  style={{ 
+                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
+                  }}
+                ></div>
+              </div>
+            </div>
           </div>
-          <div>
-            <label htmlFor="username" className="block text-sm font-bold text-gray-900 mb-1.5">
-              Username (optional)
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all font-medium text-base"
-              placeholder="Enter your username"
-            />
+          <div className="animate-fade-in-up animation-delay-700">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full text-white py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 disabled:opacity-50 shadow-lg hover:shadow-xl hover-lift ripple relative overflow-hidden touch-manipulation active:scale-98 min-h-[48px] flex items-center justify-center"
+              style={{
+                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))`,
+                WebkitTapHighlightColor: 'transparent'
+              }}
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                {loading ? 'Creating account...' : 'Create Account'}
+              </span>
+            </button>
           </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-bold text-gray-900 mb-1.5">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all font-medium text-base"
-              placeholder="Create a password (min 6 characters)"
-            />
-          </div>
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-bold text-gray-900 mb-1.5">
-              Confirm Password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all font-medium text-base"
-              placeholder="Confirm your password"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white py-3 sm:py-3.5 rounded-lg font-bold text-base sm:text-lg hover:from-primary-700 hover:to-primary-600 transition-all duration-300 disabled:opacity-50 shadow-md hover:shadow-xl hover-lift ripple relative overflow-hidden touch-manipulation"
-          >
-            <span className="relative z-10">{loading ? 'Creating account...' : 'Create Account'}</span>
-          </button>
         </form>
-        <p className="mt-5 sm:mt-6 text-center text-sm sm:text-base text-gray-700 font-medium">
+        <p className="mt-5 sm:mt-6 text-center text-sm sm:text-base font-medium" style={{ color: 'var(--color-text, #374151)' }}>
           Already have an account?{' '}
-          <Link href="/login" className="text-primary-600 hover:text-primary-700 font-bold underline">
+          <Link 
+            href="/login" 
+            className="font-bold underline"
+            style={{ color: 'var(--color-primary, #3b82f6)' }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--color-primary, #2563eb)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
+            }}
+          >
             Sign in
           </Link>
         </p>

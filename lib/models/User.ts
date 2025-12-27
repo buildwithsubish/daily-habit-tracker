@@ -20,6 +20,11 @@ const UserSchema = new Schema({
     type: String,
     default: 'UTC',
   },
+  preferredTheme: {
+    type: String,
+    default: 'classic-light',
+    description: 'User\'s preferred theme name'
+  },
   notificationPreferences: {
     email: { type: Boolean, default: true },
     push: { type: Boolean, default: true },

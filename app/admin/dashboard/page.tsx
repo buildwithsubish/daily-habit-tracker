@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Users, Target, CheckCircle, TrendingUp, 
-  Activity, BarChart3, Shield, LogOut 
+  Activity, BarChart3, Shield, LogOut, Palette
 } from 'lucide-react';
 import Link from 'next/link';
 import { 
@@ -31,6 +31,8 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [seedingThemes, setSeedingThemes] = useState(false);
+  const [seedMessage, setSeedMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchStats();
@@ -38,7 +40,7 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats');
+      const res = await fetch('/api/admin/stats', { credentials: 'same-origin' });
       if (res.status === 401) {
         router.push('/admin/login');
         return;
@@ -49,6 +51,40 @@ export default function AdminDashboard() {
       console.error('Failed to fetch stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSeedDeadlyThemes = async () => {
+    setSeedingThemes(true);
+    try {
+      const res = await fetch('/api/admin/seed-deadly-themes', {
+        method: 'POST'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSeedMessage({
+          type: 'success',
+          text: `✅ Successfully created ${data.themesCreated} deadly dark themes! Refresh the Themes page to see them.`
+        });
+        // Refresh theme cache
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        const error = await res.json();
+        setSeedMessage({
+          type: 'error',
+          text: `❌ Failed to seed themes: ${error.error || 'Unknown error'}`
+        });
+      }
+    } catch (error: any) {
+      setSeedMessage({
+        type: 'error',
+        text: `❌ Error: ${error.message}`
+      });
+    } finally {
+      setSeedingThemes(false);
     }
   };
 
@@ -86,6 +122,13 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <Link
+                href="/admin/themes"
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-semibold"
+              >
+                <Palette size={18} />
+                Themes
+              </Link>
+              <Link
                 href="/admin/users"
                 className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-semibold"
               >
@@ -105,6 +148,54 @@ export default function AdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6">
+        {/* Seed Message */}
+        {seedMessage && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            seedMessage.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span>{seedMessage.text}</span>
+              <button
+                onClick={() => setSeedMessage(null)}
+                className="text-sm font-medium hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 border-t-4 border-red-600">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">⚡ Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={handleSeedDeadlyThemes}
+              disabled={seedingThemes}
+              className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <Palette size={20} />
+              <div className="text-left">
+                <div className="font-semibold">Seed Deadly Themes</div>
+                <div className="text-xs opacity-90">Create 28 dark/black/red color combinations</div>
+              </div>
+              {seedingThemes && <div className="animate-spin ml-auto">⏳</div>}
+            </button>
+            <Link
+              href="/admin/themes"
+              className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-semibold transition-all"
+            >
+              <Palette size={20} />
+              <div className="text-left">
+                <div className="font-semibold">Manage Themes</div>
+                <div className="text-xs opacity-90">Edit, create, and customize themes</div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">

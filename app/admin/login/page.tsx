@@ -20,18 +20,28 @@ export default function AdminLoginPage() {
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Ensure cookies (Set-Cookie) are included/accepted by the browser
+        credentials: 'same-origin',
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/admin/dashboard');
+        // Clear any error messages
+        setError('');
+        // Small delay to ensure cookie is set before navigation
+        setTimeout(() => {
+          router.push('/admin/dashboard');
+        }, 100);
       } else {
-        setError(data.error || 'Login failed');
+        // Show specific error message
+        setError(data.error || 'Login failed. Please check your credentials and try again.');
+        console.warn('Login error:', data.error);
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }

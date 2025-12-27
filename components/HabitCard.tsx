@@ -1,7 +1,7 @@
 'use client';
 
 import { Habit } from '@/types';
-import { CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, Heart, Brain, Dumbbell, Utensils, Briefcase, Activity, Zap, Target, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { getToday } from '@/lib/utils';
 
@@ -16,11 +16,69 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
   const [expanded, setExpanded] = useState(false);
 
   const handleStepToggle = (stepIndex: number) => {
+    // Prevent event bubbling and ensure proper toggle behavior
     onToggle(habit.id, stepIndex);
   };
 
   const allStepsCompleted = habit.type === 'multi-step' && 
     habit.steps.every((_, idx) => stepCompleted.includes(idx));
+
+  // Category-specific icon mapping
+  const getCategoryIcon = (category: string, completed: boolean, size: number = 26) => {
+    const iconProps = {
+      size,
+      strokeWidth: 2.5,
+      className: completed ? 'text-green-500 animate-scale-in' : 'text-gray-400 group-hover:text-primary-500 transition-colors duration-300'
+    };
+
+    switch (category) {
+      case 'Health':
+        return <Heart {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-red-400 group-hover:text-red-500 transition-colors duration-300'} />;
+      case 'Productivity':
+        return <Briefcase {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-blue-400 group-hover:text-blue-500 transition-colors duration-300'} />;
+      case 'Mindfulness':
+        return <Brain {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-purple-400 group-hover:text-purple-500 transition-colors duration-300'} />;
+      case 'Fitness':
+        return <Dumbbell {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-orange-400 group-hover:text-orange-500 transition-colors duration-300'} />;
+      case 'Diet':
+        return <Utensils {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-green-400 group-hover:text-green-500 transition-colors duration-300'} />;
+      default:
+        return completed ? (
+          <CheckCircle2 {...iconProps} className="text-green-500 animate-scale-in" />
+        ) : (
+          <Circle {...iconProps} className="text-gray-400 group-hover:text-primary-500 transition-colors duration-300" />
+        );
+    }
+  };
+
+  // For step completion icons
+  const getStepIcon = (category: string, completed: boolean, size: number = 20) => {
+    const iconProps = {
+      size,
+      strokeWidth: 2.5,
+      className: completed ? 'text-green-500' : 'text-gray-400'
+    };
+
+    if (completed) {
+      return <CheckCircle2 {...iconProps} className="text-green-500" />;
+    }
+
+    // Use smaller versions of category icons for steps
+    switch (category) {
+      case 'Health':
+        return <Heart {...iconProps} className="text-red-400" />;
+      case 'Productivity':
+        return <Briefcase {...iconProps} className="text-blue-400" />;
+      case 'Mindfulness':
+        return <Brain {...iconProps} className="text-purple-400" />;
+      case 'Fitness':
+        return <Dumbbell {...iconProps} className="text-orange-400" />;
+      case 'Diet':
+        return <Utensils {...iconProps} className="text-green-400" />;
+      default:
+        return <Circle {...iconProps} className="text-gray-400" />;
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-4 md:p-5 hover:shadow-lg transition-all duration-300 hover-lift animate-fade-in-up group">
@@ -33,15 +91,11 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
               aria-label={completed ? `Mark ${habit.name} as incomplete` : `Mark ${habit.name} as complete`}
             >
               {habit.type === 'single-step' ? (
-                completed ? (
-                  <CheckCircle2 className="text-green-500 animate-scale-in" size={26} strokeWidth={2.5} />
-                ) : (
-                  <Circle className="text-gray-400 group-hover:text-primary-500 transition-colors duration-300" size={26} strokeWidth={2.5} />
-                )
+                getCategoryIcon(habit.category, completed)
               ) : allStepsCompleted ? (
-                <CheckCircle2 className="text-green-500 animate-scale-in" size={26} strokeWidth={2.5} />
+                getCategoryIcon(habit.category, completed)
               ) : (
-                <Circle className="text-gray-400 group-hover:text-primary-500 transition-colors duration-300" size={26} strokeWidth={2.5} />
+                getCategoryIcon(habit.category, false)
               )}
             </button>
             <div className="flex-1 min-w-0">
@@ -68,11 +122,7 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                       className="hover:scale-110 transition-transform active:scale-95 flex-shrink-0 touch-manipulation"
                       aria-label={isStepCompleted ? `Mark step ${idx + 1} as incomplete` : `Mark step ${idx + 1} as complete`}
                     >
-                      {isStepCompleted ? (
-                        <CheckCircle2 className="text-green-500" size={20} strokeWidth={2.5} />
-                      ) : (
-                        <Circle className="text-gray-400" size={20} strokeWidth={2.5} />
-                      )}
+                      {getStepIcon(habit.category, isStepCompleted)}
                     </button>
                     <span className={`text-xs sm:text-sm md:text-base flex-1 leading-relaxed ${isStepCompleted ? 'line-through text-gray-500' : 'text-gray-800 font-medium'}`}>
                       {step.order + 1}. {step.name}
@@ -83,6 +133,23 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
               })}
             </div>
           )}
+        </div>
+        
+        {/* Small circle completion button on the right */}
+        <div className="flex-shrink-0 flex items-center">
+          <button
+            onClick={() => habit.type === 'single-step' ? onToggle(habit.id) : onToggle(habit.id)}
+            className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 touch-manipulation ${
+              completed || allStepsCompleted
+                ? 'bg-green-500 border-green-500 text-white shadow-lg animate-scale-in'
+                : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+            }`}
+            aria-label={completed || allStepsCompleted ? `Mark ${habit.name} as incomplete` : `Mark ${habit.name} as complete`}
+          >
+            {(completed || allStepsCompleted) && (
+              <CheckCircle2 size={18} className="text-white" />
+            )}
+          </button>
         </div>
       </div>
       

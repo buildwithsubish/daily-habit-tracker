@@ -2,28 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme Variables - These will be dynamically updated */
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Default theme colors */
+  --color-primary: #2563eb;
+  --color-secondary: #64748b;
+  --color-accent: #0ea5e9;
+  --color-background: #ffffff;
+  --color-surface: #f8fafc;
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+  
+  /* Font variables */
+  --font-heading: system-ui, -apple-system, sans-serif;
+  --font-body: system-ui, -apple-system, sans-serif;
+  
+  /* Animation variables */
+  --animation-duration: 0.3s;
+  --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+@tailwind base {
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    transition: background-color var(--animation-duration) var(--animation-easing),
+                color var(--animation-duration) var(--animation-easing);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+@tailwind components {
+  /* Theme-aware components */
+  .theme-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  
+  .theme-secondary {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .theme-surface {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+  }
+  
+  .theme-text {
+    color: var(--color-text);
+  }
+  
+  .theme-text-secondary {
+    color: var(--color-text-secondary);
+  }
+  
+  .theme-border {
+    border-color: var(--color-border);
+  }
+  
+  .theme-success {
+    background-color: var(--color-success);
+    color: white;
+  }
+  
+  .theme-warning {
+    background-color: var(--color-warning);
+    color: white;
+  }
+  
+  .theme-error {
+    background-color: var(--color-error);
+    color: white;
+  }
+  
+  .theme-info {
+    background-color: var(--color-info);
+    color: white;
+  }
 }
 
 @layer utilities {
@@ -262,4 +327,30 @@ body {
 .ripple:active::after {
   width: 300px;
   height: 300px;
+}
+
+/* Shake animation for errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Active scale effect */
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
+/* Mobile-first responsive text sizing */
+@media (max-width: 475px) {
+  .xs\:inline {
+    display: inline;
+  }
+  .xs\:hidden {
+    display: none;
+  }
 }

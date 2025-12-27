@@ -13,9 +13,10 @@ export async function POST(request: NextRequest) {
     
     let { email, password } = await request.json();
     
-    // Sanitize inputs
+    // Sanitize inputs - but preserve original password before sanitization for comparison
+    const originalPassword = password;
     email = sanitizeInput(email || '').toLowerCase();
-    password = sanitizeInput(password || '');
+    password = password || ''; // Don't sanitize password - use as-is
     
     if (!email || !password) {
       return NextResponse.json(
@@ -27,11 +28,14 @@ export async function POST(request: NextRequest) {
     const admin = await Admin.findOne({ email });
     
     if (!admin) {
+      console.error(`❌ Admin not found for email: ${email}`);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
+    
+    console.log(`✅ Admin found: ${email}, attempting password verification`);
 
     // Check if account is locked
     if (admin.lockUntil && admin.lockUntil > new Date()) {
@@ -45,6 +49,7 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyAdminPassword(password, admin.passwordHash);
     
     if (!isValid) {
+      console.error(`❌ Password verification failed for ${email}`);
       // Increment login attempts
       admin.loginAttempts += 1;
       

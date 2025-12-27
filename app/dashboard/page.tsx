@@ -7,6 +7,7 @@ import HabitCard from '@/components/HabitCard';
 import WeeklyCalendar from '@/components/WeeklyCalendar';
 import AchievementBadges from '@/components/AchievementBadges';
 import HabitStats from '@/components/HabitStats';
+import ThemeSelector from '@/components/ThemeSelector';
 import { getToday } from '@/lib/utils';
 import { Calendar, TrendingUp, Circle } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
@@ -81,21 +82,29 @@ export default function DashboardPage() {
 
   const getHabitCompletion = (habitId: string) => {
     const habit = habits.find(h => h.id === habitId);
-    if (habit?.type === 'single-step') {
+    if (!habit) return false;
+    
+    if (habit.type === 'single-step') {
       const log = logs.find(l => l.habitId === habitId && (l.stepIndex === null || l.stepIndex === undefined));
       return log?.completed || false;
+    } else {
+      // For multi-step habits, check if all steps are completed
+      const completedSteps = logs
+        .filter(l => l.habitId === habitId && l.completed && l.stepIndex !== null && l.stepIndex !== undefined)
+        .map(l => l.stepIndex as number);
+      return completedSteps.length === habit.steps.length;
     }
-    return false;
   };
 
   const getStepCompletions = (habitId: string) => {
     return logs
       .filter(l => l.habitId === habitId && l.completed && l.stepIndex !== null && l.stepIndex !== undefined)
-      .map(l => l.stepIndex as number);
+      .map(l => l.stepIndex as number)
+      .sort((a, b) => a - b); // Sort to ensure consistent order
   };
 
   const completionRate = habits.length > 0
-    ? (logs.filter(l => l.completed).length / habits.length) * 100
+    ? (habits.filter(h => getHabitCompletion(h.id)).length / habits.length) * 100
     : 0;
 
   // Get weekly completion data for calendar
@@ -107,8 +116,11 @@ export default function DashboardPage() {
     weekDays.forEach(day => {
       const dateStr = format(day, 'yyyy-MM-dd');
       if (dateStr === selectedDate) {
-        completionData[dateStr] = logs.filter(l => l.completed).length;
+        // For the selected date, calculate based on habit completion
+        completionData[dateStr] = habits.filter(h => getHabitCompletion(h.id)).length;
       } else {
+        // For other dates in the week, we would need to fetch logs for each date
+        // For now, set to 0 as we're only focused on the selected date
         completionData[dateStr] = 0;
       }
     });
@@ -125,9 +137,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 animate-fade-in-up">
+    <div className="animate-fade-in-up">
       {/* Header */}
-      <div className="mb-5 sm:mb-6 md:mb-8">
+      <div className="mb-5 sm:mb-6 md:mb-8 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1.5 sm:mb-2 animate-slide-in-right leading-tight">
@@ -162,7 +174,7 @@ export default function DashboardPage() {
 
       {/* Weekly Calendar */}
       {viewMode === 'weekly' && (
-        <div className="mb-4 sm:mb-6">
+        <div className="mb-4 sm:mb-6 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
           <WeeklyCalendar
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
@@ -172,7 +184,7 @@ export default function DashboardPage() {
       )}
 
       {/* Main Content - Checklist First Priority */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
         {/* Checklist - First Priority (Left, takes 2/3 width) */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-5">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 md:p-6 hover:shadow-md transition-all duration-300 animate-scale-in">
@@ -252,7 +264,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p className="text-xs sm:text-sm text-gray-600 text-center font-semibold">
-                {logs.filter(l => l.completed).length} of {habits.length} completed
+                {habits.filter(h => getHabitCompletion(h.id)).length} of {habits.length} completed
               </p>
             </div>
           </div>

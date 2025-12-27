@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Habit, Preset } from '@/types';
-import { Plus, Trash2, Edit, ChevronUp, ChevronDown, X } from 'lucide-react';
+import { Habit } from '@/types';
+import { Plus, Trash2, Edit, ChevronUp, ChevronDown, X, Layers } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -24,19 +24,26 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
+import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 
 export default function HabitsPage() {
   const router = useRouter();
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [presets, setPresets] = useState<Preset[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showPresetModal, setShowPresetModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [habitToDelete, setHabitToDelete] = useState<Habit | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false);
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [presets, setPresets] = useState<any[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [applyingPresetId, setApplyingPresetId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHabits();
-    fetchPresets();
   }, []);
 
   const fetchHabits = async () => {
@@ -56,25 +63,88 @@ export default function HabitsPage() {
   };
 
   const fetchPresets = async () => {
+    setPresetsLoading(true);
     try {
       const res = await fetch('/api/presets');
-      const data = await res.json();
-      setPresets(data.presets || []);
+      if (res.ok) {
+        const data = await res.json();
+        setPresets(data.presets || []);
+      }
     } catch (error) {
       console.error('Failed to fetch presets:', error);
+    } finally {
+      setPresetsLoading(false);
     }
   };
 
-  const handleDelete = async (habitId: string) => {
-    if (!confirm('Are you sure you want to delete this habit?')) return;
-
+  const handleApplyPreset = async (presetId: string) => {
+    setApplyingPresetId(presetId);
     try {
-      await fetch(`/api/habits/${habitId}`, { method: 'DELETE' });
+      // Find the preset to get its name
+      const preset = presets.find(p => p.id === presetId);
+      if (!preset) {
+        console.error('Preset not found');
+        return;
+      }
+
+      const res = await fetch('/api/presets/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ presetName: preset.name }),
+      });
+      
+      if (res.ok) {
+        setShowPresetModal(false);
+        fetchHabits(); // Refresh habits to show new ones from preset
+      } else {
+        const error = await res.json();
+        console.error('Failed to apply preset:', error);
+        alert(`Failed to apply preset: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to apply preset:', error);
+      alert('Failed to apply preset. Please try again.');
+    } finally {
+      setApplyingPresetId(null);
+    }
+  };
+
+
+
+  const handleDelete = useCallback((habit: Habit) => {
+    setHabitToDelete(habit);
+    setDeleteModalOpen(true);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!habitToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      await fetch(`/api/habits/${habitToDelete.id}`, { method: 'DELETE' });
       fetchHabits();
+      setDeleteModalOpen(false);
+      setHabitToDelete(null);
     } catch (error) {
       console.error('Failed to delete habit:', error);
+    } finally {
+      setDeleteLoading(false);
     }
-  };
+  }, [habitToDelete]);
+
+  const confirmDeleteAll = useCallback(async () => {
+    setDeleteAllLoading(true);
+    try {
+      await Promise.all(habits.map(h => fetch(`/api/habits/${h.id}`, { method: 'DELETE' })));
+      fetchHabits();
+      setDeleteAllModalOpen(false);
+    } catch (error) {
+      console.error('Failed to delete all habits:', error);
+    } finally {
+      setDeleteAllLoading(false);
+    }
+  }, [habits]);
 
   const handleEdit = (habit: Habit) => {
     setEditingHabit(habit);
@@ -113,22 +183,10 @@ export default function HabitsPage() {
     }
   };
 
-  const handleApplyPreset = async (presetId: string) => {
-    try {
-      await fetch('/api/presets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ presetId }),
-      });
-      setShowPresetModal(false);
-      fetchHabits();
-    } catch (error) {
-      console.error('Failed to apply preset:', error);
-    }
-  };
+
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-24 sm:pt-26 lg:pt-28">
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -137,12 +195,24 @@ export default function HabitsPage() {
         <>
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">My Habits</h1>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
+              {habits.length > 0 && (
+                <button
+                  onClick={() => setDeleteAllModalOpen(true)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2"
+                >
+                  <Trash2 size={20} />
+                  Delete All
+                </button>
+              )}
               <button
-                onClick={() => setShowPresetModal(true)}
-                className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center gap-2"
+                onClick={async () => {
+                  await fetchPresets();
+                  setShowPresetModal(true);
+                }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
               >
-                <Plus size={20} />
+                <Layers size={20} />
                 Use Preset
               </button>
               <button
@@ -157,21 +227,13 @@ export default function HabitsPage() {
 
           {habits.length === 0 ? (
             <div className="bg-white rounded-lg shadow-md p-12 text-center">
-              <p className="text-gray-500 mb-4">No habits yet. Create your first habit or use a preset!</p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowPresetModal(true)}
-                  className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
-                >
-                  Use Preset
-                </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
-                >
-                  Create Habit
-                </button>
-              </div>
+              <p className="text-gray-500 mb-4">No habits yet. Create your first habit!</p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
+              >
+                Create Habit
+              </button>
             </div>
           ) : (
             <DndContext
@@ -187,6 +249,7 @@ export default function HabitsPage() {
                       habit={habit}
                       onDelete={handleDelete}
                       onEdit={handleEdit}
+                      deleting={deleteLoading && habitToDelete?.id === habit.id}
                     />
                   ))}
                 </div>
@@ -215,12 +278,89 @@ export default function HabitsPage() {
             />
           )}
 
+
+
+          {/* Delete Confirmation Modal */}
+          <DeleteConfirmModal
+            isOpen={deleteModalOpen}
+            onClose={() => {
+              setDeleteModalOpen(false);
+              setHabitToDelete(null);
+            }}
+            onConfirm={confirmDelete}
+            itemName={habitToDelete?.name || ''}
+            loading={deleteLoading}
+          />
+
+          {/* Delete All Confirmation Modal */}
+          <DeleteConfirmModal
+            isOpen={deleteAllModalOpen}
+            onClose={() => setDeleteAllModalOpen(false)}
+            onConfirm={confirmDeleteAll}
+            itemName={`all ${habits.length} habits`}
+            loading={deleteAllLoading}
+          />
+
+          {/* Preset Selection Modal */}
           {showPresetModal && (
-            <PresetModal
-              presets={presets}
-              onClose={() => setShowPresetModal(false)}
-              onApply={handleApplyPreset}
-            />
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900">Choose a Preset</h2>
+                  <button
+                    onClick={() => setShowPresetModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {presetsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : presets.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No presets available</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {presets.map((preset) => (
+                      <div
+                        key={preset.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                      >
+                        <h3 className="font-semibold text-gray-900 mb-2">{preset.name}</h3>
+                        <p className="text-sm text-gray-600 mb-3">{preset.type}</p>
+                        <button
+                          onClick={() => handleApplyPreset(preset.id)}
+                          disabled={applyingPresetId === preset.id}
+                          className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {applyingPresetId === preset.id ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Applying...
+                            </>
+                          ) : (
+                            'Apply Preset'
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end pt-4">
+                  <button
+                    onClick={() => setShowPresetModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </>
       )}
@@ -234,6 +374,46 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
   const [type, setType] = useState<'single-step' | 'multi-step'>(habit?.type || 'single-step');
   const [steps, setSteps] = useState(habit?.steps || [{ order: 0, name: '' }]);
   const [loading, setLoading] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+
+  const fetchTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const res = await fetch('/api/presets-templates');
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data.presets || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch templates:', error);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  const applyTemplate = (template: any) => {
+    // Pre-populate the form with template data
+    setName(template.name || '');
+    setCategory(template.category || 'Health');
+    setType(template.type || 'single-step');
+    
+    if (template.habits && template.habits.length > 0) {
+      // If template has multiple habits, we'll just use the first one for this single habit creation
+      const firstHabit = template.habits[0];
+      setType(firstHabit.type || 'single-step');
+      if (firstHabit.steps && firstHabit.steps.length > 0) {
+        setSteps(firstHabit.steps.map((step: any, idx: number) => ({ order: idx, name: step.name || step })));
+      } else {
+        setSteps([{ order: 0, name: firstHabit.name || '' }]);
+      }
+    } else {
+      setSteps([{ order: 0, name: template.name || '' }]);
+    }
+    
+    setShowTemplates(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -394,6 +574,17 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
           <div className="flex gap-3 justify-end pt-4">
             <button
               type="button"
+              onClick={async () => {
+                await fetchTemplates();
+                setShowTemplates(true);
+              }}
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2"
+            >
+              <Layers size={16} />
+              Use Template
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
             >
@@ -404,48 +595,73 @@ function CreateHabitModal({ onClose, onSuccess, habit }: { onClose: () => void; 
               disabled={loading}
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Habit'}
+              {loading ? 'Creating...' : habit ? 'Update Habit' : 'Create Habit'}
             </button>
           </div>
+
+          {/* Template Selection Modal */}
+          {showTemplates && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-900">Choose a Template</h3>
+                  <button
+                    onClick={() => setShowTemplates(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {templatesLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-4">No templates available</p>
+                    <button
+                      onClick={() => {
+                        setShowTemplates(false);
+                        window.open('/presets-templates', '_blank');
+                      }}
+                      className="text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Visit Templates Page
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {templates.map((template) => (
+                      <div
+                        key={template._id}
+                        className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => applyTemplate(template)}
+                      >
+                        <h4 className="font-semibold text-gray-900 mb-1">{template.displayName}</h4>
+                        <p className="text-sm text-gray-600 mb-2">{template.description}</p>
+                        <div className="flex gap-2">
+                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                            {template.category || template.type}
+                          </span>
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                            {template.habits?.length || 0} habits
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </div>
   );
 }
 
-function PresetModal({ presets, onClose, onApply }: { presets: Preset[]; onClose: () => void; onApply: (id: string) => void }) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fade-in-up">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative animate-scale-in">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 text-gray-500 hover:text-gray-700 touch-manipulation"
-          aria-label="Close"
-        >
-          <X size={20} />
-        </button>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 pr-8">Choose a Preset</h2>
-        <div className="space-y-3">
-          {presets.map(preset => (
-            <div
-              key={preset.id}
-              className="border-2 border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:bg-primary-50 cursor-pointer transition-all duration-200 hover-lift"
-              onClick={() => onApply(preset.id)}
-            >
-              <h3 className="font-bold text-gray-900 text-base sm:text-lg">{preset.name}</h3>
-              <p className="text-sm text-gray-600 mt-1 font-medium">
-                {preset.structure.habits.length} habits included
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function SortableHabitCard({ habit, onDelete, onEdit }: { habit: Habit; onDelete: (id: string) => void; onEdit: (habit: Habit) => void }) {
+function SortableHabitCard({ habit, onDelete, onEdit, deleting }: { habit: Habit; onDelete: (habit: Habit) => void; onEdit: (habit: Habit) => void; deleting?: boolean }) {
   const {
     attributes,
     listeners,
@@ -473,24 +689,44 @@ function SortableHabitCard({ habit, onDelete, onEdit }: { habit: Habit; onDelete
           </div>
           <div className="flex space-x-2">
             <button
+              type="button"
+              onPointerDown={(e) => {
+                // Prevent drag-kit from starting a drag when interacting with this button
+                e.stopPropagation();
+              }}
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 onEdit(habit);
               }}
-              className="text-blue-500 hover:text-blue-700"
+              className="text-blue-500 hover:text-blue-700 active:scale-95 transition-all duration-200 touch-manipulation p-1.5 hover:bg-blue-50 rounded-lg"
               title="Edit"
+              style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
             >
               <Edit size={18} />
             </button>
             <button
-              onClick={(e) => {
+              type="button"
+              onPointerDown={(e) => {
                 e.stopPropagation();
-                onDelete(habit.id);
               }}
-              className="text-red-500 hover:text-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!deleting) {
+                  onDelete(habit);
+                }
+              }}
+              className={`text-red-500 hover:text-red-700 active:scale-95 transition-all duration-200 touch-manipulation p-1.5 hover:bg-red-50 rounded-lg ${deleting ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="Delete"
+              disabled={deleting}
+              style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
             >
-              <Trash2 size={18} />
+              {deleting ? (
+                <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Trash2 size={18} />
+              )}
             </button>
           </div>
         </div>
