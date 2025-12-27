@@ -141,10 +141,10 @@ export default function RegisterPage() {
                   style={{
                     borderColor: 'var(--color-border, #d1d5db)',
                     color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
+                    WebkitTapHighlightColor: 'transparent'
                   } as React.CSSProperties}
                   placeholder="Enter your email"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 />
                 <div 
                   className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
@@ -168,10 +168,10 @@ export default function RegisterPage() {
                   style={{
                     borderColor: 'var(--color-border, #d1d5db)',
                     color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
+                    WebkitTapHighlightColor: 'transparent'
                   } as React.CSSProperties}
                   placeholder="Enter your username"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 />
                 <div 
                   className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
@@ -197,10 +197,10 @@ export default function RegisterPage() {
                   style={{
                     borderColor: 'var(--color-border, #d1d5db)',
                     color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
+                    WebkitTapHighlightColor: 'transparent'
                   } as React.CSSProperties}
                   placeholder="Create a password (min 6 characters)"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 />
                 <div 
                   className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
@@ -226,10 +226,10 @@ export default function RegisterPage() {
                   style={{
                     borderColor: 'var(--color-border, #d1d5db)',
                     color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)'
+                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
+                    WebkitTapHighlightColor: 'transparent'
                   } as React.CSSProperties}
                   placeholder="Confirm your password"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 />
                 <div 
                   className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
