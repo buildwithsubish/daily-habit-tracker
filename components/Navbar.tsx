@@ -1,19 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { LogOut, Home, Menu, X, TrendingUp, Target } from 'lucide-react';
+import { useRouter, usePathname } from 'next/navigation';
+import { LogOut, LayoutDashboard, Target, BarChart3, Menu, X, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 4);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -21,141 +21,119 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
+      router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      router.push('/');
     }
   };
 
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/dashboard/habits', label: 'Habits', icon: Target },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: TrendingUp },
+    { href: '/dashboard', label: 'Summary', icon: LayoutDashboard },
+    { href: '/dashboard/habits', label: 'My Habits', icon: Target },
+    { href: '/dashboard/analytics', label: 'Progress', icon: BarChart3 },
   ];
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
       scrolled 
-        ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50' 
-        : 'bg-white border-b border-gray-200'
+        ? 'bg-white/80 backdrop-blur-xl border-b border-slate-200 py-3' 
+        : 'bg-white border-b border-slate-100 py-5'
     }`}>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 sm:h-18 lg:h-20">
-          {/* Logo/Brand */}
-          <div className="flex items-center min-w-0 flex-1">
-            <Link 
-              href="/dashboard" 
-              className="flex items-center text-primary-600 font-bold text-base sm:text-lg md:text-xl lg:text-2xl min-w-0 group transition-all duration-300 hover:scale-105"
-            >
-              <div className="relative">
-                <Home className="mr-2 sm:mr-2.5 lg:mr-3 flex-shrink-0 transition-all duration-300 group-hover:text-primary-700" size={20} />
-                <div className="absolute -inset-1 bg-primary-200 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-              </div>
-              <span className="hidden xs:inline truncate font-extrabold">Habit Tracker</span>
-              <span className="xs:hidden truncate font-extrabold">HT</span>
-            </Link>
-            
-            {/* Desktop Navigation */}
-            <div className="hidden lg:flex items-center space-x-2 xl:space-x-3 ml-6 lg:ml-10 xl:ml-16">
-              {navLinks.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="group flex items-center gap-2 text-gray-700 hover:text-primary-600 px-3 xl:px-4 py-2.5 rounded-xl text-sm xl:text-base font-semibold transition-all duration-300 hover:bg-primary-50 hover:shadow-md hover-lift relative overflow-hidden"
-                  >
-                    <Icon size={16} className="transition-transform duration-300 group-hover:scale-110" />
-                    {link.label}
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-500 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-                  </Link>
-                );
-              })}
+      <div className="max-w-7xl mx-auto px-6 lg:px-12">
+        <div className="flex justify-between items-center">
+          {/* Brand */}
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <div className="bg-blue-600 p-2 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/20">
+              <Shield className="text-white" size={20} />
             </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Desktop Logout */}
-            <button
-              onClick={handleLogout}
-              className="hidden sm:flex items-center gap-2 text-gray-700 hover:text-red-600 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 hover:bg-red-50 hover-lift group"
-            >
-              <LogOut size={16} className="transition-transform duration-300 group-hover:rotate-12" />
-              <span>Logout</span>
-            </button>
-
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden text-gray-700 hover:text-gray-900 p-2.5 touch-manipulation rounded-xl transition-all duration-300 hover:bg-gray-100 hover:scale-105 active:scale-95"
-              aria-label="Toggle menu"
-            >
-              <div className="relative w-6 h-6 flex items-center justify-center">
-                <Menu 
-                  size={22} 
-                  className={`absolute transition-all duration-300 ${
-                    mobileMenuOpen ? 'rotate-90 opacity-0' : 'rotate-0 opacity-100'
-                  }`} 
-                />
-                <X 
-                  size={22} 
-                  className={`absolute transition-all duration-300 ${
-                    mobileMenuOpen ? 'rotate-0 opacity-100' : 'rotate-90 opacity-0'
-                  }`} 
-                />
-              </div>
-            </button>
-          </div>
-        </div>
-        
-        {/* Mobile Navigation Menu */}
-        <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-hidden ${
-          mobileMenuOpen 
-            ? 'max-h-96 opacity-100 translate-y-0' 
-            : 'max-h-0 opacity-0 -translate-y-2'
-        }`}>
-          <div className="border-t border-gray-200 py-3 space-y-1 bg-white/95 backdrop-blur-sm">
-            {navLinks.map((link, index) => {
+            <span className="text-xl font-black tracking-tighter text-slate-900">HabitTracker</span>
+          </Link>
+          
+          {/* Desktop Nav */}
+          <div className="hidden lg:flex items-center gap-8">
+            {navLinks.map((link) => {
               const Icon = link.icon;
+              const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="group flex items-center gap-3 px-4 py-3 text-gray-700 hover:text-primary-600 hover:bg-primary-50 rounded-xl text-base font-semibold transition-all duration-300 mx-2 hover-lift"
-                  style={{
-                    animationDelay: `${index * 100}ms`
-                  }}
+                  className={`relative flex items-center gap-2 text-[11px] font-black tracking-[0.1em] transition-all duration-300 hover:text-blue-600 uppercase ${
+                    isActive ? 'text-blue-600' : 'text-slate-400'
+                  }`}
                 >
-                  <div className="relative">
-                    <Icon size={18} className="transition-transform duration-300 group-hover:scale-110" />
-                    <div className="absolute -inset-1 bg-primary-200 rounded opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
-                  </div>
+                  <Icon size={14} />
                   {link.label}
+                  {isActive && (
+                    <motion.div 
+                      layoutId="nav-underline"
+                      className="absolute -bottom-2 left-0 right-0 h-0.5 bg-blue-600"
+                    />
+                  )}
                 </Link>
               );
             })}
-            
-            {/* Mobile Logout */}
+          </div>
+
+          {/* User Actions */}
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                handleLogout();
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 mx-2 text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-xl text-base font-semibold transition-all duration-300 hover-lift group"
+              onClick={handleLogout}
+              className="hidden sm:flex items-center gap-2 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest transition-all duration-300 uppercase"
             >
-              <div className="relative">
-                <LogOut size={18} className="transition-transform duration-300 group-hover:rotate-12" />
-                <div className="absolute -inset-1 bg-red-200 rounded opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
-              </div>
-              Logout
+              <LogOut size={14} />
+              Sign Out
+            </button>
+
+            {/* Mobile Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden bg-slate-100 p-2.5 rounded-xl text-black hover:bg-slate-200 transition-all"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden bg-white border-t border-slate-100 overflow-hidden"
+          >
+            <div className="px-6 py-8 space-y-4">
+              {navLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-4 p-4 rounded-2xl text-xs font-black tracking-widest transition-all uppercase ${
+                      isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {link.label}
+                  </Link>
+                );
+              })}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl text-xs font-black tracking-widest bg-red-50 text-red-500 hover:bg-red-100 transition-all uppercase"
+              >
+                <LogOut size={18} />
+                Sign Out
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }
-

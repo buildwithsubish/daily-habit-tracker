@@ -46,6 +46,14 @@ const HabitSchema = new Schema({
     weekends: { type: Boolean, default: true },
     custom: { type: [Number] },
   },
+  streak: {
+    type: Number,
+    default: 0,
+  },
+  lastCompletedDate: {
+    type: String, // YYYY-MM-DD
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -55,4 +63,3 @@ const HabitSchema = new Schema({
 HabitSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.models.Habit || mongoose.model<Habit>('Habit', HabitSchema);
-

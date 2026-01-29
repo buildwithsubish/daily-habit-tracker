@@ -7,8 +7,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { TrendingUp, Flame, Calendar, Target, Zap, Award, Activity, BarChart3 } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subWeeks, subMonths, subYears } from 'date-fns';
+import { TrendingUp, Flame, Calendar, Target, Zap, Award, Activity, BarChart3, ChevronRight } from 'lucide-react';
+import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AnalyticsData {
   completionStats: Array<{ date: string; total: number; completed: number }>;
@@ -18,29 +19,17 @@ interface AnalyticsData {
 
 type Period = 'weekly' | 'monthly' | 'yearly';
 
-const COLORS = ['#0284c7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function AnalyticsPage() {
   const router = useRouter();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>('monthly');
-  const [animatedStats, setAnimatedStats] = useState({
-    totalCompleted: 0,
-    averageCompletion: 0,
-    totalStreak: 0,
-    bestHabit: '',
-  });
 
   useEffect(() => {
     fetchAnalytics();
   }, [period]);
-
-  useEffect(() => {
-    if (data) {
-      animateStats();
-    }
-  }, [data]);
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -59,53 +48,21 @@ export default function AnalyticsPage() {
     }
   };
 
-  const animateStats = () => {
-    if (!data) return;
-    
-    const totalCompleted = data.completionStats.reduce((sum, stat) => sum + stat.completed, 0);
-    const totalPossible = data.completionStats.reduce((sum, stat) => sum + stat.total, 0);
-    const averageCompletion = totalPossible > 0 ? (totalCompleted / totalPossible) * 100 : 0;
-    const streaks = Object.values(data.streaks);
-    const totalStreak = Math.max(...streaks.map(s => s.longest), 0);
-    const bestHabit = data.habitStats.reduce((best, habit) => {
-      const bestRate = best.completedLogs / (best.totalLogs || 1);
-      const currentRate = habit.completedLogs / (habit.totalLogs || 1);
-      return currentRate > bestRate ? habit : best;
-    }, data.habitStats[0] || { name: 'N/A' });
-
-    // Animate numbers
-    const duration = 1500;
-    const steps = 60;
-    const stepTime = duration / steps;
-
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      const progress = step / steps;
-      
-      setAnimatedStats({
-        totalCompleted: Math.floor(totalCompleted * progress),
-        averageCompletion: averageCompletion * progress,
-        totalStreak: Math.floor(totalStreak * progress),
-        bestHabit: bestHabit.name || 'N/A',
-      });
-
-      if (step >= steps) {
-        clearInterval(interval);
-        setAnimatedStats({
-          totalCompleted,
-          averageCompletion,
-          totalStreak,
-          bestHabit: bestHabit.name || 'N/A',
-        });
-      }
-    }, stepTime);
-  };
-
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <motion.div 
+          animate={{ rotate: 360, scale: [1, 1.2, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full shadow-xl shadow-blue-500/20"
+        />
+        <motion.p 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-slate-400 font-black tracking-[0.3em] text-xs uppercase"
+        >
+          Analyzing Protocol Performance
+        </motion.p>
       </div>
     );
   }
@@ -114,13 +71,9 @@ export default function AnalyticsPage() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    if (period === 'weekly') {
-      return format(date, 'EEE');
-    } else if (period === 'monthly') {
-      return format(date, 'MMM d');
-    } else {
-      return format(date, 'MMM');
-    }
+    if (period === 'weekly') return format(date, 'EEE');
+    if (period === 'monthly') return format(date, 'MMM d');
+    return format(date, 'MMM');
   };
 
   const completionChartData = data.completionStats.map(stat => ({
@@ -133,8 +86,7 @@ export default function AnalyticsPage() {
 
   const habitChartData = data.habitStats
     .map(stat => ({
-      name: stat.name.length > 12 ? stat.name.substring(0, 12) + '...' : stat.name,
-      fullName: stat.name,
+      name: stat.name,
       completionRate: stat.totalLogs > 0 ? (stat.completedLogs / stat.totalLogs) * 100 : 0,
       completed: stat.completedLogs,
       total: stat.totalLogs,
@@ -142,281 +94,227 @@ export default function AnalyticsPage() {
     }))
     .sort((a, b) => b.completionRate - a.completionRate);
 
-  const categoryData = data.habitStats.reduce((acc, habit) => {
-    const category = habit.category;
-    if (!acc[category]) {
-      acc[category] = { completed: 0, total: 0 };
-    }
-    acc[category].completed += habit.completedLogs;
-    acc[category].total += habit.totalLogs;
-    return acc;
-  }, {} as Record<string, { completed: number; total: number }>);
-
-  const pieChartData = Object.entries(categoryData).map(([name, stats]) => ({
-    name,
-    value: stats.total > 0 ? (stats.completed / stats.total) * 100 : 0,
-    completed: stats.completed,
-    total: stats.total,
-  }));
-
-  const totalHabits = data.habitStats.length;
   const totalCompleted = data.completionStats.reduce((sum, stat) => sum + stat.completed, 0);
   const totalPossible = data.completionStats.reduce((sum, stat) => sum + stat.total, 0);
   const overallCompletion = totalPossible > 0 ? (totalCompleted / totalPossible) * 100 : 0;
+  const longestStreak = Math.max(...Object.values(data.streaks).map(s => s.longest), 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 animate-fade-in-up">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12 mb-20 animate-fade-in">
       {/* Header */}
-      <div className="mb-5 sm:mb-6 md:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-1.5 sm:mb-2">
-              Analytics Dashboard
-            </h1>
-            <p className="text-sm sm:text-base text-gray-600">Track your progress and performance</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setPeriod('weekly')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-300 ${
-                period === 'weekly'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Weekly
-            </button>
-            <button
-              onClick={() => setPeriod('monthly')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-300 ${
-                period === 'monthly'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setPeriod('yearly')}
-              className={`px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-300 ${
-                period === 'yearly'
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Yearly
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 sm:p-5 text-white hover:shadow-xl transition-all duration-300 hover-lift animate-scale-in">
-          <div className="flex items-center justify-between mb-2">
-            <Target className="text-white opacity-90" size={24} />
-            <span className="text-2xl sm:text-3xl font-bold">{animatedStats.totalCompleted}</span>
-          </div>
-          <p className="text-sm sm:text-base font-semibold opacity-90">Total Completed</p>
-          <p className="text-xs opacity-75 mt-1">{period.charAt(0).toUpperCase() + period.slice(1)} Period</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-5 text-white hover:shadow-xl transition-all duration-300 hover-lift animate-scale-in animation-delay-200">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="text-white opacity-90" size={24} />
-            <span className="text-2xl sm:text-3xl font-bold">{animatedStats.averageCompletion.toFixed(1)}%</span>
-          </div>
-          <p className="text-sm sm:text-base font-semibold opacity-90">Avg Completion</p>
-          <p className="text-xs opacity-75 mt-1">Overall Performance</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-5 text-white hover:shadow-xl transition-all duration-300 hover-lift animate-scale-in animation-delay-400">
-          <div className="flex items-center justify-between mb-2">
-            <Flame className="text-white opacity-90" size={24} />
-            <span className="text-2xl sm:text-3xl font-bold">{animatedStats.totalStreak}</span>
-          </div>
-          <p className="text-sm sm:text-base font-semibold opacity-90">Longest Streak</p>
-          <p className="text-xs opacity-75 mt-1">Days in a row</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-5 text-white hover:shadow-xl transition-all duration-300 hover-lift animate-scale-in animation-delay-600">
-          <div className="flex items-center justify-between mb-2">
-            <Award className="text-white opacity-90" size={24} />
-            <span className="text-lg sm:text-xl font-bold truncate">{animatedStats.bestHabit}</span>
-          </div>
-          <p className="text-sm sm:text-base font-semibold opacity-90">Best Performer</p>
-          <p className="text-xs opacity-75 mt-1">Top habit</p>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 md:gap-6 mb-5 sm:mb-6">
-        {/* Completion Rate Over Time */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 md:p-6 hover:shadow-md transition-all duration-300 animate-scale-in">
-          <div className="flex items-center gap-2 mb-4 sm:mb-5">
-            <Activity className="text-primary-600" size={20} />
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Completion Rate Over Time</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={completionChartData}>
-              <defs>
-                <linearGradient id="colorCompletion" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0284c7" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-              />
-              <YAxis 
-                domain={[0, 100]} 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-              />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }}
-                formatter={(value: number) => [`${value.toFixed(1)}%`, 'Completion Rate']}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="completionRate" 
-                stroke="#0284c7" 
-                strokeWidth={3}
-                fill="url(#colorCompletion)"
-                animationDuration={1500}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Category Distribution */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 md:p-6 hover:shadow-md transition-all duration-300 animate-scale-in animation-delay-200">
-          <div className="flex items-center gap-2 mb-4 sm:mb-5">
-            <BarChart3 className="text-primary-600" size={20} />
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Category Performance</h2>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value.toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                animationDuration={1500}
-              >
-                {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  fontSize: '12px'
-                }}
-                formatter={(value: number) => `${value.toFixed(1)}%`}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Habit Performance */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 md:p-6 hover:shadow-md transition-all duration-300 animate-scale-in mb-5 sm:mb-6">
-        <div className="flex items-center gap-2 mb-4 sm:mb-5">
-          <Target className="text-primary-600" size={20} />
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Habit Performance</h2>
-        </div>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={habitChartData} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis type="number" domain={[0, 100]} stroke="#6b7280" style={{ fontSize: '12px' }} />
-            <YAxis 
-              dataKey="name" 
-              type="category" 
-              width={120}
-              stroke="#6b7280"
-              style={{ fontSize: '12px' }}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'white', 
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                fontSize: '12px'
-              }}
-              formatter={(value: number) => [`${value.toFixed(1)}%`, 'Completion Rate']}
-            />
-            <Bar 
-              dataKey="completionRate" 
-              fill="#0284c7"
-              radius={[0, 8, 8, 0]}
-              animationDuration={1500}
-            >
-              {habitChartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Streaks Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-        {Object.entries(data.streaks).map(([habitId, streak], index) => {
-          const habit = data.habitStats.find(h => h.id === habitId);
-          if (!habit) return null;
-          return (
-            <div 
-              key={habitId} 
-              className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 hover:shadow-md transition-all duration-300 hover-lift animate-scale-in"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <Flame className="text-orange-500" size={20} />
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{habit.name}</h3>
+      <section className="relative">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-12">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                <BarChart3 className="text-white" size={20} />
               </div>
-              <div className="space-y-2.5 sm:space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 font-semibold">Current Streak</span>
-                  <span className="text-lg sm:text-xl font-bold text-primary-600">{streak.current} days</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 font-semibold">Longest Streak</span>
-                  <span className="text-lg sm:text-xl font-bold text-gray-900">{streak.longest} days</span>
-                </div>
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs text-gray-600 font-medium">Completion Rate</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {habit.totalLogs > 0 ? ((habit.completedLogs / habit.totalLogs) * 100).toFixed(0) : 0}%
-                    </span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Performance Metrics</span>
+            </div>
+            <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tighter leading-none">
+              Analytics <span className="text-blue-600">Engine</span>
+            </h1>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex bg-slate-100 p-1.5 rounded-2xl shadow-inner border border-slate-200"
+          >
+            {['weekly', 'monthly', 'yearly'].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p as Period)}
+                className={`px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+                  period === p ? 'bg-white text-blue-600 shadow-lg' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </motion.div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: 'Success Rate', value: `${overallCompletion.toFixed(1)}%`, icon: TrendingUp, color: 'from-blue-600 to-blue-400', delay: 0 },
+            { label: 'Total Completions', value: totalCompleted, icon: Target, color: 'from-emerald-600 to-emerald-400', delay: 0.1 },
+            { label: 'Best Streak', value: longestStreak, icon: Flame, color: 'from-orange-600 to-orange-400', delay: 0.2 },
+            { label: 'Active Protocol', value: data.habitStats.length, icon: Zap, color: 'from-indigo-600 to-indigo-400', delay: 0.3 },
+          ].map((stat, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: stat.delay }}
+              whileHover={{ y: -5, scale: 1.02 }}
+              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all group"
+            >
+              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-white mb-6 shadow-lg shadow-black/5`}>
+                <stat.icon size={24} />
+              </div>
+              <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</div>
+              <div className="text-4xl font-black text-slate-900 tracking-tighter">{stat.value}</div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Main Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="lg:col-span-2 bg-slate-900 rounded-[3rem] p-8 sm:p-12 text-white overflow-hidden relative shadow-2xl border border-slate-800"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent blur-[2px]" />
+          
+          <div className="flex justify-between items-start mb-12 relative z-10">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight uppercase">Activity Flow</h2>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Real-time completion mapping</p>
+            </div>
+            <Activity className="text-blue-500 animate-pulse" size={24} />
+          </div>
+
+          <div className="h-[400px] w-full relative z-10">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={completionChartData}>
+                <defs>
+                  <linearGradient id="colorFlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#475569', fontSize: 10, fontWeight: 800 }}
+                  dy={10}
+                />
+                <YAxis hide domain={[0, 100]} />
+                <Tooltip 
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: '#3b82f6', strokeWidth: 1, strokeDasharray: '4 4' }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="completionRate" 
+                  stroke="#3b82f6" 
+                  strokeWidth={4} 
+                  fillOpacity={1} 
+                  fill="url(#colorFlow)"
+                  animationDuration={2500}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </motion.div>
+
+        <div className="space-y-8">
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm"
+          >
+            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase mb-8">Top Protocols</h3>
+            <div className="space-y-6">
+              {habitChartData.slice(0, 5).map((habit, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                    <span className="text-slate-400">{habit.name}</span>
+                    <span className="text-blue-600">{habit.completionRate.toFixed(0)}%</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-primary-500 to-primary-400 h-2 rounded-full transition-all duration-1000"
-                      style={{ width: `${habit.totalLogs > 0 ? (habit.completedLogs / habit.totalLogs) * 100 : 0}%` }}
+                  <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${habit.completionRate}%` }}
+                      transition={{ duration: 1, delay: i * 0.1 }}
+                      className="h-full bg-blue-600 rounded-full shadow-[0_0_10px_rgba(37,99,235,0.2)]"
                     />
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
-          );
-        })}
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-500/20"
+          >
+            <Award className="mb-6" size={32} />
+            <h3 className="text-xl font-black tracking-tight uppercase mb-2">Weekly Goal</h3>
+            <p className="text-blue-100 text-xs font-bold uppercase tracking-widest leading-relaxed">
+              You are currently at {overallCompletion.toFixed(1)}% efficiency. Aim for 80% to maintain peak performance.
+            </p>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Habit Breakdown */}
+      <section className="bg-white rounded-[3rem] p-8 sm:p-12 border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
+            <Zap className="text-white" size={20} />
+          </div>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Habit Breakdown</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Object.entries(data.streaks).map(([habitId, streak], index) => {
+            const habit = data.habitStats.find(h => h.id === habitId);
+            if (!habit) return null;
+            return (
+              <motion.div 
+                key={habitId}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="p-6 bg-slate-50 rounded-[2rem] border border-transparent hover:border-blue-500/10 transition-all group"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-widest">{habit.category}</span>
+                  <Flame size={18} className={streak.current > 0 ? 'text-orange-500' : 'text-slate-300'} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-6 truncate">{habit.name}</h3>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Streak</div>
+                    <div className="text-2xl font-black text-slate-900">{streak.current}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Success</div>
+                    <div className="text-xl font-black text-blue-600">
+                      {habit.totalLogs > 0 ? ((habit.completedLogs / habit.totalLogs) * 100).toFixed(0) : 0}%
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
+}
+
+function CustomTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{payload[0].payload.date}</p>
+        <p className="text-xl font-black text-white tracking-tighter">{payload[0].value.toFixed(1)}%</p>
+        <p className="text-[10px] font-bold text-blue-400 uppercase mt-2">
+          {payload[0].payload.completed} / {payload[0].payload.total} Habits
+        </p>
+      </div>
+    );
+  }
+  return null;
 }

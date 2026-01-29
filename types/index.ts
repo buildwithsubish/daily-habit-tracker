@@ -4,7 +4,6 @@ export interface User {
   username?: string;
   passwordHash: string;
   timeZone: string;
-  preferredTheme?: string; // User's preferred theme name or ID
   notificationPreferences: {
     email: boolean;
     push: boolean;
@@ -36,6 +35,8 @@ export interface Habit {
     weekends?: boolean;
     custom?: number[]; // 0-6, Sunday-Saturday
   };
+  streak: number;
+  lastCompletedDate?: string | null;
   createdAt: string;
 }
 

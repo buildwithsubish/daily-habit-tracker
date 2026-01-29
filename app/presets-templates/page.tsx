@@ -1,99 +1,42 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Palette, Copy, Check, AlertCircle, Zap, Download } from 'lucide-react';
+import { Zap, Download, Check, AlertCircle, Sparkles, Layout, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
-interface Theme {
-  _id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  category: string;
-  colors: Record<string, string>;
-}
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Preset {
   _id: string;
   name: string;
-  displayName: string;
-  description: string;
-  category: string;
+  description?: string;
   type: string;
-  habits?: any[];
+  structure?: {
+    habits: any[];
+  };
 }
 
 export default function PresetsTemplatesPage() {
   const router = useRouter();
-  const [themes, setThemes] = useState<Theme[]>([]);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'themes' | 'presets'>('themes');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    fetchPresetsAndTemplates();
+    fetchPresets();
   }, []);
 
-  const fetchPresetsAndTemplates = async () => {
+  const fetchPresets = async () => {
     try {
       const res = await fetch('/api/presets-templates');
       const data = await res.json();
-      setThemes(data.themes || []);
       setPresets(data.presets || []);
     } catch (error) {
       console.error('Failed to fetch presets:', error);
-      setMessage({ type: 'error', text: 'Failed to load presets and templates' });
+      setMessage({ type: 'error', text: 'Failed to load habit templates' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  const handleApplyTheme = async (themeName: string, themeId: string) => {
-    setApplyingId(themeId);
-    try {
-      const res = await fetch('/api/themes/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ themeName })
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setAppliedId(themeId);
-        setMessage({ type: 'success', text: `✅ ${data.message}` });
-        
-        // Update localStorage to notify other components
-        try {
-          localStorage.setItem('theme-update-timestamp', Date.now().toString());
-          localStorage.setItem('applied-theme', themeName);
-        } catch (e) {
-          // localStorage might be full
-        }
-
-        setTimeout(() => {
-          setAppliedId(null);
-          setMessage(null);
-        }, 3000);
-      } else {
-        setMessage({ type: 'error', text: `❌ ${data.error || 'Failed to apply theme'}` });
-      }
-    } catch (error) {
-      console.error('Error applying theme:', error);
-      setMessage({ type: 'error', text: '❌ An error occurred' });
-    } finally {
-      setApplyingId(null);
     }
   };
 
@@ -103,7 +46,6 @@ export default function PresetsTemplatesPage() {
       const res = await fetch('/api/presets/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify({ presetName })
       });
 
@@ -111,20 +53,19 @@ export default function PresetsTemplatesPage() {
 
       if (res.ok) {
         setAppliedId(presetId);
-        setMessage({ type: 'success', text: `✅ ${data.message}` });
+        setMessage({ type: 'success', text: data.message || 'Template applied successfully!' });
 
         setTimeout(() => {
           setAppliedId(null);
           setMessage(null);
-          // Redirect to habits page
-          router.push('/dashboard/habits');
+          router.push('/dashboard');
         }, 2000);
       } else {
-        setMessage({ type: 'error', text: `❌ ${data.error || 'Failed to apply preset'}` });
+        setMessage({ type: 'error', text: data.error || 'Failed to apply template' });
       }
     } catch (error) {
       console.error('Error applying preset:', error);
-      setMessage({ type: 'error', text: '❌ An error occurred' });
+      setMessage({ type: 'error', text: 'An unexpected error occurred' });
     } finally {
       setApplyingId(null);
     }
@@ -132,297 +73,141 @@ export default function PresetsTemplatesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"
+        />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Palette className="w-8 h-8" />
-            <h1 className="text-3xl sm:text-4xl font-bold">Presets & Templates</h1>
-          </div>
-          <p className="text-sm opacity-90">Explore our collection of pre-built themes and habit templates</p>
+    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+      {/* Header Section */}
+      <div className="bg-white border-b border-slate-200 pt-20 pb-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col md:flex-row md:items-end justify-between gap-6"
+          >
+            <div className="max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
+                <Sparkles size={14} />
+                Handpicked for You
+              </div>
+              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-4">Quick Start</h1>
+              <p className="text-slate-600 text-lg leading-relaxed">
+                Start your journey today with these simple, proven routines. Pick one that fits your life!
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-900">{presets.length} Routines</p>
+                <p className="text-xs text-slate-500">Ready to start</p>
+              </div>
+              <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
+                <Layout size={24} />
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-3 mb-8 border-b">
-          <button
-            onClick={() => setSelectedTab('themes')}
-            className={`px-6 py-3 font-semibold border-b-2 transition-colors ${
-              selectedTab === 'themes'
-                ? 'border-red-600 text-red-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Palette className="inline mr-2" size={18} />
-            Themes ({themes.length})
-          </button>
-          <button
-            onClick={() => setSelectedTab('presets')}
-            className={`px-6 py-3 font-semibold border-b-2 transition-colors ${
-              selectedTab === 'presets'
-                ? 'border-red-600 text-red-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Zap className="inline mr-2" size={18} />
-            Templates ({presets.length})
-          </button>
-        </div>
-
-        {/* Themes Section */}
-        {selectedTab === 'themes' && (
-          <div>
-            {/* Message Alert */}
-            {message && (
-              <div className={`mb-6 p-4 rounded-lg border ${
-                message.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {message.type === 'success' ? (
-                    <Check size={20} />
-                  ) : (
-                    <AlertCircle size={20} />
-                  )}
-                  {message.text}
-                </div>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+        {/* Global Notifications */}
+        <AnimatePresence>
+          {message && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              className={`overflow-hidden rounded-2xl border ${
+                message.type === 'success' 
+                  ? 'bg-green-50 border-green-200 text-green-700' 
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
+              <div className="p-4 flex items-center gap-3 font-semibold">
+                {message.type === 'success' ? <Check size={20} className="text-green-500" /> : <AlertCircle size={20} className="text-red-500" />}
+                {message.text}
               </div>
-            )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-            {themes.length === 0 ? (
-              <div className="flex items-center justify-center p-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                <AlertCircle className="mr-3 text-gray-400" />
-                <p className="text-gray-600">No preset themes available</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {themes.map((theme) => (
-                  <div
-                    key={theme._id}
-                    className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow overflow-hidden border border-gray-200"
-                  >
-                    {/* Theme Preview */}
-                    <div
-                      className="h-32 p-4 flex items-center justify-center"
-                      style={{ backgroundColor: theme.colors.background, color: theme.colors.text }}
-                    >
-                      <div className="text-center">
-                        <h3 className="font-bold text-lg mb-2">{theme.displayName}</h3>
-                        <div className="flex gap-2 justify-center">
-                          {Object.entries(theme.colors)
-                            .slice(0, 5)
-                            .map(([key, value]) => (
-                              <div
-                                key={key}
-                                className="w-5 h-5 rounded-full border-2 border-gray-300"
-                                style={{ backgroundColor: value }}
-                                title={key}
-                              />
-                            ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Theme Info */}
-                    <div className="p-4">
-                      <p className="text-sm text-gray-600 mb-3">{theme.description}</p>
-
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                          {theme.category}
-                        </span>
-                        <span className="text-xs font-semibold px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                          Default
-                        </span>
-                      </div>
-
-                      {/* Color Grid */}
-                      <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                        <p className="text-xs font-semibold text-gray-700 mb-2">Colors:</p>
-                        <div className="grid grid-cols-6 gap-1">
-                          {Object.entries(theme.colors).map(([key, value]) => (
-                            <div
-                              key={key}
-                              className="relative group"
-                              title={`${key}: ${value}`}
-                            >
-                              <div
-                                className="w-full aspect-square rounded border border-gray-300 cursor-pointer"
-                                style={{ backgroundColor: value }}
-                              />
-                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                                {key}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => handleApplyTheme(theme.name, theme._id)}
-                          disabled={applyingId === theme._id}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {appliedId === theme._id ? (
-                            <>
-                              <Check size={16} />
-                              Applied!
-                            </>
-                          ) : applyingId === theme._id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Applying...
-                            </>
-                          ) : (
-                            <>
-                              <Download size={16} />
-                              Apply Theme
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(JSON.stringify(theme.colors, null, 2), theme._id)}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm"
-                        >
-                          {copiedId === theme._id ? (
-                            <>
-                              <Check size={16} />
-                              Copied!
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={16} />
-                              Copy Colors
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
+        {presets.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-slate-200">
+            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
+              <AlertCircle size={40} />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">No templates found</h3>
+            <p className="text-slate-500">Check back later for new habit collections.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {presets.map((preset, index) => (
+              <motion.div
+                key={preset._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="group bg-white rounded-[2rem] p-8 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 border border-slate-100 flex flex-col"
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
+                    <Zap size={28} />
                   </div>
-                ))}
-              </div>
-            )}
+                  <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                    {preset.type}
+                  </span>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
+                  {preset.name}
+                </h3>
+                
+                <p className="text-slate-500 text-sm mb-8 flex-grow leading-relaxed">
+                  {preset.description || `Optimized ${preset.name.toLowerCase()} designed for maximum performance and consistency.`}
+                </p>
+
+                <div className="space-y-6 pt-6 border-t border-slate-50">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400 font-medium">Included Habits</span>
+                    <span className="font-bold text-slate-900 bg-slate-50 px-3 py-1 rounded-lg">
+                      {preset.structure?.habits?.length || 0}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handleApplyPreset(preset.name, preset._id)}
+                    disabled={applyingId === preset._id || appliedId === preset._id}
+                    className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] ${
+                      appliedId === preset._id
+                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
+                        : applyingId === preset._id
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'bg-slate-900 text-white hover:bg-blue-600 shadow-lg shadow-slate-900/10 hover:shadow-blue-500/20'
+                    }`}
+                  >
+                    {appliedId === preset._id ? (
+                      <><Check size={18} /> Ready to go!</>
+                    ) : applyingId === preset._id ? (
+                      <><div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" /> Setting things up...</>
+                    ) : (
+                      <>
+                        Add to my habits
+                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
-
-        {/* Presets Section */}
-        {selectedTab === 'presets' && (
-          <div>
-            {/* Message Alert */}
-            {message && (
-              <div className={`mb-6 p-4 rounded-lg border ${
-                message.type === 'success'
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {message.type === 'success' ? (
-                    <Check size={20} />
-                  ) : (
-                    <AlertCircle size={20} />
-                  )}
-                  {message.text}
-                </div>
-              </div>
-            )}
-
-            {presets.length === 0 ? (
-              <div className="flex items-center justify-center p-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                <AlertCircle className="mr-3 text-gray-400" />
-                <p className="text-gray-600">No preset templates available</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {presets.map((preset) => (
-                  <div
-                    key={preset._id}
-                    className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden"
-                  >
-                    <div className="p-6">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{preset.displayName}</h3>
-                      <p className="text-sm text-gray-600 mb-4">{preset.description}</p>
-
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                          {preset.category || preset.type}
-                        </span>
-                        <span className="text-xs font-semibold px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                          {preset.habits?.length || 0} Habits
-                        </span>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => handleApplyPreset(preset.name, preset._id)}
-                          disabled={applyingId === preset._id}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {appliedId === preset._id ? (
-                            <>
-                              <Check size={16} />
-                              Applied!
-                            </>
-                          ) : applyingId === preset._id ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Applying...
-                            </>
-                          ) : (
-                            <>
-                              <Download size={16} />
-                              Apply Template
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => copyToClipboard(preset.name, preset._id)}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-semibold text-sm"
-                        >
-                          {copiedId === preset._id ? (
-                            <>
-                              <Check size={16} />
-                              Copied!
-                            </>
-                          ) : (
-                            <>
-                              <Copy size={16} />
-                              Copy Name
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Info Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-8">
-        <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-6">
-          <h3 className="font-bold text-blue-900 mb-2">About Presets & Templates</h3>
-          <p className="text-blue-800 text-sm">
-            These are pre-built themes and habit templates that you can use to quickly customize your experience. 
-            Themes control the visual appearance with color schemes, while templates provide starter habit collections 
-            for different goals and lifestyles.
-          </p>
-        </div>
       </div>
     </div>
   );

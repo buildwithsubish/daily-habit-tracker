@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Sparkles, Dumbbell, Apple } from 'lucide-react';
+import { Sparkles, Dumbbell, Apple, Shield } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface AICoachData {
   healthTip: {
@@ -28,10 +29,20 @@ export default function AICoach() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      <div className="bg-slate-900 rounded-3xl p-8 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer" />
+        <div className="space-y-6 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/10 rounded-xl animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-2 bg-white/20 rounded-full w-24" />
+              <div className="h-4 bg-white/30 rounded-full w-32" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="h-3 bg-white/20 rounded-full w-full" />
+            <div className="h-3 bg-white/20 rounded-full w-5/6" />
+          </div>
         </div>
       </div>
     );
@@ -40,31 +51,59 @@ export default function AICoach() {
   if (!data) return null;
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl shadow-sm p-4 sm:p-6 text-white">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <Sparkles size={20} className="sm:w-6 sm:h-6" />
-          <h3 className="text-base sm:text-xl font-semibold">AI Health Tip</h3>
+    <div className="space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-slate-900 rounded-3xl p-8 text-white shadow-2xl shadow-blue-500/10 border border-white/5 relative overflow-hidden"
+      >
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50 blur-[2px] animate-scan" />
+        
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-blue-600/20 p-2 rounded-xl border border-blue-500/20">
+            <Sparkles size={20} className="text-blue-400" />
+          </div>
+          <div>
+            <span className="text-[10px] font-black tracking-[0.2em] text-blue-400/60 uppercase">Always here for you</span>
+            <h3 className="text-xl font-bold tracking-tight">Your AI Companion</h3>
+          </div>
         </div>
-        <p className="text-primary-50 text-sm sm:text-base">{data.healthTip.message}</p>
-      </div>
+        <div className="relative">
+          <p className="text-slate-300 font-medium leading-relaxed">"{data.healthTip.message}"</p>
+        </div>
+      </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 border-l-4 border-blue-500">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <Dumbbell className="text-blue-500" size={18} />
-          <h3 className="text-sm sm:text-lg font-semibold text-gray-900">Workout Suggestion</h3>
-        </div>
-        <p className="text-gray-700 text-xs sm:text-sm">{data.workoutSuggestion}</p>
-      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <motion.div 
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white border-2 border-slate-50 rounded-2xl p-6 hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 transition-all group relative overflow-hidden"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-blue-50 p-2 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <Dumbbell size={18} />
+            </div>
+            <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase">Movement</h3>
+          </div>
+          <p className="text-slate-700 font-bold text-sm leading-relaxed">{data.workoutSuggestion}</p>
+        </motion.div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 border-l-4 border-green-500">
-        <div className="flex items-center gap-2 mb-2 sm:mb-3">
-          <Apple className="text-green-500" size={18} />
-          <h3 className="text-sm sm:text-lg font-semibold text-gray-900">Diet Suggestion</h3>
-        </div>
-        <p className="text-gray-700 text-xs sm:text-sm">{data.dietSuggestion}</p>
+        <motion.div 
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white border-2 border-slate-50 rounded-2xl p-6 hover:border-green-500/30 hover:shadow-xl hover:shadow-green-500/5 transition-all group relative overflow-hidden"
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="bg-green-50 p-2 rounded-lg group-hover:bg-green-600 group-hover:text-white transition-colors">
+              <Apple size={18} />
+            </div>
+            <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase">Fuel</h3>
+          </div>
+          <p className="text-slate-700 font-bold text-sm leading-relaxed">{data.dietSuggestion}</p>
+        </motion.div>
       </div>
     </div>
   );
 }
-

@@ -3,109 +3,122 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, isToday } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface WeeklyCalendarProps {
   selectedDate: string;
   onDateSelect: (date: string) => void;
-  completionData: Record<string, number>; // date -> completion count
+  completionData: Record<string, { completed: number; total: number }>;
 }
 
 export default function WeeklyCalendar({ selectedDate, onDateSelect, completionData }: WeeklyCalendarProps) {
   const [currentWeek, setCurrentWeek] = useState(new Date(selectedDate));
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
+  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const goToPreviousWeek = () => {
-    setCurrentWeek(subWeeks(currentWeek, 1));
+    const newWeek = subWeeks(currentWeek, 1);
+    setCurrentWeek(newWeek);
   };
-
   const goToNextWeek = () => {
-    setCurrentWeek(addWeeks(currentWeek, 1));
+    const newWeek = addWeeks(currentWeek, 1);
+    setCurrentWeek(newWeek);
   };
-
   const goToToday = () => {
-    setCurrentWeek(new Date());
+    const today = new Date();
+    setCurrentWeek(today);
+    onDateSelect(format(today, 'yyyy-MM-dd'));
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-4 md:p-6 animate-scale-in">
-      <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <CalendarIcon className="text-primary-500 flex-shrink-0" size={18} />
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">Weekly View</h3>
+    <div className="bg-white rounded-[2.5rem] border-2 border-slate-50 p-6 sm:p-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-black rounded-2xl flex items-center justify-center shadow-lg shadow-black/10">
+            <CalendarIcon className="text-white" size={24} />
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-black uppercase tracking-tight leading-none mb-1">Weekly Protocol</h3>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronization Cycle</p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-          <button
+        
+        <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={goToPreviousWeek}
-            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-            aria-label="Previous week"
+            className="p-2.5 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-500 hover:text-black"
           >
-            <ChevronLeft size={16} className="text-gray-700" />
-          </button>
-          <button
+            <ChevronLeft size={20} />
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={goToToday}
-            className="px-2.5 sm:px-3 py-1 text-xs sm:text-sm text-primary-600 hover:bg-primary-50 rounded-lg font-semibold transition-colors"
+            className="px-6 py-2.5 hover:bg-white hover:shadow-sm rounded-xl text-[10px] font-black text-slate-900 uppercase tracking-widest transition-all"
           >
-            Today
-          </button>
-          <button
+            Current
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
             onClick={goToNextWeek}
-            className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-            aria-label="Next week"
+            className="p-2.5 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-500 hover:text-black"
           >
-            <ChevronRight size={16} className="text-gray-700" />
-          </button>
+            <ChevronRight size={20} />
+          </motion.button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-7 gap-2 sm:gap-4">
         {weekDays.map((day, index) => {
           const dateStr = format(day, 'yyyy-MM-dd');
           const isSelected = dateStr === selectedDate;
           const isTodayDate = isToday(day);
-          const completionCount = completionData[dateStr] || 0;
-          const dayName = format(day, 'EEE');
-          const dayNumber = format(day, 'd');
-
+          const { completed = 0, total = 0 } = completionData[dateStr] || {};
+          const isFullyCompleted = total > 0 && completed === total;
+          
           return (
-            <button
+            <motion.button
               key={index}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => onDateSelect(dateStr)}
-              className={`
-                p-2 sm:p-2.5 md:p-3 rounded-lg border-2 transition-all duration-300 hover:scale-105 touch-manipulation
-                ${isSelected 
-                  ? 'border-primary-500 bg-primary-50 shadow-md' 
-                  : 'border-gray-200 hover:border-primary-300'
-                }
-                ${isTodayDate && !isSelected ? 'bg-blue-50 border-blue-300' : ''}
-              `}
+              className={`group relative p-4 sm:p-6 rounded-[2rem] transition-all duration-700 flex flex-col items-center gap-2 ${
+                isSelected 
+                  ? 'bg-black text-white shadow-2xl shadow-black/20 z-10' 
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-400'
+              }`}
             >
-              <div className="text-xs text-gray-600 mb-1 font-semibold">{dayName}</div>
-              <div className={`
-                text-base sm:text-lg font-bold mb-1.5 sm:mb-2
-                ${isSelected ? 'text-primary-600' : isTodayDate ? 'text-blue-600' : 'text-gray-900'}
-              `}>
-                {dayNumber}
-              </div>
-              {completionCount > 0 && (
-                <div className="flex items-center justify-center">
-                  <div className={`
-                    w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold
-                    ${isSelected 
-                      ? 'bg-primary-500 text-white' 
-                      : 'bg-green-100 text-green-700'
-                    }
-                  `}>
-                    {completionCount}
-                  </div>
-                </div>
+              <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                isSelected ? 'text-slate-400' : 'text-slate-400 group-hover:text-slate-600'
+              }`}>
+                {format(day, 'EEE')}
+              </span>
+              <span className="text-xl sm:text-2xl font-black tracking-tighter">
+                {format(day, 'd')}
+              </span>
+              
+              <AnimatePresence>
+                {total > 0 && (
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                      isFullyCompleted 
+                        ? (isSelected ? 'bg-white w-6' : 'bg-black w-3') 
+                        : (isSelected ? 'bg-white/40 w-2' : 'bg-slate-300 w-1.5')
+                    }`} 
+                  />
+                )}
+              </AnimatePresence>
+              
+              {isTodayDate && !isSelected && (
+                <div className="absolute top-3 right-3 w-2 h-2 bg-black rounded-full animate-pulse" />
               )}
-            </button>
+            </motion.button>
           );
         })}
       </div>
     </div>
   );
 }
-

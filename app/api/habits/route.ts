@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
       steps: h.steps,
       targetPerDay: h.targetPerDay,
       schedule: h.schedule,
+      streak: (h as any).streak || 0,
+      lastCompletedDate: (h as any).lastCompletedDate,
       createdAt: h.createdAt.toISOString(),
     }));
     
@@ -92,6 +94,8 @@ export async function POST(request: NextRequest) {
         steps: habit.steps,
         targetPerDay: habit.targetPerDay,
         schedule: habit.schedule,
+        streak: habit.streak || 0,
+        lastCompletedDate: habit.lastCompletedDate,
         createdAt: habit.createdAt.toISOString(),
       }
     }, { status: 201 });

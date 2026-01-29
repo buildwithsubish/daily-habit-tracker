@@ -1,174 +1,152 @@
 'use client';
 
 import { Habit } from '@/types';
-import { CheckCircle2, Circle, Heart, Brain, Dumbbell, Utensils, Briefcase, Activity, Zap, Target, Clock } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame } from 'lucide-react';
 import { useState } from 'react';
-import { getToday } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface HabitCardProps {
   habit: Habit;
   completed: boolean;
-  stepCompleted?: number[]; // For multi-step habits
+  stepCompleted?: number[];
   onToggle: (habitId: string, stepIndex?: number) => void;
 }
 
 export default function HabitCard({ habit, completed, stepCompleted = [], onToggle }: HabitCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const handleStepToggle = (stepIndex: number) => {
-    // Prevent event bubbling and ensure proper toggle behavior
-    onToggle(habit.id, stepIndex);
-  };
-
   const allStepsCompleted = habit.type === 'multi-step' && 
     habit.steps.every((_, idx) => stepCompleted.includes(idx));
 
-  // Category-specific icon mapping
-  const getCategoryIcon = (category: string, completed: boolean, size: number = 26) => {
-    const iconProps = {
-      size,
-      strokeWidth: 2.5,
-      className: completed ? 'text-green-500 animate-scale-in' : 'text-gray-400 group-hover:text-primary-500 transition-colors duration-300'
-    };
+  const isFullyDone = completed || allStepsCompleted;
 
-    switch (category) {
-      case 'Health':
-        return <Heart {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-red-400 group-hover:text-red-500 transition-colors duration-300'} />;
-      case 'Productivity':
-        return <Briefcase {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-blue-400 group-hover:text-blue-500 transition-colors duration-300'} />;
-      case 'Mindfulness':
-        return <Brain {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-purple-400 group-hover:text-purple-500 transition-colors duration-300'} />;
-      case 'Fitness':
-        return <Dumbbell {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-orange-400 group-hover:text-orange-500 transition-colors duration-300'} />;
-      case 'Diet':
-        return <Utensils {...iconProps} className={completed ? 'text-green-500 animate-scale-in' : 'text-green-400 group-hover:text-green-500 transition-colors duration-300'} />;
-      default:
-        return completed ? (
-          <CheckCircle2 {...iconProps} className="text-green-500 animate-scale-in" />
-        ) : (
-          <Circle {...iconProps} className="text-gray-400 group-hover:text-primary-500 transition-colors duration-300" />
-        );
-    }
-  };
-
-  // For step completion icons
-  const getStepIcon = (category: string, completed: boolean, size: number = 20) => {
-    const iconProps = {
-      size,
-      strokeWidth: 2.5,
-      className: completed ? 'text-green-500' : 'text-gray-400'
-    };
-
-    if (completed) {
-      return <CheckCircle2 {...iconProps} className="text-green-500" />;
-    }
-
-    // Use smaller versions of category icons for steps
-    switch (category) {
-      case 'Health':
-        return <Heart {...iconProps} className="text-red-400" />;
-      case 'Productivity':
-        return <Briefcase {...iconProps} className="text-blue-400" />;
-      case 'Mindfulness':
-        return <Brain {...iconProps} className="text-purple-400" />;
-      case 'Fitness':
-        return <Dumbbell {...iconProps} className="text-orange-400" />;
-      case 'Diet':
-        return <Utensils {...iconProps} className="text-green-400" />;
-      default:
-        return <Circle {...iconProps} className="text-gray-400" />;
+  const getIcon = () => {
+    const props = { size: 20, className: isFullyDone ? 'text-white' : 'text-slate-400 group-hover:text-slate-900 transition-colors' };
+    switch (habit.category) {
+      case 'Health': return <Heart {...props} />;
+      case 'Productivity': return <Briefcase {...props} />;
+      case 'Mindfulness': return <Brain {...props} />;
+      case 'Fitness': return <Dumbbell {...props} />;
+      case 'Diet': return <Utensils {...props} />;
+      default: return <Target {...props} />;
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-4 md:p-5 hover:shadow-lg transition-all duration-300 hover-lift animate-fade-in-up group">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 sm:gap-3 md:gap-4">
-            <button
-              onClick={() => habit.type === 'single-step' ? onToggle(habit.id) : setExpanded(!expanded)}
-              className="flex-shrink-0 hover:scale-110 transition-all duration-300 active:scale-95 ripple relative touch-manipulation"
-              aria-label={completed ? `Mark ${habit.name} as incomplete` : `Mark ${habit.name} as complete`}
-            >
-              {habit.type === 'single-step' ? (
-                getCategoryIcon(habit.category, completed)
-              ) : allStepsCompleted ? (
-                getCategoryIcon(habit.category, completed)
-              ) : (
-                getCategoryIcon(habit.category, false)
-              )}
-            </button>
-            <div className="flex-1 min-w-0">
-              <h3 className={`text-sm sm:text-base md:text-lg font-bold break-words transition-all duration-300 ${completed || allStepsCompleted ? 'text-gray-500 line-through' : 'text-gray-900 group-hover:text-primary-600'}`}>
-                {habit.name}
-              </h3>
-              <span className="text-xs text-gray-600 bg-gray-50 px-2 py-0.5 rounded-md mt-1.5 inline-block border border-gray-200 font-medium">
-                {habit.category}
-              </span>
-            </div>
-          </div>
+    <motion.div 
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`group relative bg-white rounded-[2rem] p-5 border-2 transition-all duration-500 ${
+        isFullyDone 
+          ? 'border-blue-50 bg-blue-50/20' 
+          : 'border-slate-50 hover:border-blue-500/10 shadow-sm hover:shadow-2xl hover:shadow-blue-500/5'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4 flex-1">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => habit.type === 'single-step' ? onToggle(habit.id) : setExpanded(!expanded)}
+            className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all duration-700 ${
+              isFullyDone ? 'bg-blue-600 shadow-lg shadow-blue-500/20 rotate-[10deg]' : 'bg-slate-50 group-hover:bg-blue-50'
+            }`}
+          >
+            {getIcon()}
+          </motion.button>
           
-          {habit.type === 'multi-step' && expanded && (
-            <div className="mt-3 sm:mt-4 space-y-2 pl-9 sm:pl-11 md:pl-14 border-t border-gray-100 pt-3 sm:pt-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{habit.category}</span>
+              {habit.type === 'multi-step' && (
+                <span className="text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-widest">
+                  {stepCompleted.length}/{habit.steps.length} Done
+                </span>
+              )}
+              {habit.streak > 0 && (
+                <div className="flex items-center gap-0.5 bg-orange-50 px-2 py-0.5 rounded-full">
+                  <Flame size={10} className="text-orange-500 fill-orange-500" />
+                  <span className="text-[9px] font-black text-orange-600 uppercase">{habit.streak} day streak!</span>
+                </div>
+              )}
+            </div>
+            <h3 className={`text-lg font-black tracking-tight transition-all duration-500 ${
+              isFullyDone ? 'text-slate-300 line-through' : 'text-slate-900'
+            }`}>
+              {habit.name}
+            </h3>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {habit.type === 'multi-step' && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setExpanded(!expanded)}
+              className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+            >
+              {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onToggle(habit.id)}
+            className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all duration-700 ${
+              isFullyDone 
+                ? 'bg-blue-600 border-blue-600 text-white rotate-6 shadow-xl shadow-blue-500/20' 
+                : 'border-slate-100 hover:border-blue-500/10 bg-slate-50'
+            }`}
+          >
+            {isFullyDone ? (
+              <CheckCircle2 size={24} />
+            ) : (
+              <div className="w-2.5 h-2.5 rounded-full bg-slate-200 group-hover:bg-blue-600 transition-all duration-500" />
+            )}
+          </motion.button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {habit.type === 'multi-step' && expanded && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-6 pt-6 border-t border-slate-100 space-y-2">
               {habit.steps.map((step, idx) => {
-                const isStepCompleted = stepCompleted.includes(idx);
+                const isStepDone = stepCompleted.includes(idx);
                 return (
-                  <div
+                  <motion.button
                     key={idx}
-                    className="flex items-center gap-2 sm:gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    whileHover={{ x: 4 }}
+                    onClick={() => onToggle(habit.id, idx)}
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-blue-50/50 transition-all text-left group/step"
                   >
-                    <button 
-                      onClick={() => handleStepToggle(idx)} 
-                      className="hover:scale-110 transition-transform active:scale-95 flex-shrink-0 touch-manipulation"
-                      aria-label={isStepCompleted ? `Mark step ${idx + 1} as incomplete` : `Mark step ${idx + 1} as complete`}
-                    >
-                      {getStepIcon(habit.category, isStepCompleted)}
-                    </button>
-                    <span className={`text-xs sm:text-sm md:text-base flex-1 leading-relaxed ${isStepCompleted ? 'line-through text-gray-500' : 'text-gray-800 font-medium'}`}>
-                      {step.order + 1}. {step.name}
-                      {step.duration && <span className="text-gray-500 ml-1 sm:ml-2 text-xs">({step.duration} min)</span>}
-                    </span>
-                  </div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all duration-500 ${
+                      isStepDone ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/10' : 'border-slate-100 bg-white group-hover/step:border-blue-500/20'
+                    }`}>
+                      {isStepDone ? <CheckCircle2 size={16} /> : <span className="text-xs font-black text-slate-400">{idx + 1}</span>}
+                    </div>
+                    <div className="flex-1">
+                      <span className={`text-sm font-black tracking-tight ${isStepDone ? 'text-slate-300 line-through' : 'text-slate-700'}`}>
+                        {step.name}
+                      </span>
+                      {step.duration && (
+                        <span className="ml-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{step.duration} min</span>
+                      )}
+                    </div>
+                  </motion.button>
                 );
               })}
             </div>
-          )}
-        </div>
-        
-        {/* Small circle completion button on the right */}
-        <div className="flex-shrink-0 flex items-center">
-          <button
-            onClick={() => habit.type === 'single-step' ? onToggle(habit.id) : onToggle(habit.id)}
-            className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 touch-manipulation ${
-              completed || allStepsCompleted
-                ? 'bg-green-500 border-green-500 text-white shadow-lg animate-scale-in'
-                : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
-            }`}
-            aria-label={completed || allStepsCompleted ? `Mark ${habit.name} as incomplete` : `Mark ${habit.name} as complete`}
-          >
-            {(completed || allStepsCompleted) && (
-              <CheckCircle2 size={18} className="text-white" />
-            )}
-          </button>
-        </div>
-      </div>
-      
-      {habit.type === 'multi-step' && !expanded && (
-        <div className="mt-3 sm:mt-4 pl-9 sm:pl-11 md:pl-14">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex-1 bg-gray-100 rounded-full h-2 sm:h-2.5 overflow-hidden shadow-inner">
-              <div
-                className="bg-gradient-to-r from-primary-500 to-primary-400 h-2 sm:h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${(stepCompleted.length / habit.steps.length) * 100}%` }}
-              />
-            </div>
-            <span className="text-xs font-bold text-gray-700 min-w-[2.5rem] sm:min-w-[3rem] text-right">
-              {stepCompleted.length}/{habit.steps.length}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
-

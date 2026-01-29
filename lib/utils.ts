@@ -24,25 +24,21 @@ export function isToday(date: string): boolean {
   return date === getToday();
 }
 
-export function getStreak(dates: string[]): number {
-  if (dates.length === 0) return 0;
+export function isHabitScheduled(habit: any, dateStr: string): boolean {
+  const date = new Date(dateStr);
+  const dayOfWeek = date.getUTCDay(); // Use UTC to avoid timezone issues with date strings
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   
-  const sorted = [...dates].sort((a, b) => b.localeCompare(a));
-  const today = getToday();
-  
-  let streak = 0;
-  let currentDate = new Date(today);
-  
-  for (const date of sorted) {
-    const checkDate = formatDate(currentDate);
-    if (date === checkDate) {
-      streak++;
-      currentDate.setDate(currentDate.getDate() - 1);
-    } else if (streak > 0) {
-      break;
-    }
+  const { schedule } = habit;
+  if (!schedule) return true;
+
+  if (schedule.custom && schedule.custom.length > 0) {
+    return schedule.custom.includes(dayOfWeek);
   }
-  
-  return streak;
+
+  if (!isWeekend && schedule.weekdays === false) return false;
+  if (isWeekend && schedule.weekends === false) return false;
+
+  return true;
 }
 

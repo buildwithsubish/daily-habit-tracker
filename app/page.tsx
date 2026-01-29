@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useTheme } from '@/components/ThemeProvider';
+import { Shield, Sparkles, CheckCircle2, BarChart3, Trophy, ChevronRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function Home() {
   const router = useRouter();
-  const { currentTheme } = useTheme();
 
   useEffect(() => {
     // Check if user is logged in
@@ -18,100 +18,118 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden" style={{
-        background: `linear-gradient(135deg, var(--color-background, #f8fafc) 0%, var(--color-surface, #f1f5f9) 50%, var(--color-background, #f8fafc) 100%)`
-      }}>
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" style={{backgroundColor: 'var(--color-primary, #3b82f6)'}}></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" style={{backgroundColor: 'var(--color-accent, #8b5cf6)'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" style={{backgroundColor: 'var(--color-secondary, #06b6d4)'}}></div>
-      </div>
-
-      <div className="max-w-6xl w-full relative z-10">
-        <div className="text-center mb-10 sm:mb-16 animate-fade-in-up">
-          <div className="mb-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-2xl mb-6 animate-scale-in" style={{
-              background: `linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #2563eb) 100%)`
-            }}>
-              <svg className="w-10 h-10 sm:w-12 sm:h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+    <div className="min-h-screen bg-white text-black selection:bg-black selection:text-white overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center space-y-8"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+              <Sparkles size={14} className="text-black" />
+              Elite Performance Protocol
             </div>
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-4 sm:mb-6">
-            <span className="bg-clip-text text-transparent" style={{
-              background: `linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-accent, #8b5cf6) 50%, var(--color-secondary, #06b6d4) 100%)`
-            }}>
-              Daily Habit Tracker
-            </span>
-          </h1>
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-700 mb-8 sm:mb-10 max-w-3xl mx-auto px-4 font-medium">
-            Build consistency, track progress, and achieve your goals with simple daily tracking
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center px-4">
-            <Link
-              href="/register"
-              className="group px-8 sm:px-10 py-3.5 sm:py-4 text-white rounded-xl font-bold text-base sm:text-lg transition-all duration-300 shadow-xl hover:shadow-2xl hover-lift ripple relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #2563eb) 100%)`
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = `linear-gradient(135deg, var(--color-primary-dark, #2563eb) 0%, var(--color-primary, #3b82f6) 100%)`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = `linear-gradient(135deg, var(--color-primary, #3b82f6) 0%, var(--color-primary-dark, #2563eb) 100%)`;
-              }}
-            >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                Get Started Free
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </span>
-            </Link>
-            <Link
-              href="/login"
-              className="px-8 sm:px-10 py-3.5 sm:py-4 bg-white/90 backdrop-blur-sm text-gray-900 rounded-xl font-bold text-base sm:text-lg border-2 border-gray-200 hover:border-primary-300 hover:bg-white transition-all duration-300 shadow-lg hover:shadow-xl hover-lift"
-            >
-              Sign In
-            </Link>
-          </div>
+            
+            <h1 className="text-6xl sm:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.8] uppercase">
+              Build Your<br />
+              <span className="text-slate-200">Legacy.</span>
+            </h1>
+            
+            <p className="max-w-2xl mx-auto text-xl text-slate-500 font-bold leading-relaxed">
+              The high-performance habit tracker for those who demand excellence. 
+              Track protocols, secure streaks, and master your daily routine.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
+              <Link
+                href="/register"
+                className="group w-full sm:w-auto bg-black text-white px-12 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-black/20 flex items-center justify-center gap-3"
+              >
+                Get Started
+                <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <Link
+                href="/login"
+                className="w-full sm:w-auto bg-white border-2 border-slate-100 text-black px-12 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-50 transition-all flex items-center justify-center"
+              >
+                Sign In
+              </Link>
+            </div>
+          </motion.div>
         </div>
 
-        {/* Feature Cards */}
-        <div className="mt-16 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 px-4">
-          <div className="bg-white/80 backdrop-blur-lg p-6 sm:p-8 rounded-2xl shadow-xl border border-white/50 hover:shadow-2xl transition-all duration-300 hover-lift animate-fade-in-up group">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" style={{background: `linear-gradient(135deg, var(--color-secondary, #06b6d4) 0%, var(--color-accent, #8b5cf6) 100%)`}}>
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold mb-3" style={{color: 'var(--color-text, #1f2937)'}}>Simple Tracking</h3>
-            <p className="text-sm sm:text-base leading-relaxed" style={{color: 'var(--color-textSecondary, #6b7280)'}}>Track single or multi-step habits with a clean, intuitive interface designed for daily use</p>
-          </div>
+        {/* Decorative Background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -z-10 w-full h-full opacity-[0.03] pointer-events-none">
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-black via-transparent to-transparent"></div>
+        </div>
+      </section>
 
-          <div className="bg-white/80 backdrop-blur-lg p-6 sm:p-8 rounded-2xl shadow-xl border border-white/50 hover:shadow-2xl transition-all duration-300 hover-lift animate-fade-in-up animation-delay-200 group">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" style={{background: `linear-gradient(135deg, var(--color-success, #10b981) 0%, var(--color-primary, #3b82f6) 100%)`}}>
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold mb-3" style={{color: 'var(--color-text, #1f2937)'}}>Progress Analytics</h3>
-            <p className="text-sm sm:text-base leading-relaxed" style={{color: 'var(--color-textSecondary, #6b7280)'}}>Visualize your progress with beautiful charts, streaks, and detailed analytics</p>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-lg p-6 sm:p-8 rounded-2xl shadow-xl border border-white/50 hover:shadow-2xl transition-all duration-300 hover-lift animate-fade-in-up animation-delay-400 group">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300" style={{background: `linear-gradient(135deg, var(--color-accent, #8b5cf6) 0%, var(--color-warning, #f59e0b) 100%)`}}>
-              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold mb-3" style={{color: 'var(--color-text, #1f2937)'}}>Achievements</h3>
-            <p className="text-sm sm:text-base leading-relaxed" style={{color: 'var(--color-textSecondary, #6b7280)'}}>Unlock badges and milestones as you build consistency and reach your goals</p>
+      {/* Features Grid */}
+      <section className="py-32 px-6 border-t border-slate-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 sm:gap-16">
+            {[
+              {
+                icon: CheckCircle2,
+                title: "Precision Tracking",
+                desc: "Single and multi-step protocols designed for operational efficiency."
+              },
+              {
+                icon: BarChart3,
+                title: "Advanced Biometrics",
+                desc: "High-contrast analytics to visualize your performance velocity."
+              },
+              {
+                icon: Trophy,
+                title: "Elite Milestones",
+                desc: "Secure streaks and unlock achievements as you master your discipline."
+              }
+            ].map((feature, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="space-y-6 group"
+              >
+                <div className="w-16 h-16 bg-black rounded-3xl flex items-center justify-center shadow-xl shadow-black/10 group-hover:scale-110 transition-transform duration-500">
+                  <feature.icon size={28} className="text-white" />
+                </div>
+                <h3 className="text-2xl font-black tracking-tight uppercase">{feature.title}</h3>
+                <p className="text-slate-500 font-bold leading-relaxed">{feature.desc}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* Social Proof/Footer-ish section */}
+      <section className="py-32 px-6 bg-slate-50">
+        <div className="max-w-7xl mx-auto text-center space-y-12">
+          <div className="inline-flex items-center gap-3">
+            <div className="bg-black p-2 rounded-xl">
+              <Shield className="text-white" size={20} />
+            </div>
+            <span className="text-xl font-black tracking-tighter">ELITE TRACKER</span>
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-black tracking-tighter leading-none uppercase max-w-2xl mx-auto">
+            Ready to join the<br />
+            <span className="text-slate-400">Top 1%.</span>
+          </h2>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-3 text-sm font-black tracking-[0.2em] uppercase group"
+          >
+            Create Your Account
+            <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-white group-hover:translate-x-2 transition-transform">
+              <ChevronRight size={18} />
+            </div>
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

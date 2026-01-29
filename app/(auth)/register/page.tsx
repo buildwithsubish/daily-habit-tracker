@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { UserPlus, ChevronRight, Eye, EyeOff, Check, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import MonkeyAvatar from '@/components/MonkeyAvatar';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -12,6 +15,26 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  const passwordStrength = useMemo(() => {
+    if (!password) return 0;
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[^A-Za-z0-9]/.test(password)) strength++;
+    return strength;
+  }, [password]);
+
+  const strengthLabel = [
+    { label: 'Very Weak', color: 'bg-red-400' },
+    { label: 'Weak', color: 'bg-orange-400' },
+    { label: 'Fair', color: 'bg-yellow-400' },
+    { label: 'Good', color: 'bg-blue-400' },
+    { label: 'Strong', color: 'bg-green-500' },
+  ][passwordStrength];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,11 +42,6 @@ export default function RegisterPage() {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -51,230 +69,148 @@ export default function RegisterPage() {
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-3 sm:p-4 md:p-6 relative overflow-hidden"
-      style={{
-        background: `linear-gradient(135deg, var(--color-background, #f8fafc) 0%, var(--color-surface, #e2e8f0) 50%, var(--color-success, #10b981) 100%)`
-      }}
-    >
-      {/* Animated background elements using theme colors */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div 
-          className="absolute -top-40 -right-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"
-          style={{ backgroundColor: 'var(--color-success, #10b981)' }}
-        ></div>
-        <div 
-          className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"
-          style={{ backgroundColor: 'var(--color-primary, #3b82f6)' }}
-        ></div>
-        <div 
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"
-          style={{ backgroundColor: 'var(--color-accent, #8b5cf6)' }}
-        ></div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden font-sans">
+      {/* Background decoration */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,_rgba(0,0,0,0.02)_0%,_transparent_50%)]" />
       
-      <div 
-        className="max-w-md w-full rounded-2xl shadow-2xl p-5 sm:p-6 md:p-8 border animate-scale-in relative z-10 backdrop-blur-lg"
-        style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          borderColor: 'var(--color-border, #e2e8f0)'
-        }}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="max-w-md w-full relative z-10"
       >
-        <div className="text-center mb-6 sm:mb-8 animate-fade-in-up">
-          <div className="relative inline-block mb-4">
-            <div 
-              className="absolute inset-0 rounded-full blur-lg opacity-30 animate-pulse"
-              style={{ 
-                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-              }}
-            ></div>
-            <div 
-              className="relative w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-              style={{ 
-                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-              }}
-            >
-              <span className="text-white font-bold text-xl">+</span>
-            </div>
+        <div className="bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-xl shadow-slate-200/60 border border-slate-100">
+          <div className="text-center mb-8">
+            <MonkeyAvatar 
+              isPasswordVisible={showPassword} 
+              isPasswordFocused={isPasswordFocused} 
+            />
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Sign Up</h1>
+            <p className="text-slate-500 text-sm">Create an account to start tracking habits</p>
           </div>
-          <h1 
-            className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 animate-slide-in-right"
-            style={{ 
-              background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
-            }}
-          >
-            Get Started
-          </h1>
-          <p className="text-sm sm:text-base font-medium animate-fade-in-up animation-delay-200" style={{ color: 'var(--color-textSecondary, #6b7280)' }}>
-            Create your account to start tracking habits
-          </p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
-          {error && (
-            <div 
-              className="border-2 px-4 py-3 rounded-lg font-semibold text-sm animate-shake"
-              style={{
-                backgroundColor: 'var(--color-error, #fef2f2)',
-                borderColor: 'var(--color-error, #ef4444)',
-                color: 'var(--color-error, #dc2626)'
-              }}
-            >
-              {error}
-            </div>
-          )}
-          <div className="space-y-4">
-            <div className="animate-fade-in-up animation-delay-300">
-              <label htmlFor="email" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
-                Email
-              </label>
-              <div className="relative">
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center border border-red-100"
+              >
+                {error}
+              </motion.div>
+            )}
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Email Address</label>
                 <input
-                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
-                  style={{
-                    borderColor: 'var(--color-border, #d1d5db)',
-                    color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
-                    WebkitTapHighlightColor: 'transparent'
-                  } as React.CSSProperties}
-                  placeholder="Enter your email"
+                  placeholder="name@example.com"
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400 text-sm"
                 />
-                <div 
-                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
-                  style={{ 
-                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-                  }}
-                ></div>
               </div>
-            </div>
-            <div className="animate-fade-in-up animation-delay-400">
-              <label htmlFor="username" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
-                Username <span className="font-normal" style={{ color: 'var(--color-textSecondary, #6b7280)' }}>(optional)</span>
-              </label>
-              <div className="relative">
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Username</label>
                 <input
-                  id="username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
-                  style={{
-                    borderColor: 'var(--color-border, #d1d5db)',
-                    color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
-                    WebkitTapHighlightColor: 'transparent'
-                  } as React.CSSProperties}
-                  placeholder="Enter your username"
-                />
-                <div 
-                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
-                  style={{ 
-                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-                  }}
-                ></div>
-              </div>
-            </div>
-            <div className="animate-fade-in-up animation-delay-500">
-              <label htmlFor="password" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
-                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
-                  style={{
-                    borderColor: 'var(--color-border, #d1d5db)',
-                    color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
-                    WebkitTapHighlightColor: 'transparent'
-                  } as React.CSSProperties}
-                  placeholder="Create a password (min 6 characters)"
+                  placeholder="johndoe"
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400 text-sm"
                 />
-                <div 
-                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
-                  style={{ 
-                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-                  }}
-                ></div>
               </div>
-            </div>
-            <div className="animate-fade-in-up animation-delay-600">
-              <label htmlFor="confirmPassword" className="block text-sm font-bold mb-2" style={{ color: 'var(--color-text, #111827)' }}>
-                Confirm Password
-              </label>
-              <div className="relative">
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => setIsPasswordFocused(true)}
+                    onBlur={() => setIsPasswordFocused(false)}
+                    required
+                    placeholder="••••••••"
+                    className="w-full px-5 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-2 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className="mt-2 px-1">
+                    <div className="flex gap-1 h-1.5 mb-1.5">
+                      {[0, 1, 2, 3].map((step) => (
+                        <div 
+                          key={step} 
+                          className={`flex-1 rounded-full transition-colors duration-500 ${
+                            step < passwordStrength ? strengthLabel.color : 'bg-slate-100'
+                          }`} 
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Strength: <span className={passwordStrength > 0 ? 'text-slate-900' : ''}>{strengthLabel.label}</span>
+                      </span>
+                      {passwordStrength < 4 && (
+                        <span className="text-[10px] text-blue-500 font-medium italic">Strongly recommended: 8+ chars, upper, digit & symbol</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Confirm Password</label>
                 <input
-                  id="confirmPassword"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
-                  className="w-full px-4 py-3.5 border-2 rounded-xl bg-white outline-none transition-all duration-300 font-medium text-base hover:shadow-md focus:shadow-lg touch-manipulation"
-                  style={{
-                    borderColor: 'var(--color-border, #d1d5db)',
-                    color: 'var(--color-text, #111827)',
-                    '--tw-placeholder-color': 'var(--color-textSecondary, #9ca3af)',
-                    WebkitTapHighlightColor: 'transparent'
-                  } as React.CSSProperties}
-                  placeholder="Confirm your password"
+                  placeholder="••••••••"
+                  className="w-full px-5 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400 text-sm"
                 />
-                <div 
-                  className="absolute inset-0 rounded-xl opacity-0 pointer-events-none transition-opacity duration-300 -z-10 blur"
-                  style={{ 
-                    background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))` 
-                  }}
-                ></div>
               </div>
             </div>
-          </div>
-          <div className="animate-fade-in-up animation-delay-700">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full text-white py-3.5 sm:py-4 rounded-xl font-bold text-base sm:text-lg transition-all duration-300 disabled:opacity-50 shadow-lg hover:shadow-xl hover-lift ripple relative overflow-hidden touch-manipulation active:scale-98 min-h-[48px] flex items-center justify-center"
-              style={{
-                background: `linear-gradient(45deg, var(--color-success, #10b981), var(--color-primary, #3b82f6))`,
-                WebkitTapHighlightColor: 'transparent'
-              }}
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                {loading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                {loading ? 'Creating account...' : 'Create Account'}
-              </span>
-            </button>
-          </div>
-        </form>
-        <p className="mt-5 sm:mt-6 text-center text-sm sm:text-base font-medium" style={{ color: 'var(--color-text, #374151)' }}>
-          Already have an account?{' '}
-          <Link 
-            href="/login" 
-            className="font-bold underline"
-            style={{ color: 'var(--color-primary, #3b82f6)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--color-primary, #2563eb)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--color-primary, #3b82f6)';
-            }}
-          >
-            Sign in
-          </Link>
-        </p>
-      </div>
+
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    Sign Up
+                    <ChevronRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          <p className="mt-8 text-center">
+            <span className="text-slate-500 text-sm">Already have an account?</span>{' '}
+            <Link href="/login" className="text-blue-600 font-semibold text-sm hover:text-blue-700 transition-colors">
+              Sign In
+            </Link>
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }
-

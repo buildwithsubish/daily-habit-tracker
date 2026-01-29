@@ -13,7 +13,6 @@ interface Template {
   displayName: string;
   description: string;
   category: 'dashboard' | 'analytics' | 'mobile' | 'admin';
-  themeId?: string;
   layout: {
     sections: TemplateSection[];
     spacing: string;
@@ -45,11 +44,6 @@ const TemplateSchema = new Schema<Template>({
     type: String,
     enum: ['dashboard', 'analytics', 'mobile', 'admin'],
     required: true,
-  },
-  themeId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Theme',
-    required: false,
   },
   layout: {
     sections: [{

@@ -1,109 +1,125 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Trophy, Flame, Star, Target, Zap, Award } from 'lucide-react';
+import { Trophy, Flame, Star, Target, Zap, Award, CheckCircle2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface Achievement {
   id: string;
   name: string;
   description: string;
-  icon: React.ReactNode;
+  icon: string;
   unlocked: boolean;
   progress: number;
   maxProgress: number;
 }
 
+const ICON_MAP: Record<string, any> = {
+  star: Star,
+  flame: Flame,
+  trophy: Trophy,
+  target: Target,
+  zap: Zap,
+};
+
 export default function AchievementBadges() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch achievements from API
     fetch('/api/achievements')
       .then(res => res.json())
       .then(data => {
         setAchievements(data.achievements || []);
+        setLoading(false);
       })
-      .catch(() => {
-        // Default achievements if API fails
-        setAchievements([
-          {
-            id: 'first-habit',
-            name: 'Getting Started',
-            description: 'Create your first habit',
-            icon: <Star className="text-yellow-500" size={24} />,
-            unlocked: false,
-            progress: 0,
-            maxProgress: 1,
-          },
-          {
-            id: 'week-streak',
-            name: 'Week Warrior',
-            description: 'Complete habits for 7 days straight',
-            icon: <Flame className="text-orange-500" size={24} />,
-            unlocked: false,
-            progress: 0,
-            maxProgress: 7,
-          },
-          {
-            id: 'month-streak',
-            name: 'Monthly Master',
-            description: 'Complete habits for 30 days straight',
-            icon: <Trophy className="text-purple-500" size={24} />,
-            unlocked: false,
-            progress: 0,
-            maxProgress: 30,
-          },
-        ]);
-      });
+      .catch(() => setLoading(false));
   }, []);
 
-  return (
-    <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-sm border border-gray-200 p-3.5 sm:p-4 md:p-6 animate-scale-in">
-      <div className="flex items-center gap-2 mb-3 sm:mb-4">
-        <Award className="text-primary-500 flex-shrink-0" size={18} />
-        <h3 className="text-base sm:text-lg font-bold text-gray-900">Achievements</h3>
+  if (loading) {
+    return (
+      <div className="bg-white border-2 border-slate-50 rounded-[2.5rem] p-8 animate-pulse">
+        <div className="h-6 bg-slate-100 rounded-full w-1/2 mb-8" />
+        <div className="space-y-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-20 bg-slate-50 rounded-2xl" />
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
-        {achievements.map((achievement) => (
-          <div
-            key={achievement.id}
-            className={`
-              p-2.5 sm:p-3 rounded-lg border-2 transition-all duration-300
-              ${achievement.unlocked
-                ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100 shadow-md'
-                : 'border-gray-200 bg-white'
-              }
-              hover:scale-[1.02] sm:hover:scale-105
-            `}
-          >
-            <div className="flex items-start gap-2.5 sm:gap-3">
-              <div className={`flex-shrink-0 ${achievement.unlocked ? 'animate-pulse' : ''}`}>
-                {achievement.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className={`font-bold text-xs sm:text-sm ${achievement.unlocked ? 'text-gray-900' : 'text-gray-700'}`}>
-                  {achievement.name}
-                </h4>
-                <p className="text-xs text-gray-600 mt-0.5 sm:mt-1 leading-relaxed">{achievement.description}</p>
-                {!achievement.unlocked && (
-                  <div className="mt-2">
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-primary-500 to-primary-400 h-1.5 rounded-full transition-all duration-300"
-                        style={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-600 mt-1 font-semibold">
-                      {achievement.progress}/{achievement.maxProgress}
-                    </p>
+    );
+  }
+
+  return (
+    <div className="bg-white border-2 border-slate-50 rounded-[2.5rem] p-6 sm:p-8">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="bg-black p-2 rounded-xl">
+          <Award className="text-white" size={20} />
+        </div>
+        <div>
+          <span className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">Your Progress</span>
+          <h3 className="text-xl font-black text-black tracking-tight">Achievements</h3>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {achievements.map((achievement, index) => {
+          const Icon = ICON_MAP[achievement.icon] || Award;
+          return (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+              key={achievement.id}
+              className={`group relative p-4 rounded-[1.5rem] border-2 transition-all duration-500 ${
+                achievement.unlocked 
+                  ? 'bg-black border-black shadow-xl shadow-black/10' 
+                  : 'bg-slate-50 border-transparent hover:border-slate-200'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl transition-colors ${
+                  achievement.unlocked ? 'bg-white/10 text-white' : 'bg-white text-slate-300'
+                }`}>
+                  <Icon size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className={`text-sm font-black tracking-tight uppercase ${
+                      achievement.unlocked ? 'text-white' : 'text-slate-900'
+                    }`}>
+                      {achievement.name}
+                    </h4>
+                    {achievement.unlocked && (
+                      <CheckCircle2 size={14} className="text-white" />
+                    )}
                   </div>
-                )}
+                  <p className={`text-[10px] font-bold leading-tight ${
+                    achievement.unlocked ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    {achievement.description}
+                  </p>
+                  
+                  {!achievement.unlocked && (
+                    <div className="mt-3 space-y-1.5">
+                      <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                        <span>Progress</span>
+                        <span>{Math.round((achievement.progress / achievement.maxProgress) * 100)}%</span>
+                      </div>
+                      <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
+                          className="h-full bg-black"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
 }
-

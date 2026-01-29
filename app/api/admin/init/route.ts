@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb';
 import Admin from '@/lib/models/Admin';
 import { hashAdminPassword } from '@/lib/admin-auth';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     await connectDB();
 

@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import ThemeProvider from '@/components/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'Daily Habit Tracker',
@@ -15,9 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );
