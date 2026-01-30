@@ -90,16 +90,16 @@ export default function HabitsPage() {
       {/* Stats QuickView */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Active Protocols", value: habits.length, icon: Zap, color: "text-amber-500" },
-          { label: "Average Velocity", value: "84%", icon: Target, color: "text-blue-500" },
-          { label: "Total Compliance", value: "1,240", icon: Calendar, color: "text-emerald-500" },
+          { label: "Active Protocols", value: habits.length, icon: Zap, colorClass: "text-amber-500" },
+          { label: "Average Velocity", value: "84%", icon: Target, colorClass: "text-blue-500" },
+          { label: "Total Compliance", value: "1,240", icon: Calendar, colorClass: "text-emerald-500" },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 flex items-center justify-between group hover:border-blue-500/30 transition-all duration-500">
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{stat.label}</p>
               <p className="text-4xl font-black dark:text-white">{stat.value}</p>
             </div>
-            <div className={`p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl ${stat.color} group-hover:scale-110 transition-transform duration-500`}>
+            <div className={`p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl ${stat.colorClass} group-hover:scale-110 transition-transform duration-500`}>
               <stat.icon size={24} />
             </div>
           </div>

@@ -9,7 +9,7 @@ import AchievementBadges from '@/components/AchievementBadges';
 import HabitStats from '@/components/HabitStats';
 import StreakCelebration from '@/components/StreakCelebration';
 import { getToday, isHabitScheduled } from '@/lib/utils';
-import { Calendar, ListTodo, Sparkles, Edit, ChevronRight, Zap, Target, ArrowRight, Activity, TrendingUp } from 'lucide-react';
+import { Calendar, ListTodo, Sparkles, Edit, ChevronRight, Zap, Target, ArrowRight, Activity, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -173,54 +173,53 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-8">
-        <div className="relative">
-          <motion.div 
-            animate={{ rotate: 360 }}
-            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-            className="w-20 h-20 border-t-2 border-blue-600 rounded-full"
-          />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          className="relative"
+        >
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
           <div className="absolute inset-0 flex items-center justify-center">
-             <Activity className="text-blue-600 animate-pulse" size={24} />
+             <Activity className="text-blue-600" size={20} />
           </div>
-        </div>
-        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.4em]">Synchronizing Systems</p>
+        </motion.div>
+        <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] pb-32">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 space-y-16">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-24">
         <StreakCelebration 
           isOpen={celebration.isOpen} 
           onClose={() => setCelebration({ ...celebration, isOpen: false })} 
           type={celebration.type} 
         />
 
-        {/* Hero Section */}
-        <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
-          <div className="space-y-6">
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600/10 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] rounded-full"
-            >
-              <Sparkles size={12} />
-              Performance Interface
-            </motion.div>
-            <h1 className="text-6xl md:text-8xl font-black text-slate-900 dark:text-white tracking-tighter leading-[0.9]">
-              Operational <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Overview.</span>
+        {/* Header Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10"
+        >
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={14} className="text-blue-500" />
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Dashboard</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight">
+              Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}
             </h1>
           </div>
           
-          <div className="flex bg-white dark:bg-slate-900 p-2 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 shadow-xl">
+          <div className="flex gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg">
             <button
               onClick={() => setViewMode('daily')}
-              className={`px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
                 viewMode === 'daily' 
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg' 
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -228,172 +227,155 @@ export default function DashboardPage() {
             </button>
             <button
               onClick={() => setViewMode('weekly')}
-              className={`px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${
+              className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
                 viewMode === 'weekly' 
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg' 
+                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
                   : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Weekly
             </button>
           </div>
-        </section>
+        </motion.div>
 
-        {/* Core Analytics */}
+        {/* Stats Cards */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
+        >
+          <motion.div 
+            whileHover={{ y: -4 }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{format(new Date(selectedDate), 'EEE, MMM d')}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Today</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ y: -4 }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
+                <Target size={20} className="text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{completionRate.toFixed(0)}%</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Completion</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ y: -4 }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
+                <Zap size={20} className="text-orange-600 dark:text-orange-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">{completedHabitsCount}/{scheduledHabits.length}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Completed</p>
+          </motion.div>
+
+          <motion.div 
+            whileHover={{ y: -4 }}
+            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
+                <Clock size={20} className="text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+            <p className="text-2xl font-black text-slate-900 dark:text-white">
+              {scheduledHabits.find(h => !getHabitCompletion(h.id))?.name?.slice(0, 10) || 'All Done'}
+            </p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Next Task</p>
+          </motion.div>
+        </motion.div>
+
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <motion.div 
-                whileHover={{ y: -8 }}
-                className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group"
+          {/* Habits Section */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center">
+                  <ListTodo className="text-white dark:text-slate-900" size={20} />
+                </div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white">Today's Habits</h2>
+              </div>
+              <button 
+                onClick={() => router.push('/dashboard/habits')}
+                className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-wider hover:text-blue-500 transition-colors"
               >
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-3xl flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                    <Calendar size={28} />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Current Protocol</div>
-                    <div className="text-xl font-black text-slate-900 dark:text-white uppercase">
-                      {format(new Date(selectedDate), 'EEEE')}
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => router.push('/dashboard/habits')}
-                  className="p-4 bg-slate-50 dark:bg-slate-800 hover:bg-blue-600 hover:text-white rounded-2xl transition-all"
-                >
-                  <Edit size={20} />
-                </button>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -8 }}
-                className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-6">
-                  <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-3xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
-                    <Target size={28} />
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Next Objective</div>
-                    <div className="text-xl font-black text-slate-900 dark:text-white uppercase truncate max-w-[150px]">
-                      {scheduledHabits.find(h => !getHabitCompletion(h.id))?.name || 'Clear'}
-                    </div>
-                  </div>
-                </div>
-                <div className="w-12 h-12 rounded-full border border-slate-100 dark:border-slate-800 flex items-center justify-center">
-                  <ArrowRight size={20} className="text-slate-300 dark:text-slate-700" />
-                </div>
-              </motion.div>
+                Manage
+                <ChevronRight size={14} />
+              </button>
             </div>
 
             {viewMode === 'weekly' ? (
-              <div className="animate-scale-in">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6"
+              >
                 <WeeklyCalendar
                   selectedDate={selectedDate}
                   onDateSelect={setSelectedDate}
                   completionData={getWeeklyCompletionData()}
                 />
-              </div>
-            ) : (
-              <motion.div 
-                layout
-                className="bg-slate-900 dark:bg-black rounded-[3.5rem] p-12 sm:p-16 text-white relative overflow-hidden group shadow-2xl border border-slate-800"
-              >
-                <div className="absolute top-0 right-0 p-16 opacity-5 group-hover:opacity-10 transition-opacity">
-                   <TrendingUp size={240} />
-                </div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-12">
-                  <div className="space-y-8">
-                    <div className="inline-flex items-center gap-3 px-5 py-2 bg-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md border border-white/10">
-                      <Calendar size={14} className="text-blue-400" />
-                      {format(new Date(selectedDate), 'MMMM dd, yyyy')}
-                    </div>
-                    <div>
-                      <div className="text-8xl font-black mb-2 tracking-tighter text-white">
-                        {completionRate.toFixed(0)}<span className="text-blue-500 text-4xl">%</span>
-                      </div>
-                      <div className="text-slate-500 font-black text-[10px] uppercase tracking-[0.3em]">Efficiency Rating</div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 flex flex-col items-center min-w-[140px] hover:bg-blue-600/10 transition-colors">
-                      <span className="text-4xl font-black mb-1">{completedHabitsCount}</span>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Done</span>
-                    </div>
-                    <div className="bg-white/5 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 flex flex-col items-center min-w-[140px]">
-                      <span className="text-4xl font-black mb-1">{scheduledHabits.length}</span>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="absolute bottom-0 left-0 w-full h-3 bg-slate-800/50">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${completionRate}%` }}
-                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 transition-all duration-1000 ease-out shadow-[0_0_30px_rgba(59,130,246,0.5)]"
-                  />
-                </div>
               </motion.div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
+                  {scheduledHabits.length === 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="py-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800"
+                    >
+                      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle size={32} className="text-slate-300 dark:text-slate-700" />
+                      </div>
+                      <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">No habits scheduled</p>
+                      <button 
+                        onClick={() => router.push('/dashboard/habits')}
+                        className="mt-4 px-4 py-2 bg-blue-600 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-colors"
+                      >
+                        Add Habits
+                      </button>
+                    </motion.div>
+                  ) : (
+                    scheduledHabits.map((habit) => (
+                      <HabitCard
+                        key={habit.id}
+                        habit={habit}
+                        completed={getHabitCompletion(habit.id)}
+                        stepCompleted={getStepCompletions(habit.id)}
+                        onToggle={handleToggle}
+                      />
+                    ))
+                  )}
+                </AnimatePresence>
+              </div>
             )}
           </div>
-          
-          <div className="animate-scale-in">
+
+          {/* Sidebar */}
+          <div className="space-y-6">
             <HabitStats />
+            <AchievementBadges />
           </div>
         </div>
-
-        {/* Task List */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          <div className="lg:col-span-2 space-y-10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-slate-900 dark:bg-white rounded-3xl flex items-center justify-center shadow-xl">
-                  <ListTodo className="text-white dark:text-slate-900" size={28} />
-                </div>
-                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Active Modules</h2>
-              </div>
-              <div className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                {completedHabitsCount}/{scheduledHabits.length} Completed
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <AnimatePresence mode="popLayout">
-                {scheduledHabits.length === 0 ? (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="py-20 text-center bg-white dark:bg-slate-900 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800"
-                  >
-                    <div className="text-slate-300 dark:text-slate-700 mb-4">
-                       <Zap size={48} className="mx-auto" />
-                    </div>
-                    <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">No tasks scheduled for this period</p>
-                  </motion.div>
-                ) : (
-                  scheduledHabits.map((habit) => (
-                    <HabitCard
-                      key={habit.id}
-                      habit={habit}
-                      completed={getHabitCompletion(habit.id)}
-                      stepCompleted={getStepCompletions(habit.id)}
-                      onToggle={handleToggle}
-                    />
-                  ))
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-          
-          <div className="space-y-10">
-             <AchievementBadges />
-          </div>
-        </section>
       </div>
     </div>
   );
 }
+

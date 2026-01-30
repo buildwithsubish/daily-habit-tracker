@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Zap, Download, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Star, Target, Flame, Crown, Trophy, Rocket } from 'lucide-react';
+import { Zap, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Crown, Trophy, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
