@@ -1,7 +1,7 @@
 'use client';
 
 import { Habit } from '@/types';
-import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame, Zap, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -21,7 +21,7 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
   const isFullyDone = completed || allStepsCompleted;
 
   const getIcon = () => {
-    const props = { size: 20, className: isFullyDone ? 'text-white' : 'text-slate-400 group-hover:text-slate-900 transition-colors' };
+    const props = { size: 24, className: isFullyDone ? 'text-white' : 'text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors' };
     switch (habit.category) {
       case 'Health': return <Heart {...props} />;
       case 'Productivity': return <Briefcase {...props} />;
@@ -35,77 +35,76 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
   return (
     <motion.div 
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className={`group relative bg-white rounded-[2rem] p-5 border-2 transition-all duration-500 ${
+      className={`group relative bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 sm:p-8 border-2 transition-all duration-500 ${
         isFullyDone 
-          ? 'border-blue-50 bg-blue-50/20' 
-          : 'border-slate-50 hover:border-blue-500/10 shadow-sm hover:shadow-2xl hover:shadow-blue-500/5'
+          ? 'border-blue-100 dark:border-blue-900/30 bg-blue-50/10 dark:bg-blue-900/5' 
+          : 'border-slate-100 dark:border-slate-800 hover:border-blue-500/20 dark:hover:border-blue-500/30 shadow-sm hover:shadow-2xl dark:shadow-none'
       }`}
     >
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center justify-between gap-6">
+        <div className="flex items-center gap-6 flex-1">
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => habit.type === 'single-step' ? onToggle(habit.id) : setExpanded(!expanded)}
-            className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all duration-700 ${
-              isFullyDone ? 'bg-blue-600 shadow-lg shadow-blue-500/20 rotate-[10deg]' : 'bg-slate-50 group-hover:bg-blue-50'
+            className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center transition-all duration-700 ${
+              isFullyDone ? 'bg-blue-600 shadow-xl shadow-blue-500/20 rotate-6' : 'bg-slate-50 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20'
             }`}
           >
             {getIcon()}
           </motion.button>
           
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">{habit.category}</span>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{habit.category}</span>
               {habit.type === 'multi-step' && (
-                <span className="text-[9px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-widest">
-                  {stepCompleted.length}/{habit.steps.length} Done
+                <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full uppercase tracking-widest">
+                  {stepCompleted.length}/{habit.steps.length} Phases
                 </span>
               )}
-              {habit.streak > 0 && (
-                <div className="flex items-center gap-0.5 bg-orange-50 px-2 py-0.5 rounded-full">
-                  <Flame size={10} className="text-orange-500 fill-orange-500" />
-                  <span className="text-[9px] font-black text-orange-600 uppercase">{habit.streak} day streak!</span>
-                </div>
-              )}
             </div>
-            <h3 className={`text-lg font-black tracking-tight transition-all duration-500 ${
-              isFullyDone ? 'text-slate-300 line-through' : 'text-slate-900'
+            <h3 className={`text-xl font-black tracking-tight transition-all duration-500 ${
+              isFullyDone ? 'text-slate-300 dark:text-slate-700 line-through' : 'text-slate-900 dark:text-white'
             }`}>
               {habit.name}
             </h3>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {habit.type === 'multi-step' && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setExpanded(!expanded)}
-              className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-            >
-              {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-            </motion.button>
-          )}
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col items-end mr-4">
+             {habit.streak > 0 && (
+                <div className="flex items-center gap-1.5 bg-orange-500/10 dark:bg-orange-500/5 px-3 py-1 rounded-full">
+                  <Flame size={12} className="text-orange-500 fill-orange-500" />
+                  <span className="text-[10px] font-black text-orange-600 dark:text-orange-400 uppercase">{habit.streak}d</span>
+                </div>
+              )}
+          </div>
+
           <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => onToggle(habit.id)}
-            className={`w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all duration-700 ${
+            className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all duration-700 ${
               isFullyDone 
-                ? 'bg-blue-600 border-blue-600 text-white rotate-6 shadow-xl shadow-blue-500/20' 
-                : 'border-slate-100 hover:border-blue-500/10 bg-slate-50'
+                ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-500/20' 
+                : 'border-slate-100 dark:border-slate-800 hover:border-blue-500/30 bg-white dark:bg-slate-900'
             }`}
           >
             {isFullyDone ? (
-              <CheckCircle2 size={24} />
+              <CheckCircle2 size={28} />
             ) : (
-              <div className="w-2.5 h-2.5 rounded-full bg-slate-200 group-hover:bg-blue-600 transition-all duration-500" />
+              <Zap size={24} className="text-slate-200 dark:text-slate-700 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
             )}
           </motion.button>
+          
+          {habit.type === 'multi-step' && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+            >
+              {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+            </button>
+          )}
         </div>
       </div>
 
@@ -117,28 +116,32 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-6 pt-6 border-t border-slate-100 space-y-2">
+            <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-4">Phase Sequence</p>
               {habit.steps.map((step, idx) => {
                 const isStepDone = stepCompleted.includes(idx);
                 return (
                   <motion.button
                     key={idx}
-                    whileHover={{ x: 4 }}
+                    whileHover={{ x: 6 }}
                     onClick={() => onToggle(habit.id, idx)}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-blue-50/50 transition-all text-left group/step"
+                    className={`w-full flex items-center gap-6 p-5 rounded-2xl transition-all text-left ${
+                      isStepDone ? 'bg-blue-50/30 dark:bg-blue-900/5' : 'bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                    }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all duration-500 ${
-                      isStepDone ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/10' : 'border-slate-100 bg-white group-hover/step:border-blue-500/20'
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 transition-all duration-500 ${
+                      isStepDone ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
                     }`}>
-                      {isStepDone ? <CheckCircle2 size={16} /> : <span className="text-xs font-black text-slate-400">{idx + 1}</span>}
+                      {isStepDone ? <CheckCircle2 size={20} /> : <span className="text-xs font-black text-slate-400">{idx + 1}</span>}
                     </div>
                     <div className="flex-1">
-                      <span className={`text-sm font-black tracking-tight ${isStepDone ? 'text-slate-300 line-through' : 'text-slate-700'}`}>
+                      <div className={`text-base font-black tracking-tight ${isStepDone ? 'text-slate-300 dark:text-slate-700 line-through' : 'text-slate-900 dark:text-white'}`}>
                         {step.name}
-                      </span>
-                      {step.duration && (
-                        <span className="ml-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{step.duration} min</span>
-                      )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                         <Clock size={12} className="text-slate-400" />
+                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Phase</span>
+                      </div>
                     </div>
                   </motion.button>
                 );

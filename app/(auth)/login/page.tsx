@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, LayoutPanelLeft, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, LayoutPanelLeft, ChevronRight, Zap, Shield, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MonkeyAvatar from '@/components/MonkeyAvatar';
 
@@ -43,32 +43,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden font-sans">
-      {/* Background decoration */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(0,0,0,0.02)_0%,_transparent_50%)]" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#fafafa] dark:bg-[#050505] relative overflow-hidden font-sans">
+      {/* Decorative Elements */}
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500 blur-[120px] rounded-full animate-pulse-soft" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-purple-500 blur-[120px] rounded-full animate-pulse-soft" style={{ animationDelay: '1s' }} />
+      </div>
       
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="max-w-md w-full relative z-10"
       >
-        <div className="bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-xl shadow-slate-200/60 border border-slate-100">
-          <div className="text-center mb-8">
+        <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 sm:p-12 shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="text-center mb-10">
+            <div className="flex justify-center mb-6">
+              <div className="w-14 h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
+                 <Shield size={28} />
+              </div>
+            </div>
             <MonkeyAvatar 
               isPasswordVisible={showPassword} 
               isPasswordFocused={isPasswordFocused} 
             />
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">Sign In</h1>
-            <p className="text-slate-500 text-sm">Welcome back! Please login to your account</p>
+            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Initialize.</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Access your performance environment.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-sm font-medium text-center border border-red-100"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-red-500/10 text-red-600 px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-center border border-red-500/20"
               >
                 {error}
               </motion.div>
@@ -76,19 +84,19 @@ export default function LoginPage() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Email or Username</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Identity</label>
                 <input
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  placeholder="name@example.com"
-                  className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                  placeholder="Email or Username"
+                  className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5 ml-1">Password</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Credential</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -98,14 +106,14 @@ export default function LoginPage() {
                     onBlur={() => setIsPasswordFocused(false)}
                     required
                     placeholder="••••••••"
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 rounded-xl outline-none transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-2 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 transition-colors"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
               </div>
@@ -114,22 +122,22 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+              className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white transition-all shadow-2xl active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-3"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-3 border-slate-400 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  Sign In
+                  Enter Interface
                   <ChevronRight size={18} />
                 </>
               )}
             </button>
           </form>
 
-          <p className="mt-8 text-center">
-            <span className="text-slate-500 text-sm">New here?</span>{' '}
-            <Link href="/register" className="text-blue-600 font-semibold text-sm hover:text-blue-700 transition-colors">
+          <p className="mt-10 text-center">
+            <span className="text-slate-500 text-sm font-medium">No account yet?</span>{' '}
+            <Link href="/register" className="text-blue-600 font-black text-sm hover:text-blue-700 transition-colors ml-1 uppercase tracking-widest text-[10px]">
               Sign Up
             </Link>
           </p>

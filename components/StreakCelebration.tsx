@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Flame, X, Sparkles, Star } from 'lucide-react';
+import { Trophy, Flame, X, Sparkles, Star, CheckCircle2 } from 'lucide-react';
 
 interface StreakCelebrationProps {
   isOpen: boolean;

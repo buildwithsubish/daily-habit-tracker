@@ -6,12 +6,12 @@ import mongoose from 'mongoose';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     const userId = requireAuth(request);
-    const habitId = params.id;
+    const { id: habitId } = await params;
     const data = await request.json();
     
     const { name, category, type, steps, targetPerDay, schedule, order } = data;
@@ -48,12 +48,12 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     const userId = requireAuth(request);
-    const habitId = params.id;
+    const { id: habitId } = await params;
     
     // Verify ownership
     const existing = await Habit.findOne({

@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
       steps: h.steps,
       targetPerDay: h.targetPerDay,
       schedule: h.schedule,
+      streak: (h as any).streak || 0,
+      lastCompletedDate: (h as any).lastCompletedDate,
       createdAt: h.createdAt.toISOString(),
       order: h.order || 0,
     }));

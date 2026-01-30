@@ -8,14 +8,14 @@ import mongoose from 'mongoose';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     await initAdmin();
     requireAdmin(request);
 
-    const userId = params.id;
+    const { id: userId } = await params;
     const userIdObj = new mongoose.Types.ObjectId(userId);
     const { newPassword } = await request.json();
 

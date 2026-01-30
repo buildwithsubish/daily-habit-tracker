@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Zap, Download, Check, AlertCircle, Sparkles, Layout, ChevronRight } from 'lucide-react';
+import { Zap, Download, Check, AlertCircle, Sparkles, Layout, ChevronRight, ArrowLeft, Star, Target, Flame, Crown, Trophy, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 interface Preset {
   _id: string;
   name: string;
   description?: string;
   type: string;
+  category?: string;
   structure?: {
     habits: any[];
   };
@@ -22,6 +24,7 @@ export default function PresetsTemplatesPage() {
   const [appliedId, setAppliedId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeCategory, setActiveCategory] = useState('All');
 
   useEffect(() => {
     fetchPresets();
@@ -71,144 +74,201 @@ export default function PresetsTemplatesPage() {
     }
   };
 
+  const categories = ['All', 'Health', 'Productivity', 'Mindset', 'Growth'];
+  const filteredPresets = activeCategory === 'All' 
+    ? presets 
+    : presets.filter(p => p.category === activeCategory || p.type.includes(activeCategory.toLowerCase()));
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full"
-        />
+      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
+        <div className="relative">
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className="w-24 h-24 border-t-2 border-b-2 border-blue-600 rounded-full"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Sparkles className="text-blue-600 animate-pulse" size={24} />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
-      {/* Header Section */}
-      <div className="bg-white border-b border-slate-200 pt-20 pb-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row md:items-end justify-between gap-6"
-          >
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold uppercase tracking-wider mb-4">
-                <Sparkles size={14} />
-                Handpicked for You
-              </div>
-              <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-4">Quick Start</h1>
-              <p className="text-slate-600 text-lg leading-relaxed">
-                Start your journey today with these simple, proven routines. Pick one that fits your life!
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-900">{presets.length} Routines</p>
-                <p className="text-xs text-slate-500">Ready to start</p>
-              </div>
-              <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400">
-                <Layout size={24} />
-              </div>
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505] text-slate-900 dark:text-slate-100 selection:bg-blue-500/30">
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/10 blur-[120px] rounded-full" />
+          <div className="absolute bottom-[10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full" />
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
-        {/* Global Notifications */}
-        <AnimatePresence>
+        <div className="max-w-5xl mx-auto text-center relative z-10">
+          <Link 
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 transition-all mb-12 shadow-sm group"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs font-bold uppercase tracking-widest">Back to Dashboard</span>
+          </Link>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
+              <Crown size={12} />
+              Premium Blueprints
+            </div>
+            <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
+              Architect Your <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Evolution.</span>
+            </h1>
+            <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed mb-12">
+              Skip the trial and error. Deploy professionally designed habit architectures used by top performers worldwide.
+            </p>
+          </motion.div>
+
+          {/* Category Filter */}
+          <div className="flex flex-wrap justify-center gap-2 mb-16">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-8 py-3 rounded-2xl text-sm font-bold transition-all ${
+                  activeCategory === cat
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl'
+                    : 'bg-white dark:bg-slate-900 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Templates Grid */}
+      <section className="max-w-7xl mx-auto px-4 pb-32">
+        <AnimatePresence mode="wait">
           {message && (
             <motion.div 
-              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-              animate={{ opacity: 1, height: 'auto', marginBottom: 24 }}
-              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-              className={`overflow-hidden rounded-2xl border ${
-                message.type === 'success' 
-                  ? 'bg-green-50 border-green-200 text-green-700' 
-                  : 'bg-red-50 border-red-200 text-red-700'
-              }`}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-12 overflow-hidden"
             >
-              <div className="p-4 flex items-center gap-3 font-semibold">
-                {message.type === 'success' ? <Check size={20} className="text-green-500" /> : <AlertCircle size={20} className="text-red-500" />}
-                {message.text}
+              <div className={`p-6 rounded-3xl border-2 flex items-center justify-between gap-4 font-bold ${
+                message.type === 'success' 
+                  ? 'bg-green-500/10 border-green-500/20 text-green-600' 
+                  : 'bg-red-500/10 border-red-500/20 text-red-600'
+              }`}>
+                <div className="flex items-center gap-4">
+                  {message.type === 'success' ? <Check className="shrink-0" /> : <AlertCircle className="shrink-0" />}
+                  {message.text}
+                </div>
+                <button onClick={() => setMessage(null)} className="opacity-50 hover:opacity-100 transition-opacity">
+                  <Layout size={18} className="rotate-45" />
+                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {presets.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-[2rem] shadow-sm border border-slate-200">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-300">
-              <AlertCircle size={40} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">No templates found</h3>
-            <p className="text-slate-500">Check back later for new habit collections.</p>
+        {filteredPresets.length === 0 ? (
+          <div className="text-center py-40 bg-white dark:bg-slate-900/50 rounded-[4rem] border border-slate-200 dark:border-slate-800">
+            <Layout className="mx-auto text-slate-200 dark:text-slate-700 mb-8" size={64} />
+            <h3 className="text-2xl font-bold mb-2">No bluebrints found</h3>
+            <p className="text-slate-500">We're crafting new systems for this category.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {presets.map((preset, index) => (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {filteredPresets.map((preset, index) => (
               <motion.div
                 key={preset._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="group bg-white rounded-[2rem] p-8 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-500 border border-slate-100 flex flex-col"
+                className="group relative bg-white dark:bg-slate-900 rounded-[3rem] p-12 border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 transition-all duration-500 overflow-hidden"
               >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
-                    <Zap size={28} />
-                  </div>
-                  <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                    {preset.type}
-                  </span>
+                {/* Decorative background */}
+                <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity">
+                   <Rocket size={120} className="rotate-12" />
                 </div>
-                
-                <h3 className="text-2xl font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors">
-                  {preset.name}
-                </h3>
-                
-                <p className="text-slate-500 text-sm mb-8 flex-grow leading-relaxed">
-                  {preset.description || `Optimized ${preset.name.toLowerCase()} designed for maximum performance and consistency.`}
-                </p>
 
-                <div className="space-y-6 pt-6 border-t border-slate-50">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400 font-medium">Included Habits</span>
-                    <span className="font-bold text-slate-900 bg-slate-50 px-3 py-1 rounded-lg">
-                      {preset.structure?.habits?.length || 0}
-                    </span>
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-12">
+                    <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-600/30 group-hover:scale-110 transition-transform duration-500">
+                      <Zap size={32} />
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest">
+                        {preset.type}
+                      </span>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => handleApplyPreset(preset.name, preset._id)}
-                    disabled={applyingId === preset._id || appliedId === preset._id}
-                    className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] ${
-                      appliedId === preset._id
-                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
-                        : applyingId === preset._id
-                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'bg-slate-900 text-white hover:bg-blue-600 shadow-lg shadow-slate-900/10 hover:shadow-blue-500/20'
-                    }`}
-                  >
-                    {appliedId === preset._id ? (
-                      <><Check size={18} /> Ready to go!</>
-                    ) : applyingId === preset._id ? (
-                      <><div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" /> Setting things up...</>
-                    ) : (
-                      <>
-                        Add to my habits
-                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                      </>
-                    )}
-                  </button>
+                  <h3 className="text-4xl font-black mb-4 tracking-tight group-hover:text-blue-600 transition-colors">
+                    {preset.name}
+                  </h3>
+                  <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 flex-grow leading-relaxed">
+                    {preset.description || `The comprehensive framework for mastering ${preset.name.toLowerCase()} with surgical precision.`}
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-6 pt-12 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 px-6 py-3 rounded-2xl flex-grow w-full sm:w-auto">
+                      <Trophy className="text-blue-600" size={20} />
+                      <span className="font-bold text-sm">
+                        <span className="text-blue-600">{preset.structure?.habits?.length || 0}</span> Strategic Habits
+                      </span>
+                    </div>
+                    
+                    <button
+                      onClick={() => handleApplyPreset(preset.name, preset._id)}
+                      disabled={applyingId === preset._id || appliedId === preset._id}
+                      className={`w-full sm:w-auto px-10 py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 ${
+                        appliedId === preset._id
+                          ? 'bg-green-500 text-white shadow-xl shadow-green-500/20'
+                          : applyingId === preset._id
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                          : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white shadow-xl hover:shadow-2xl hover:shadow-blue-600/20'
+                      }`}
+                    >
+                      {appliedId === preset._id ? (
+                        <><Check size={20} /> Applied</>
+                      ) : applyingId === preset._id ? (
+                        <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>Deploy Blueprint <ChevronRight size={18} /></>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
-      </div>
+      </section>
+
+      {/* Trust Banner */}
+      <section className="bg-slate-900 py-24 px-4 overflow-hidden relative">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+        </div>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <div className="flex justify-center gap-8 mb-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
+             {/* Mock Partner Icons */}
+             {[1,2,3,4].map(i => <div key={i} className="w-12 h-12 rounded-xl bg-white/10" />)}
+          </div>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-4">The Performance Standard</p>
+          <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">
+            Built for those who refuse <br /> to settle for <span className="text-blue-500">average.</span>
+          </h2>
+        </div>
+      </section>
     </div>
   );
 }

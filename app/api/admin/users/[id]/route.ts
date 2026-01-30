@@ -9,14 +9,14 @@ import mongoose from 'mongoose';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     await initAdmin();
     requireAdmin(request);
 
-    const userId = params.id;
+    const { id: userId } = await params;
     const userIdObj = new mongoose.Types.ObjectId(userId);
 
     // Get user details
@@ -177,14 +177,14 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
     await initAdmin();
     requireAdmin(request);
 
-    const userId = params.id;
+    const { id: userId } = await params;
     const userIdObj = new mongoose.Types.ObjectId(userId);
     const { preferredTheme } = await request.json();
 

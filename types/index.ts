@@ -26,7 +26,7 @@ export interface Habit {
   userId: string;
   name: string;
   order: number;
-  category: 'Health' | 'Productivity' | 'Mindfulness' | 'Fitness' | 'Diet';
+  category: 'Health' | 'Productivity' | 'Mindset' | 'Growth' | 'Other' | 'Fitness' | 'Diet' | 'Mindfulness';
   type: 'single-step' | 'multi-step';
   steps: HabitStep[];
   targetPerDay: number;
