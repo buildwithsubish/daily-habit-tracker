@@ -1,25 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Preset from '@/lib/models/Preset';
+import { initPresets } from '@/lib/db-init';
+import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
+    await initPresets(); // Ensure presets exist
 
-    // Get all presets
-    const presets = await Preset.find().sort({ category: 1, displayName: 1 }).limit(50);
+    const type = new URL(request.url).searchParams.get('type');
+    const category = new URL(request.url).searchParams.get('category');
 
-    const response = NextResponse.json({
-      presets,
-      totalPresets: presets.length
+    const query = type ? { type } : (category ? { category } : {});
+    const presets = await Preset.find(query).lean();
+
+    // Format presets for the frontend
+    const formattedPresets = presets.map(p => ({
+      _id: (p._id as mongoose.Types.ObjectId).toString(),
+      name: p.name,
+      description: p.description,
+      type: p.type,
+      category: p.category,
+      structure: p.structure,
+      habitsCount: p.structure?.habits?.length || 0
+    }));
+
+    return NextResponse.json({
+      presets: formattedPresets,
+      totalPresets: formattedPresets.length
     });
-
-    // Prevent caching to ensure fresh data
-    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    response.headers.set('Pragma', 'no-cache');
-    response.headers.set('Expires', '0');
-
-    return response;
   } catch (error: any) {
     console.error('Get presets error:', error);
     return NextResponse.json(
@@ -28,3 +38,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

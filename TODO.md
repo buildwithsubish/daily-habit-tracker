@@ -1,34 +1,52 @@
-# Task Plan: Fix Homepage Theme, Remove Template Browsing, Change Preset Icon
+# TODO - Task Implementation Plan
 
-## Information Gathered
-- Homepage (app/page.tsx) uses hardcoded gradient classes instead of theme CSS variables
-- ThemeProvider applies themes via CSS custom properties but homepage doesn't use them
-- Habits page has "Browse All Presets" functionality that needs removal
-- "Use Preset" button currently uses Zap icon that needs changing
+## Completed Tasks ✅
 
-## Plan - COMPLETED
-1. **Fix Homepage Theme Reflection** ✅ COMPLETED
-   - Updated app/page.tsx to use CSS variables from theme system
-   - Replaced hardcoded gradient classes with theme-aware inline styles
-   - Homepage now uses: background: `linear-gradient(135deg, var(--color-background, #f8fafc)...)`
-   - Replaced hardcoded Tailwind classes with CSS custom properties
+### 1. Fix @next/swc Version Mismatch
+- [x] Update package.json with @next/swc-linux-x64-gnu at version 15.5.11
+- [x] Update Next.js to exact version 15.5.11
+- [x] Configure build caching in next.config.js
 
-2. **Remove Template Browsing in Habits** ✅ COMPLETED
-   - Removed "Browse All Presets" button from preset modal in habits page
-   - Removed navigation to /presets-templates page
-   - Removed "Visit Presets Templates Page" button
-   - Kept the core preset selection functionality intact
+### 2. Simplify Login Page Language
+- [x] Changed "Initialize." → "Welcome Back"
+- [x] Changed subtitle to "Sign in to continue"
+- [x] Changed "Identity" → "Email"
+- [x] Changed "Credential" → "Password"
+- [x] Changed "Enter Interface" → "Sign In"
+- [x] Replaced "Shield" icon with "Lock"
+- [x] Made placeholder text more user-friendly
 
-3. **Change Preset Icon** ✅ COMPLETED
-   - Replaced Zap icon with Layers icon for presets
-   - Updated import statement: `import { Plus, Trash2, Edit, ChevronUp, ChevronDown, X, Layers } from 'lucide-react';`
-   - Changed both "Use Preset" and "Use Template" buttons to use Layers icon
+### 3. Simplify Register Page Language
+- [x] Changed "Deploy." → "Create Account"
+- [x] Changed "Email Endpoint" → "Email"
+- [x] Changed "Alias" → "Username"
+- [x] Changed "Access Code" → "Password"
+- [x] Changed "Initialize Account" → "Create Account"
+- [x] Simplified password strength labels
 
-## Files Modified
-- app/page.tsx - Updated homepage to use theme CSS variables
-- app/dashboard/habits/page.tsx - Removed template browsing functionality, changed icons to Layers
+### 4. Rewrite Presets with Practical Templates
+- [x] Created 10 new practical habit templates in lib/db-init.ts:
+  - Morning Routine (Health)
+  - Daily Exercise (Fitness)
+  - Better Sleep (Health)
+  - Productivity Power (Productivity)
+  - Mindfulness & Calm (Mindfulness)
+  - Healthy Eating (Health)
+  - Learning & Growth (Growth)
+  - Financial Health (Growth)
+  - Social Connections (Mindfulness)
+  - Weekend Reset (Productivity)
+- [x] Updated Preset model with new types and categories
+- [x] Updated types/index.ts with description and category fields
+- [x] Updated presets API route
+- [x] Updated presets templates page
 
-## Follow-up Steps
-- Test homepage theme reflection
-- Verify presets functionality still works without browsing
-- Confirm new icon displays correctly
+### 5. Bug Fixes
+- [x] Fixed dynamic Tailwind class names in presets-templates page
+- [x] Added proper helper functions for category badge styling
+
+### 6. Build Verification
+- [x] Build completed successfully
+- [x] All 37 pages rendered correctly
+- [x] No TypeScript errors
+

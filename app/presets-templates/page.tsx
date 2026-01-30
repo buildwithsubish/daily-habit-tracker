@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Zap, Download, Check, AlertCircle, Sparkles, Layout, ChevronRight, ArrowLeft, Star, Target, Flame, Crown, Trophy, Rocket } from 'lucide-react';
+import { Zap, Download, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Star, Target, Flame, Crown, Trophy, Rocket } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -15,6 +15,7 @@ interface Preset {
   structure?: {
     habits: any[];
   };
+  habitsCount?: number;
 }
 
 export default function PresetsTemplatesPage() {
@@ -74,22 +75,44 @@ export default function PresetsTemplatesPage() {
     }
   };
 
-  const categories = ['All', 'Health', 'Productivity', 'Mindset', 'Growth'];
-  const filteredPresets = activeCategory === 'All' 
-    ? presets 
-    : presets.filter(p => p.category === activeCategory || p.type.includes(activeCategory.toLowerCase()));
+  const categories = ['All', 'Health', 'Fitness', 'Productivity', 'Mindfulness', 'Growth'];
+  const filteredPresets = activeCategory === 'All'
+    ? presets
+    : presets.filter(p => p.category === activeCategory);
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case 'Health': return 'bg-green-500';
+      case 'Fitness': return 'bg-orange-500';
+      case 'Productivity': return 'bg-blue-500';
+      case 'Mindfulness': return 'bg-purple-500';
+      case 'Growth': return 'bg-yellow-500';
+      default: return 'bg-slate-500';
+    }
+  };
+
+  const getCategoryTextColor = (category: string) => {
+    switch (category) {
+      case 'Health': return 'text-green-600';
+      case 'Fitness': return 'text-orange-600';
+      case 'Productivity': return 'text-blue-600';
+      case 'Mindfulness': return 'text-purple-600';
+      case 'Growth': return 'text-yellow-600';
+      default: return 'text-slate-600';
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
         <div className="relative">
-          <motion.div 
+          <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
             className="w-24 h-24 border-t-2 border-b-2 border-blue-600 rounded-full"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Sparkles className="text-blue-600 animate-pulse" size={24} />
+            <Zap className="text-blue-600 animate-pulse" size={24} />
           </div>
         </div>
       </div>
@@ -106,7 +129,7 @@ export default function PresetsTemplatesPage() {
         </div>
 
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <Link 
+          <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-blue-600 transition-all mb-12 shadow-sm group"
           >
@@ -120,14 +143,14 @@ export default function PresetsTemplatesPage() {
           >
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-600/10 text-blue-600 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
               <Crown size={12} />
-              Premium Blueprints
+              Habit Templates
             </div>
             <h1 className="text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-[0.9]">
-              Architect Your <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Evolution.</span>
+              Start Building <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Better Habits.</span>
             </h1>
             <p className="text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed mb-12">
-              Skip the trial and error. Deploy professionally designed habit architectures used by top performers worldwide.
+              Choose a proven template to jumpstart your habit journey. Simple, practical, and effective.
             </p>
           </motion.div>
 
@@ -154,15 +177,15 @@ export default function PresetsTemplatesPage() {
       <section className="max-w-7xl mx-auto px-4 pb-32">
         <AnimatePresence mode="wait">
           {message && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className="mb-12 overflow-hidden"
             >
               <div className={`p-6 rounded-3xl border-2 flex items-center justify-between gap-4 font-bold ${
-                message.type === 'success' 
-                  ? 'bg-green-500/10 border-green-500/20 text-green-600' 
+                message.type === 'success'
+                  ? 'bg-green-500/10 border-green-500/20 text-green-600'
                   : 'bg-red-500/10 border-red-500/20 text-red-600'
               }`}>
                 <div className="flex items-center gap-4">
@@ -180,8 +203,8 @@ export default function PresetsTemplatesPage() {
         {filteredPresets.length === 0 ? (
           <div className="text-center py-40 bg-white dark:bg-slate-900/50 rounded-[4rem] border border-slate-200 dark:border-slate-800">
             <Layout className="mx-auto text-slate-200 dark:text-slate-700 mb-8" size={64} />
-            <h3 className="text-2xl font-bold mb-2">No bluebrints found</h3>
-            <p className="text-slate-500">We're crafting new systems for this category.</p>
+            <h3 className="text-2xl font-bold mb-2">No templates found</h3>
+            <p className="text-slate-500">We're crafting new templates for this category.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -204,8 +227,8 @@ export default function PresetsTemplatesPage() {
                       <Zap size={32} />
                     </div>
                     <div className="flex gap-2">
-                      <span className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest">
-                        {preset.type}
+                      <span className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest ${getCategoryColor(preset.category || 'Health')} bg-opacity-20 ${getCategoryTextColor(preset.category || 'Health')}`}>
+                        {preset.category || 'General'}
                       </span>
                     </div>
                   </div>
@@ -214,17 +237,17 @@ export default function PresetsTemplatesPage() {
                     {preset.name}
                   </h3>
                   <p className="text-lg text-slate-500 dark:text-slate-400 font-medium mb-12 flex-grow leading-relaxed">
-                    {preset.description || `The comprehensive framework for mastering ${preset.name.toLowerCase()} with surgical precision.`}
+                    {preset.description || `A simple and effective template for ${preset.name.toLowerCase()}.`}
                   </p>
 
                   <div className="flex flex-col sm:flex-row items-center gap-6 pt-12 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/50 px-6 py-3 rounded-2xl flex-grow w-full sm:w-auto">
                       <Trophy className="text-blue-600" size={20} />
                       <span className="font-bold text-sm">
-                        <span className="text-blue-600">{preset.structure?.habits?.length || 0}</span> Strategic Habits
+                        <span className="text-blue-600">{preset.habitsCount || preset.structure?.habits?.length || 0}</span> Habits
                       </span>
                     </div>
-                    
+
                     <button
                       onClick={() => handleApplyPreset(preset.name, preset._id)}
                       disabled={applyingId === preset._id || appliedId === preset._id}
@@ -241,7 +264,7 @@ export default function PresetsTemplatesPage() {
                       ) : applyingId === preset._id ? (
                         <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <>Deploy Blueprint <ChevronRight size={18} /></>
+                        <>Start Template <ChevronRight size={18} /></>
                       )}
                     </button>
                   </div>
@@ -263,12 +286,13 @@ export default function PresetsTemplatesPage() {
              {/* Mock Partner Icons */}
              {[1,2,3,4].map(i => <div key={i} className="w-12 h-12 rounded-xl bg-white/10" />)}
           </div>
-          <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-4">The Performance Standard</p>
+          <p className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[10px] mb-4">Join Thousands Building Better Habits</p>
           <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">
-            Built for those who refuse <br /> to settle for <span className="text-blue-500">average.</span>
+            Start small, stay consistent, <br /> and <span className="text-blue-500">watch yourself grow.</span>
           </h2>
         </div>
       </section>
     </div>
   );
 }
+

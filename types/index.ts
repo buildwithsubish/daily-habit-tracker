@@ -53,13 +53,20 @@ export interface DailyLog {
 export interface Preset {
   id: string;
   name: string;
-  type: 'weekday' | 'sunday' | 'gym' | 'diet' | 'bulking' | 'lean-bulk';
+  description?: string;
+  type: string;
+  category?: 'Health' | 'Fitness' | 'Productivity' | 'Mindfulness' | 'Growth' | 'Diet' | 'Finance' | 'Social';
   structure: {
     habits: Array<{
       name: string;
       category: Habit['category'];
       type: Habit['type'];
       steps: HabitStep[];
+      schedule?: {
+        weekdays?: boolean;
+        weekends?: boolean;
+        custom?: number[];
+      };
       time?: string; // HH:MM format
     }>;
   };

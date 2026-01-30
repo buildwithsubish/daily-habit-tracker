@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, LayoutPanelLeft, ChevronRight, Zap, Shield, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, ChevronRight, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MonkeyAvatar from '@/components/MonkeyAvatar';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier: email, password }),
       });
 
       const data = await response.json();
@@ -49,8 +49,8 @@ export default function LoginPage() {
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500 blur-[120px] rounded-full animate-pulse-soft" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-purple-500 blur-[120px] rounded-full animate-pulse-soft" style={{ animationDelay: '1s' }} />
       </div>
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -60,20 +60,20 @@ export default function LoginPage() {
           <div className="text-center mb-10">
             <div className="flex justify-center mb-6">
               <div className="w-14 h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
-                 <Shield size={28} />
+                 <Lock size={28} />
               </div>
             </div>
-            <MonkeyAvatar 
-              isPasswordVisible={showPassword} 
-              isPasswordFocused={isPasswordFocused} 
+            <MonkeyAvatar
+              isPasswordVisible={showPassword}
+              isPasswordFocused={isPasswordFocused}
             />
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Initialize.</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium">Access your performance environment.</p>
+            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Welcome Back</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Sign in to continue</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-red-500/10 text-red-600 px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-center border border-red-500/20"
@@ -81,22 +81,22 @@ export default function LoginPage() {
                 {error}
               </motion.div>
             )}
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Identity</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Email</label>
                 <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="Email or Username"
+                  placeholder="name@example.com"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Credential</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -105,7 +105,7 @@ export default function LoginPage() {
                     onFocus={() => setIsPasswordFocused(true)}
                     onBlur={() => setIsPasswordFocused(false)}
                     required
-                    placeholder="••••••••"
+                    placeholder="Enter password"
                     className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
                   />
                   <button
@@ -128,7 +128,7 @@ export default function LoginPage() {
                 <div className="w-5 h-5 border-3 border-slate-400 border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  Enter Interface
+                  Sign In
                   <ChevronRight size={18} />
                 </>
               )}
@@ -146,3 +146,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

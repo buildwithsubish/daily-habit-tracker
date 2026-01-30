@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, ChevronRight, Eye, EyeOff, Check, X, Shield, Sparkles } from 'lucide-react';
+import { UserPlus, ChevronRight, Eye, EyeOff, Lock, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MonkeyAvatar from '@/components/MonkeyAvatar';
 
@@ -32,8 +32,8 @@ export default function RegisterPage() {
     { label: 'Unsafe', color: 'bg-red-500' },
     { label: 'Weak', color: 'bg-orange-500' },
     { label: 'Medium', color: 'bg-yellow-500' },
-    { label: 'High', color: 'bg-blue-500' },
-    { label: 'Elite', color: 'bg-green-500' },
+    { label: 'Strong', color: 'bg-blue-500' },
+    { label: 'Very Strong', color: 'bg-green-500' },
   ][passwordStrength];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,8 +75,8 @@ export default function RegisterPage() {
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500 blur-[120px] rounded-full animate-pulse-soft" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[30%] h-[30%] bg-indigo-500 blur-[120px] rounded-full animate-pulse-soft" style={{ animationDelay: '1s' }} />
       </div>
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -89,17 +89,17 @@ export default function RegisterPage() {
                  <UserPlus size={28} />
               </div>
             </div>
-            <MonkeyAvatar 
-              isPasswordVisible={showPassword} 
-              isPasswordFocused={isPasswordFocused} 
+            <MonkeyAvatar
+              isPasswordVisible={showPassword}
+              isPasswordFocused={isPasswordFocused}
             />
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Deploy.</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Create your performance architecture.</p>
+            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Create Account</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Start building better habits today</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="bg-red-500/10 text-red-600 px-5 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-center border border-red-500/20"
@@ -107,10 +107,10 @@ export default function RegisterPage() {
                 {error}
               </motion.div>
             )}
-            
+
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Email Endpoint</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Email</label>
                 <input
                   type="email"
                   value={email}
@@ -122,19 +122,19 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Alias</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Username</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  placeholder="johndoe"
+                  placeholder="Choose a username"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Access Code</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -143,7 +143,7 @@ export default function RegisterPage() {
                     onFocus={() => setIsPasswordFocused(true)}
                     onBlur={() => setIsPasswordFocused(false)}
                     required
-                    placeholder="••••••••"
+                    placeholder="Create a password"
                     className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
                   />
                   <button
@@ -154,22 +154,22 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                
+
                 {password && (
                   <div className="mt-3 px-1">
                     <div className="flex gap-1.5 h-1.5 mb-2">
                       {[0, 1, 2, 3].map((step) => (
-                        <div 
-                          key={step} 
+                        <div
+                          key={step}
                           className={`flex-1 rounded-full transition-all duration-500 ${
                             step < passwordStrength ? strengthLabel.color : 'bg-slate-100 dark:bg-slate-800'
-                          }`} 
+                          }`}
                         />
                       ))}
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
-                        Integrity: <span className={passwordStrength > 0 ? 'text-slate-900 dark:text-white' : ''}>{strengthLabel.label}</span>
+                        Strength: <span className={passwordStrength > 0 ? 'text-slate-900 dark:text-white' : ''}>{strengthLabel.label}</span>
                       </span>
                     </div>
                   </div>
@@ -177,13 +177,13 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Confirm Access Code</label>
+                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1">Confirm Password</label>
                 <input
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="Confirm your password"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
                 />
               </div>
@@ -199,7 +199,7 @@ export default function RegisterPage() {
                   <div className="w-5 h-5 border-3 border-slate-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    Initialize Account
+                    Create Account
                     <ChevronRight size={18} />
                   </>
                 )}
@@ -208,7 +208,7 @@ export default function RegisterPage() {
           </form>
 
           <p className="mt-10 text-center">
-            <span className="text-slate-500 text-sm font-medium">Already deployed?</span>{' '}
+            <span className="text-slate-500 text-sm font-medium">Already have an account?</span>{' '}
             <Link href="/login" className="text-blue-600 font-black text-sm hover:text-blue-700 transition-colors ml-1 uppercase tracking-widest text-[10px]">
               Sign In
             </Link>
@@ -218,3 +218,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+
