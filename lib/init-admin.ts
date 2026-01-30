@@ -6,7 +6,7 @@ export async function initAdmin() {
   try {
     await connectDB();
 
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@habittracker.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
     const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (!adminPassword) {

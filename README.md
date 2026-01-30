@@ -112,7 +112,7 @@ JWT_SECRET=your-super-secret-jwt-key-min-32-chars-change-in-production
 ADMIN_JWT_SECRET=your-different-admin-secret-key-min-32-chars
 
 # Admin Account
-ADMIN_EMAIL=admin@habittracker.com
+ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=YourSuperSecurePassword123!@#
 
 # Environment
@@ -224,7 +224,7 @@ git add . && git commit -m "Deploy" && git push
 MONGODB_URI=mongodb://localhost:27017/habit-tracker
 JWT_SECRET=your-secret-key-64-chars-minimum
 ADMIN_JWT_SECRET=your-admin-secret-key-different-from-above
-ADMIN_EMAIL=admin@habittracker.com
+ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=YourSecurePassword123!@#
 NODE_ENV=development
 ```
@@ -236,7 +236,7 @@ JWT_SECRET=generate-with-node-crypto-strong-32-chars-min
 ADMIN_JWT_SECRET=different-key-for-admin-tokens
 ADMIN_EMAIL=secure-email@domain.com
 ADMIN_PASSWORD=very-strong-password-24-chars-min
-NODE_ENV=production
+NODE_ENV=development
 # DO NOT SET PORT - let platform assign
 ```
 
@@ -591,8 +591,8 @@ daily_habit_tracker/
 ### Available Scripts
 ```bash
 npm run dev          # Start development server
-npm run build        # Build for production
-npm start            # Start production server
+npm run build        # Build for prod
+npm start            # Start prod server
 npm run init-admin   # Initialize admin account
 npm run seed         # Seed database with default data
 ```
