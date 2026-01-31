@@ -100,7 +100,7 @@ sudo apt update && sudo apt install -y mongodb-org
 sudo systemctl start mongod && sudo systemctl enable mongod
 ```
 
-#### 3. Create Environment Configuration
+#### 3. Create Environment Configuration :
 Create `.env.local`:
 ```env
 # Database
