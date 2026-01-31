@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Users, Target, CheckCircle, TrendingUp, 
-  Activity, BarChart3, Shield, LogOut
+  Activity, BarChart3, ArrowUpRight, ArrowDownRight,
+  Zap, DollarSign, PieChart as PieChartIcon
 } from 'lucide-react';
-import Link from 'next/link';
 import { 
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
 } from 'recharts';
+import { motion } from 'framer-motion';
+import { GlassCard, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 
 interface AdminStats {
   totalUsers: number;
@@ -25,42 +27,24 @@ interface AdminStats {
   dailyActivity: Array<{ date: string; total: number; completed: number }>;
 }
 
-const COLORS = ['#0f172a', '#334155', '#475569', '#64748b', '#94a3b8', '#cbd5e1'];
+const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function AdminDashboard() {
-  const router = useRouter();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading } = useQuery<AdminStats>({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/stats');
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return res.json();
+    },
+  });
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/admin/stats', { credentials: 'same-origin' });
-      if (res.status === 401) {
-        router.push('/admin/login');
-        return;
-      }
-      const data = await res.json();
-      setStats(data);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await fetch('/api/admin/logout', { method: 'POST' });
-    router.push('/admin/login');
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-32 bg-slate-200 rounded-xl"></div>
+        ))}
       </div>
     );
   }
@@ -71,176 +55,291 @@ export default function AdminDashboard() {
     date: new Date(activity.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     total: activity.total,
     completed: activity.completed,
-    completionRate: activity.total > 0 ? (activity.completed / activity.total) * 100 : 0,
   }));
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-slate-900 text-white shadow-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Shield className="text-white" size={24} />
-              <h1 className="text-xl font-bold tracking-tight">System Control</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/admin/users"
-                className="text-sm font-medium hover:text-slate-300 transition-colors"
-              >
-                Users
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all text-sm font-bold"
-              >
-                <LogOut size={16} />
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Summary Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[
-            { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-600', border: 'border-blue-200' },
-            { label: 'Total Habits', value: stats.totalHabits, icon: Target, color: 'text-emerald-600', border: 'border-emerald-200' },
-            { label: 'Total Logs', value: stats.totalLogs, icon: CheckCircle, color: 'text-violet-600', border: 'border-violet-200' },
-            { label: 'Completion Rate', value: `${stats.completionRate.toFixed(1)}%`, icon: TrendingUp, color: 'text-amber-600', border: 'border-amber-200' },
-          ].map((item, i) => (
-            <div key={i} className={`bg-white rounded-2xl p-6 shadow-sm border ${item.border} hover:shadow-md transition-shadow`}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{item.label}</span>
-                <item.icon className={item.color} size={24} />
+    <motion.div 
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-8"
+    >
+      {/* Hero Stats Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div variants={item}>
+          <GlassCard className="p-6 bg-gradient-to-br from-indigo-600 to-indigo-700">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Users className="text-white" size={24} />
               </div>
-              <p className="text-3xl font-black text-slate-900">{item.value}</p>
+              <Badge variant="glass" className="bg-emerald-500/20 text-emerald-300 border-none">
+                <ArrowUpRight size={12} className="mr-1" /> 12%
+              </Badge>
             </div>
-          ))}
-        </div>
-
-        {/* Analytics Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          {/* Activity Chart */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <Activity className="text-slate-900" size={20} />
-              System Activity
-            </h2>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0f172a" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#0f172a" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#64748b', fontSize: 12}}
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: '#64748b', fontSize: 12}}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="completed" 
-                    stroke="#0f172a" 
-                    strokeWidth={3}
-                    fill="url(#colorTotal)" 
-                    name="Completed Tasks" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            <p className="text-indigo-100 text-sm font-medium">Total Users</p>
+            <h3 className="text-3xl font-bold text-white mt-1">{stats.totalUsers.toLocaleString()}</h3>
+            <div className="mt-4 h-1 w-full bg-white/10 rounded-full overflow-hidden">
+               <div className="h-full bg-white w-2/3"></div>
             </div>
-          </div>
+          </GlassCard>
+        </motion.div>
 
-          {/* Categories Chart */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-              <BarChart3 className="text-slate-900" size={20} />
-              Distribution
-            </h2>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats.habitsByCategory}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="count"
-                  >
-                    {stats.habitsByCategory.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {stats.habitsByCategory.slice(0, 4).map((cat, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-xs font-medium text-slate-600 truncate">{cat.category}</span>
+        <motion.div variants={item}>
+          <GlassCard className="p-6 bg-gradient-to-br from-emerald-500 to-emerald-600">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <Zap className="text-white" size={24} />
+              </div>
+              <Badge variant="glass" className="bg-white/20 text-white border-none">
+                Live
+              </Badge>
+            </div>
+            <p className="text-emerald-500 text-sm font-medium">Active Habits</p>
+            <h3 className="text-3xl font-bold text-white mt-1">{stats.totalHabits.toLocaleString()}</h3>
+            <div className="mt-4 flex items-center gap-2">
+               <div className="flex -space-x-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-6 w-6 rounded-full border-2 border-emerald-500 bg-emerald-100 flex items-center justify-center text-[10px] font-bold text-emerald-600">
+                      U{i}
+                    </div>
+                  ))}
+               </div>
+               <span className="text-xs text-emerald-100 font-medium">+42 active now</span>
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <GlassCard className="p-6 bg-gradient-to-br from-slate-800 to-slate-900">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <DollarSign className="text-white" size={24} />
+              </div>
+              <Badge variant="glass" className="bg-emerald-500/20 text-emerald-300 border-none">
+                +8%
+              </Badge>
+            </div>
+            <p className="text-slate-400 text-sm font-medium">Revenue MRR</p>
+            <h3 className="text-3xl font-bold text-white mt-1">$2.4k</h3>
+            <p className="mt-4 text-xs text-slate-500">Target: $5k by Q2</p>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <GlassCard className="p-6 bg-gradient-to-br from-violet-600 to-violet-700">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <PieChartIcon className="text-white" size={24} />
+              </div>
+              <Badge variant="glass" className="bg-red-500/20 text-red-300 border-none">
+                <ArrowDownRight size={12} className="mr-1" /> 0.5%
+              </Badge>
+            </div>
+            <p className="text-violet-100 text-sm font-medium">Churn Rate</p>
+            <h3 className="text-3xl font-bold text-white mt-1">2.1%</h3>
+            <div className="mt-4 flex gap-1">
+              {[40, 60, 30, 80, 50].map((h, i) => (
+                <div key={i} style={{ height: `${h}%` }} className="w-full bg-white/20 rounded-sm"></div>
+              ))}
+            </div>
+          </GlassCard>
+        </motion.div>
+      </div>
+
+      {/* Quick Actions */}
+      <motion.div variants={item} className="flex flex-wrap gap-3">
+        {['Users', 'Presets', 'Analytics', 'Billing', 'Settings'].map((action) => (
+          <Button key={action} variant="outline" className="bg-white border-slate-200 hover:border-indigo-600 hover:text-indigo-600 transition-all font-bold">
+            {action}
+          </Button>
+        ))}
+      </motion.div>
+
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div variants={item} className="lg:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+              <div>
+                <CardTitle className="text-lg font-bold">System Activity</CardTitle>
+                <p className="text-xs text-slate-500 mt-1">Real-time habit completion trends across the platform</p>
+              </div>
+              <Activity className="text-slate-400" size={20} />
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#94a3b8', fontSize: 12}}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#94a3b8', fontSize: 12}}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="completed" 
+                      stroke="#6366f1" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorCompleted)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold">Category Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.habitsByCategory}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={8}
+                      dataKey="count"
+                    >
+                      {stats.habitsByCategory.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-3 mt-4">
+                {stats.habitsByCategory.map((cat, i) => (
+                  <div key={cat.category} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                      <span className="text-sm font-medium text-slate-600">{cat.category}</span>
+                    </div>
+                    <span className="text-sm font-bold text-slate-900">{cat.count}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
 
-        {/* Top Habits */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">Top Performing Habits</h2>
-            <span className="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-600 rounded-full">Global Ranking</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Habit</th>
-                  <th className="text-left py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
-                  <th className="text-right py-4 px-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Completions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {stats.topHabits.map((habit, index) => (
-                  <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="font-bold text-slate-900">{habit.name}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="text-sm text-slate-600">{habit.category}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <span className="font-black text-slate-900">{habit.completions}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-    </div>
+      {/* Top Habits Table & Audit Log */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div variants={item} className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold">Top Performing Habits</CardTitle>
+                <Button variant="ghost" size="sm" className="text-indigo-600 font-bold">View All</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative w-full overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="h-10 px-4 text-left align-middle font-bold text-slate-500 uppercase tracking-wider text-[10px]">Rank</th>
+                        <th className="h-10 px-4 text-left align-middle font-bold text-slate-500 uppercase tracking-wider text-[10px]">Habit</th>
+                        <th className="h-10 px-4 text-left align-middle font-bold text-slate-500 uppercase tracking-wider text-[10px]">Category</th>
+                        <th className="h-10 px-4 text-right align-middle font-bold text-slate-500 uppercase tracking-wider text-[10px]">Completions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {stats.topHabits.map((habit, index) => (
+                        <tr key={index} className="group hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 align-middle">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600">
+                              #{index + 1}
+                            </span>
+                          </td>
+                          <td className="p-4 align-middle font-bold text-slate-900">{habit.name}</td>
+                          <td className="p-4 align-middle">
+                            <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-medium">
+                                {habit.category}
+                            </Badge>
+                          </td>
+                          <td className="p-4 align-middle text-right font-black text-slate-900">{habit.completions.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={item}>
+          <Card className="h-full">
+            <CardHeader>
+               <CardTitle className="text-lg font-bold">System Audit Log</CardTitle>
+            </CardHeader>
+            <CardContent>
+               <div className="space-y-6">
+                  {[
+                    { user: 'Admin', action: 'Modified Preset "Gym"', time: '2m ago', color: 'bg-indigo-500' },
+                    { user: 'System', action: 'Daily Backup Completed', time: '1h ago', color: 'bg-emerald-500' },
+                    { user: 'Editor', action: 'Suspended user user_99', time: '3h ago', color: 'bg-orange-500' },
+                    { user: 'Admin', action: 'Updated API Keys', time: '5h ago', color: 'bg-indigo-500' },
+                    { user: 'System', action: 'Security Scan Finished', time: '1d ago', color: 'bg-emerald-500' },
+                  ].map((log, i) => (
+                    <div key={i} className="flex gap-4 relative">
+                       {i !== 4 && <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-100"></div>}
+                       <div className={cn("h-6 w-6 rounded-full flex-shrink-0 border-4 border-white shadow-sm z-10", log.color)}></div>
+                       <div>
+                          <p className="text-sm font-bold text-slate-900 leading-none">{log.action}</p>
+                          <p className="text-xs text-slate-500 mt-1">{log.user} • {log.time}</p>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+               <Button variant="outline" className="w-full mt-8 font-bold text-xs border-slate-200">View Full Audit Trail</Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 }

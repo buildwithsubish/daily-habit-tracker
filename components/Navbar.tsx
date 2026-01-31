@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, LayoutDashboard, Target, BarChart3, Menu, X, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import MonkeyLogo from './MonkeyLogo';
 
 export default function Navbar() {
   const router = useRouter();
@@ -38,12 +39,7 @@ export default function Navbar() {
   if (!mounted) return (
     <nav className="fixed top-0 left-0 right-0 z-[100] bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 py-5">
       <div className="max-w-7xl mx-auto px-6 lg:px-12 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl">
-            <Shield className="text-white" size={20} />
-          </div>
-          <span className="text-xl font-black tracking-tighter text-slate-900 dark:text-white">HabitTracker</span>
-        </div>
+        <MonkeyLogo />
       </div>
     </nav>
   );
@@ -57,11 +53,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 lg:px-12">
         <div className="flex justify-between items-center">
           {/* Brand */}
-          <Link href="/dashboard" className="flex items-center gap-3 group">
-            <div className="bg-blue-600 p-2 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/20">
-              <Shield className="text-white" size={20} />
-            </div>
-            <span className="text-xl font-black tracking-tighter text-slate-900 dark:text-white">HabitTracker</span>
+          <Link href="/dashboard">
+            <MonkeyLogo />
           </Link>
           
           {/* Desktop Nav */}

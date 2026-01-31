@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Habit } from '@/types';
-import { Plus, Target, Zap, Clock, Calendar, Sparkles, Filter, ChevronDown } from 'lucide-react';
+import { Plus, Target, Zap, Clock, Calendar, Sparkles, Info, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HabitCard from '@/components/HabitCard';
-import HabitStats from '@/components/HabitStats';
-import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import { HabitSkeleton } from '@/components/Skeleton';
 
 export default function HabitsPage() {
   const router = useRouter();
@@ -46,98 +45,112 @@ export default function HabitsPage() {
   if (!hasMounted) return null;
 
   return (
-    <div className="space-y-12 pb-20">
-      {/* Header & Controls */}
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
-        <div>
-          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-black text-[10px] uppercase tracking-[0.3em] mb-4">
-            <Target size={14} />
-            <span>Operational Protocols</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter leading-[0.8] uppercase">
-            Master Your<br />
-            <span className="text-slate-300 dark:text-slate-800">Routine.</span>
-          </h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  activeCategory === cat 
-                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => router.push('/dashboard/habits/new')}
-            className="bg-black dark:bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-blue-700 transition-all flex items-center gap-3 shadow-xl shadow-black/10 dark:shadow-blue-500/20"
-          >
-            <Plus size={18} />
-            Initialize Module
-          </button>
-        </div>
-      </div>
-
-      {/* Stats QuickView */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { label: "Active Protocols", value: habits.length, icon: Zap, colorClass: "text-amber-500" },
-          { label: "Average Velocity", value: "84%", icon: Target, colorClass: "text-blue-500" },
-          { label: "Total Compliance", value: "1,240", icon: Calendar, colorClass: "text-emerald-500" },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 flex items-center justify-between group hover:border-blue-500/30 transition-all duration-500">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{stat.label}</p>
-              <p className="text-4xl font-black dark:text-white">{stat.value}</p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-indigo-950 pb-20 pt-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12"
+        >
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Target size={24} className="text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Management</span>
             </div>
-            <div className={`p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl ${stat.colorClass} group-hover:scale-110 transition-transform duration-500`}>
-              <stat.icon size={24} />
-            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              Your <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Rituals</span>
+            </h1>
+            <p className="text-zinc-600 dark:text-zinc-400 text-base font-medium">
+              Curate the habits that define who you are.
+            </p>
           </div>
-        ))}
-      </div>
 
-      {/* Habits Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-8">
-        <AnimatePresence mode="popLayout">
-          {filteredHabits.map((habit) => (
-            <motion.div
-              key={habit.id}
-              layout
+          <div className="flex flex-wrap items-center gap-4">
+            <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1.5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl"
             >
-              <HabitCard 
-                habit={habit} 
-                completed={false} 
-                onToggle={() => fetchHabits()}
-              />
+              {categories.map((cat) => (
+                <motion.button
+                  key={cat}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
+                    activeCategory === cat 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30' 
+                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+                  }`}
+                >
+                  {cat}
+                </motion.button>
+              ))}
             </motion.div>
-          ))}
-          
-          {filteredHabits.length === 0 && !loading && (
-            <div className="lg:col-span-full py-32 text-center space-y-6">
-              <div className="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center mx-auto text-slate-300 dark:text-slate-800">
-                <Target size={40} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-black uppercase tracking-tight dark:text-white">No Active Protocols</h3>
-                <p className="text-slate-400 font-bold mt-2 uppercase text-[10px] tracking-[0.2em]">Initialize your first module to begin tracking performance.</p>
-              </div>
-            </div>
-          )}
-        </AnimatePresence>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => router.push('/dashboard/habits/new')}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:shadow-xl transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/30"
+            >
+              <Plus size={18} />
+              New Ritual
+            </motion.button>
+          </div>
+        </motion.div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => <HabitSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+            <AnimatePresence mode="popLayout">
+              {filteredHabits.map((habit, index) => (
+                <motion.div
+                  key={habit.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
+                  <HabitCard 
+                    habit={habit} 
+                    completed={false} 
+                    onToggle={() => fetchHabits()}
+                  />
+                </motion.div>
+              ))}
+              
+              {filteredHabits.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="col-span-full py-24 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700"
+                >
+                  <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <Info size={32} className="text-indigo-500 dark:text-indigo-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">No rituals found</h3>
+                  <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-6">Start by creating your first ritual or check a different category.</p>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push('/dashboard/habits/new')}
+                    className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:shadow-xl shadow-lg shadow-indigo-500/30 transition-all"
+                  >
+                    Create Your First Habit
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );

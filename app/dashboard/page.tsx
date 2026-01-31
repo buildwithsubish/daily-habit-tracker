@@ -9,9 +9,10 @@ import AchievementBadges from '@/components/AchievementBadges';
 import HabitStats from '@/components/HabitStats';
 import StreakCelebration from '@/components/StreakCelebration';
 import { getToday, isHabitScheduled } from '@/lib/utils';
-import { Calendar, ListTodo, Sparkles, Edit, ChevronRight, Zap, Target, ArrowRight, Activity, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { ListTodo, Sparkles, ChevronRight, Zap, Target, Clock, CheckCircle2, Info } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { HabitSkeleton, StatsSkeleton } from '@/components/Skeleton';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(getToday());
   const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
   const [hasMounted, setHasMounted] = useState(false);
+  const [username, setUsername] = useState<string>('');
   const [celebration, setCelebration] = useState<{ isOpen: boolean; type: '7-day' | '30-day' | 'daily' }>({
     isOpen: false,
     type: '7-day',
@@ -28,9 +30,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setHasMounted(true);
-    fetchHabits();
-    fetchLogs();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchHabits(), fetchLogs(), fetchUser()]);
+      setLoading(false);
+    };
+    loadData();
   }, [selectedDate]);
+
+  const fetchUser = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        setUsername(data.username || '');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+    }
+  };
 
   const fetchHabits = async () => {
     try {
@@ -43,8 +61,6 @@ export default function DashboardPage() {
       setHabits(data.habits || []);
     } catch (error) {
       console.error('Failed to fetch habits:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -151,47 +167,42 @@ export default function DashboardPage() {
     ? (completedHabitsCount / scheduledHabits.length) * 100
     : 0;
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    const name = username ? `, ${username}` : '';
+    if (hour < 12) return `Good morning${name}!`;
+    if (hour < 18) return `Good afternoon${name}!`;
+    return `Good evening${name}!`;
+  };
+
+  const getNudge = () => {
+    if (scheduledHabits.length === 0) return "Want to start with the easiest habit?";
+    if (completedHabitsCount === 0) return "Even 1 minute counts today. Small steps lead to big change.";
+    if (completedHabitsCount < scheduledHabits.length) return "Just one small action keeps your streak alive.";
+    return "Nice work showing up again! You're crushing it.";
+  };
+
   const getWeeklyCompletionData = () => {
     const weekStart = startOfWeek(new Date(selectedDate), { weekStartsOn: 1 });
-    const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
     const completionData: Record<string, { completed: number; total: number }> = {};
     
-    weekDays.forEach(day => {
-      const dateStr = format(day, 'yyyy-MM-dd');
+    for (let i = 0; i < 7; i++) {
+      const dateStr = format(addDays(weekStart, i), 'yyyy-MM-dd');
       const scheduledForDay = habits.filter(h => isHabitScheduled(h, dateStr));
       const completedForDay = scheduledForDay.filter(h => getHabitCompletion(h.id, dateStr)).length;
       completionData[dateStr] = {
         completed: completedForDay,
         total: scheduledForDay.length
       };
-    });
-    
+    }
     return completionData;
   };
 
   if (!hasMounted) return null;
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-        <motion.div 
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="relative"
-        >
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
-          <div className="absolute inset-0 flex items-center justify-center">
-             <Activity className="text-blue-600" size={20} />
-          </div>
-        </motion.div>
-        <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em]">Loading...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-[#050505]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-24 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-indigo-950 pb-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28">
         <StreakCelebration 
           isOpen={celebration.isOpen} 
           onClose={() => setCelebration({ ...celebration, isOpen: false })} 
@@ -200,182 +211,183 @@ export default function DashboardPage() {
 
         {/* Header Section */}
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8 mb-8 md:mb-12"
         >
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={14} className="text-blue-500" />
-              <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Dashboard</span>
+          <div className="space-y-2 md:space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Sparkles size={16} className="sm:w-[18px] sm:h-[18px] text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Dashboard</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 dark:text-white tracking-tight">
-              Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              {getGreeting()}
             </h1>
+            <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-medium">
+              {getNudge()}
+            </p>
           </div>
           
-          <div className="flex gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg">
-            <button
-              onClick={() => setViewMode('daily')}
-              className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
-                viewMode === 'daily' 
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Daily
-            </button>
-            <button
-              onClick={() => setViewMode('weekly')}
-              className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
-                viewMode === 'weekly' 
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              Weekly
-            </button>
-          </div>
-        </motion.div>
-
-        {/* Stats Cards */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
-        >
           <motion.div 
-            whileHover={{ y: -4 }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1.5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl w-fit"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
-                <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-white">{format(new Date(selectedDate), 'EEE, MMM d')}</p>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Today</p>
-          </motion.div>
-
-          <motion.div 
-            whileHover={{ y: -4 }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-green-50 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
-                <Target size={20} className="text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-white">{completionRate.toFixed(0)}%</p>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Completion</p>
-          </motion.div>
-
-          <motion.div 
-            whileHover={{ y: -4 }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
-                <Zap size={20} className="text-orange-600 dark:text-orange-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-white">{completedHabitsCount}/{scheduledHabits.length}</p>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Completed</p>
-          </motion.div>
-
-          <motion.div 
-            whileHover={{ y: -4 }}
-            className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
-                <Clock size={20} className="text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <p className="text-2xl font-black text-slate-900 dark:text-white">
-              {scheduledHabits.find(h => !getHabitCompletion(h.id))?.name?.slice(0, 10) || 'All Done'}
-            </p>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Next Task</p>
+            {(['daily', 'weekly'] as const).map((mode) => (
+              <motion.button
+                key={mode}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setViewMode(mode)}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold capitalize transition-all ${
+                  viewMode === mode 
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30' 
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
+                }`}
+              >
+                {mode}
+              </motion.button>
+            ))}
           </motion.div>
         </motion.div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Habits Section */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center">
-                  <ListTodo className="text-white dark:text-slate-900" size={20} />
+        {loading ? (
+          <>
+            <StatsSkeleton />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-4">
+                <HabitSkeleton />
+                <HabitSkeleton />
+                <HabitSkeleton />
+              </div>
+              <div className="space-y-4">
+                <div className="modern-card h-64" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10"
+            >
+              {[
+                { icon: Clock, value: format(new Date(selectedDate), 'MMM d'), label: 'Today', bgGradient: 'from-blue-400/20 to-blue-600/20', iconGradient: 'from-blue-500 to-blue-600', iconShadow: 'shadow-blue-500/30' },
+                { icon: Target, value: `${completionRate.toFixed(0)}%`, label: 'Completion', bgGradient: 'from-indigo-400/20 to-indigo-600/20', iconGradient: 'from-indigo-500 to-indigo-600', iconShadow: 'shadow-indigo-500/30' },
+                { icon: Zap, value: `${completedHabitsCount}/${scheduledHabits.length}`, label: 'Done', bgGradient: 'from-purple-400/20 to-purple-600/20', iconGradient: 'from-purple-500 to-purple-600', iconShadow: 'shadow-purple-500/30' },
+                { icon: CheckCircle2, value: `${scheduledHabits.length - completedHabitsCount}`, label: 'Remaining', bgGradient: 'from-pink-400/20 to-pink-600/20', iconGradient: 'from-pink-500 to-pink-600', iconShadow: 'shadow-pink-500/30' },
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.05 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  className="group relative bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl p-6 border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                >
+                  <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${stat.bgGradient} rounded-full blur-2xl`} />
+                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.iconGradient} rounded-2xl flex items-center justify-center mb-4 shadow-lg ${stat.iconShadow}`}>
+                    <stat.icon size={20} className="text-white" />
+                  </div>
+                  <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">{stat.value}</p>
+                  <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{stat.label}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Main Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                      <ListTodo className="text-white" size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Daily Rituals</h2>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">Track your progress today</p>
+                    </div>
+                  </div>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => router.push('/dashboard/habits')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-widest hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors duration-200"
+                  >
+                    All Habits <ChevronRight size={14} />
+                  </motion.button>
                 </div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white">Today's Habits</h2>
+
+                {viewMode === 'weekly' ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="modern-card">
+                    <WeeklyCalendar
+                      selectedDate={selectedDate}
+                      onDateSelect={setSelectedDate}
+                      completionData={getWeeklyCompletionData()}
+                    />
+                  </motion.div>
+                ) : (
+                  <div className="space-y-3">
+                    <AnimatePresence mode="popLayout">
+                      {scheduledHabits.length === 0 ? (
+                        <motion.div 
+                          initial={{ opacity: 0, scale: 0.95 }} 
+                          animate={{ opacity: 1, scale: 1 }} 
+                          className="py-20 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-3xl border-2 border-dashed border-zinc-300 dark:border-zinc-700"
+                        >
+                          <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Info size={32} className="text-indigo-500 dark:text-indigo-400" />
+                          </div>
+                          <p className="font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest text-sm mb-2">No habits scheduled for today</p>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-500 mb-6">Start building your daily rituals</p>
+                          <motion.button 
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => router.push('/dashboard/habits/new')} 
+                            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:shadow-xl shadow-lg shadow-indigo-500/30 transition-all"
+                          >
+                            Create Your First Habit
+                          </motion.button>
+                        </motion.div>
+                      ) : (
+                        scheduledHabits.map((habit, index) => (
+                          <motion.div
+                            key={habit.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                          >
+                            <HabitCard
+                              habit={habit}
+                              completed={getHabitCompletion(habit.id)}
+                              stepCompleted={getStepCompletions(habit.id)}
+                              onToggle={handleToggle}
+                            />
+                          </motion.div>
+                        ))
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
-              <button 
-                onClick={() => router.push('/dashboard/habits')}
-                className="flex items-center gap-2 text-xs font-black text-slate-500 uppercase tracking-wider hover:text-blue-500 transition-colors"
-              >
-                Manage
-                <ChevronRight size={14} />
-              </button>
+              
+              <div className="space-y-8">
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                  <HabitStats habits={habits} logs={logs} />
+                </motion.div>
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+                  <AchievementBadges />
+                </motion.div>
+              </div>
             </div>
-
-            {viewMode === 'weekly' ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6"
-              >
-                <WeeklyCalendar
-                  selectedDate={selectedDate}
-                  onDateSelect={setSelectedDate}
-                  completionData={getWeeklyCompletionData()}
-                />
-              </motion.div>
-            ) : (
-              <div className="space-y-3">
-                <AnimatePresence mode="popLayout">
-                  {scheduledHabits.length === 0 ? (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="py-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800"
-                    >
-                      <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle size={32} className="text-slate-300 dark:text-slate-700" />
-                      </div>
-                      <p className="font-bold text-slate-400 uppercase tracking-widest text-xs">No habits scheduled</p>
-                      <button 
-                        onClick={() => router.push('/dashboard/habits')}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white text-xs font-black uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-colors"
-                      >
-                        Add Habits
-                      </button>
-                    </motion.div>
-                  ) : (
-                    scheduledHabits.map((habit) => (
-                      <HabitCard
-                        key={habit.id}
-                        habit={habit}
-                        completed={getHabitCompletion(habit.id)}
-                        stepCompleted={getStepCompletions(habit.id)}
-                        onToggle={handleToggle}
-                      />
-                    ))
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <HabitStats />
-            <AchievementBadges />
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
-

@@ -38,11 +38,11 @@ export default function AchievementBadges() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 rounded-[2.5rem] p-8 animate-pulse">
-        <div className="h-6 bg-slate-100 dark:bg-slate-800 rounded-full w-1/2 mb-8" />
+      <div className="modern-card animate-pulse">
+        <div className="h-5 bg-neutral-100 dark:bg-zinc-800 rounded-full w-1/3 mb-8" />
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-20 bg-slate-50 dark:bg-slate-800/50 rounded-2xl" />
+            <div key={i} className="h-14 bg-neutral-50 dark:bg-zinc-800/30 rounded-xl" />
           ))}
         </div>
       </div>
@@ -50,14 +50,14 @@ export default function AchievementBadges() {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 border-2 border-slate-50 dark:border-slate-800 rounded-[2.5rem] p-6 sm:p-8">
+    <div className="modern-card">
       <div className="flex items-center gap-3 mb-8">
-        <div className="bg-slate-900 dark:bg-blue-600 p-2 rounded-xl">
-          <Award className="text-white" size={20} />
+        <div className="bg-indigo-50 dark:bg-indigo-500/10 p-2 rounded-xl">
+          <Award className="text-indigo-600 dark:text-indigo-400" size={18} />
         </div>
         <div>
-          <span className="text-[10px] font-black tracking-[0.2em] text-slate-400 dark:text-slate-500 uppercase">Honor Roll</span>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Achievements</h3>
+          <span className="text-[10px] font-semibold tracking-widest text-zinc-400 uppercase">Milestones</span>
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Achievements</h3>
         </div>
       </div>
 
@@ -66,52 +66,49 @@ export default function AchievementBadges() {
           const Icon = ICON_MAP[achievement.icon] || Award;
           return (
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
               key={achievement.id}
-              className={`group relative p-4 rounded-[1.5rem] border-2 transition-all duration-500 ${
+              className={`group relative p-3.5 rounded-2xl border transition-all duration-300 ${
                 achievement.unlocked 
-                  ? 'bg-slate-900 dark:bg-blue-600 border-slate-900 dark:border-blue-600 shadow-xl shadow-blue-500/10' 
-                  : 'bg-slate-50 dark:bg-slate-800/50 border-transparent dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700'
+                  ? 'bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800' 
+                  : 'bg-transparent border-transparent'
               }`}
             >
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl transition-colors ${
-                  achievement.unlocked ? 'bg-white/10 text-white' : 'bg-white dark:bg-slate-800 text-slate-300 dark:text-slate-600'
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                  achievement.unlocked 
+                    ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                    : 'bg-neutral-100 dark:bg-zinc-800/50 text-zinc-300 dark:text-zinc-600'
                 }`}>
-                  <Icon size={20} />
+                  <Icon size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className={`text-sm font-black tracking-tight uppercase ${
-                      achievement.unlocked ? 'text-white' : 'text-slate-900 dark:text-slate-100'
+                  <div className="flex items-center justify-between mb-0.5">
+                    <h4 className={`text-sm font-semibold tracking-tight ${
+                      achievement.unlocked ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 dark:text-zinc-600'
                     }`}>
                       {achievement.name}
                     </h4>
                     {achievement.unlocked && (
-                      <CheckCircle2 size={14} className="text-white" />
+                      <CheckCircle2 size={14} className="text-indigo-600 dark:text-indigo-400" />
                     )}
                   </div>
-                  <p className={`text-[10px] font-bold leading-tight ${
-                    achievement.unlocked ? 'text-slate-400 dark:text-blue-100/60' : 'text-slate-500 dark:text-slate-400'
-                  }`}>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">
                     {achievement.description}
                   </p>
                   
                   {!achievement.unlocked && (
-                    <div className="mt-3 space-y-1.5">
-                      <div className="flex justify-between text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                        <span>Progress</span>
-                        <span>{Math.round((achievement.progress / achievement.maxProgress) * 100)}%</span>
-                      </div>
-                      <div className="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div className="mt-2.5 flex items-center gap-3">
+                      <div className="flex-1 h-1 bg-neutral-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{ width: `${(achievement.progress / achievement.maxProgress) * 100}%` }}
-                          className="h-full bg-slate-900 dark:bg-blue-400"
+                          className="h-full bg-indigo-500/40 dark:bg-indigo-400/30"
                         />
                       </div>
+                      <span className="text-[10px] font-medium text-zinc-400">{Math.round((achievement.progress / achievement.maxProgress) * 100)}%</span>
                     </div>
                   )}
                 </div>

@@ -602,7 +602,7 @@ npm run seed         # Seed database with default data
 - ESLint for code quality
 - Tailwind CSS for styling
 - MongoDB Compass for database inspection
-- Thunder Client / Postman for API testing
+- Postman for API testing
 
 ### Code Standards
 - TypeScript strict mode enabled
@@ -647,6 +647,61 @@ npm run init-admin
 2. Verify Authorization cookie is being sent
 3. Check API route file exists at correct path
 4. Look at server logs for error details
+
+---
+
+## 🎬 Animation Checklist
+
+Framer Motion animations require specific configuration to avoid runtime errors. Follow this checklist when adding or modifying animations:
+
+### ⚠️ Spring Animation Rules
+- **Rule 1**: Spring animations (`type: "spring"`) only support **2 keyframes maximum**
+- **Rule 2**: For complex bounce effects, use elastic easing instead of multiple keyframes
+- **Rule 3**: Multiple keyframes require `ease` (e.g., `easeOut`) not `type: "spring"`
+
+### ✅ Correct Examples
+```tsx
+// ✅ Single keyframe with spring - OK
+animate={{ scale: 1 }}
+transition={{ type: "spring", stiffness: 200 }}
+
+// ✅ Two keyframes with spring - OK
+animate={{ scale: [0, 1] }}
+transition={{ type: "spring", stiffness: 200 }}
+
+// ✅ Multiple keyframes with ease - OK  
+animate={{ scale: [0, 1.5, 1] }}
+transition={{ duration: 0.5, ease: "easeOut" }}
+
+// ✅ Elastic easing for bounce effect - OK
+animate={{ scale: 1 }}
+transition={{ duration: 0.5, ease: [0.68, -0.55, 0.265, 1.55] }}
+```
+
+### ❌ Incorrect Examples
+```tsx
+// ❌ Three keyframes with spring - ERROR
+animate={{ scale: [0, 1.5, 1] }}
+transition={{ type: "spring" }}
+
+// ❌ Multiple keyframes with spring - ERROR
+animate={{ y: [0, -3, 0, -2, 0] }}
+transition={{ type: "spring" }}
+```
+
+### 🎯 Elastic Easing Presets
+| Preset | Values | Feel |
+|--------|--------|------|
+| Gentle | `[0.68, -0.55, 0.265, 1.55]` | Subtle bounce |
+| Bouncy | `[0.68, -0.6, 0.32, 1.6]` | Medium bounce |
+| Wobbly | `[0.175, 0.885, 0.32, 1.275]` | Strong bounce |
+
+### 🧪 Testing Animations
+1. Run `npm run dev` to start development server
+2. Open browser console (F12)
+3. Navigate to pages with animations
+4. Check for console errors: `motion: trying to animate X with Y keyframes`
+5. If errors appear, convert to elastic easing or reduce keyframes
 
 ---
 

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, ChevronRight, Eye, EyeOff, Lock, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MonkeyAvatar from '@/components/MonkeyAvatar';
+import ButtonLoader from '@/components/ButtonLoader';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,6 +18,19 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isTyping) {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1500);
+    }
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [isTyping]);
 
   const passwordStrength = useMemo(() => {
     if (!password) return 0;
@@ -39,6 +53,7 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsTyping(false);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -57,7 +72,8 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (response.ok) {
-        router.push('/dashboard');
+        setSuccess(true);
+        setTimeout(() => router.push('/dashboard'), 1000);
       } else {
         setError(data.error || 'Registration failed');
       }
@@ -85,16 +101,22 @@ export default function RegisterPage() {
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 sm:p-12 shadow-2xl border border-slate-200 dark:border-slate-800">
           <div className="text-center mb-10">
             <div className="flex justify-center mb-6">
-              <div className="w-14 h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
-                 <UserPlus size={28} />
+              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
+                 <UserPlus size={24} className="sm:w-7 sm:h-7" />
               </div>
             </div>
-            <MonkeyAvatar
-              isPasswordVisible={showPassword}
-              isPasswordFocused={isPasswordFocused}
-            />
-            <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Create Account</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Start building better habits today</p>
+            <div className="flex justify-center mb-4">
+              <MonkeyAvatar
+                isPasswordVisible={showPassword}
+                isPasswordFocused={isPasswordFocused}
+                isTyping={isTyping}
+                isError={!!error}
+                isSuccess={success}
+                size={180}
+              />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Build Better Habits, Every Day</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm sm:text-base px-2">Create routines that stick. Track progress. Win daily.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -114,7 +136,10 @@ export default function RegisterPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setIsTyping(true);
+                  }}
                   required
                   placeholder="name@example.com"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
@@ -126,7 +151,10 @@ export default function RegisterPage() {
                 <input
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setIsTyping(true);
+                  }}
                   required
                   placeholder="Choose a username"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
@@ -139,7 +167,10 @@ export default function RegisterPage() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setIsTyping(true);
+                    }}
                     onFocus={() => setIsPasswordFocused(true)}
                     onBlur={() => setIsPasswordFocused(false)}
                     required
@@ -181,7 +212,10 @@ export default function RegisterPage() {
                 <input
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setIsTyping(true);
+                  }}
                   required
                   placeholder="Confirm your password"
                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-sm"
@@ -195,14 +229,7 @@ export default function RegisterPage() {
                 disabled={loading}
                 className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 py-6 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white transition-all shadow-2xl active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-3"
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-3 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    Create Account
-                    <ChevronRight size={18} />
-                  </>
-                )}
+                <ButtonLoader loading={loading} text="CREATE ACCOUNT" loadingText="Creating..." />
               </button>
             </div>
           </form>
