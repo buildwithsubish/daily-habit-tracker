@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Activity, Flame, Trophy, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
+import { Habit, DailyLog } from '@/types';
 
 interface Stats {
   totalHabits: number;
@@ -14,7 +15,12 @@ interface Stats {
   dailyData: any[];
 }
 
-export default function HabitStats() {
+interface HabitStatsProps {
+  habits?: Habit[];
+  logs?: DailyLog[];
+}
+
+export default function HabitStats({ habits = [], logs = [] }: HabitStatsProps) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);

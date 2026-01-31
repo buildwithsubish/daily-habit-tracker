@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, LineChart, Line,

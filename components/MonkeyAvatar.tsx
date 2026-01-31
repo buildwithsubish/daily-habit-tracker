@@ -4,8 +4,8 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 interface MonkeyAvatarProps {
-  isPasswordFocused: boolean;
-  isPasswordVisible: boolean;
+  isPasswordFocused?: boolean;
+  isPasswordVisible?: boolean;
   isTyping?: boolean;
   isError?: boolean;
   isSuccess?: boolean;
@@ -13,8 +13,8 @@ interface MonkeyAvatarProps {
 }
 
 export default function MonkeyAvatar({
-  isPasswordFocused,
-  isPasswordVisible,
+  isPasswordFocused = false,
+  isPasswordVisible = false,
   isTyping = false,
   isError = false,
   isSuccess = false,

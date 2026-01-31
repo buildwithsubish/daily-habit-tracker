@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { GlassCard, Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 interface AdminStats {
   totalUsers: number;

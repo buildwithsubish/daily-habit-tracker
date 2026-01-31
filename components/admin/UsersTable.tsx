@@ -148,7 +148,7 @@ export function UsersTable() {
       id: "status",
       header: "Status",
       cell: ({ row }) => {
-        const lastActive = row.original.stats.lastActive;
+        const lastActive = row.original.stats.lastActivity;
         return lastActive ? (
           <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-100">
             Active
