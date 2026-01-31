@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, ChevronRight, Lock } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MonkeyAvatar from '@/components/MonkeyAvatar';
 import ButtonLoader from '@/components/ButtonLoader';
@@ -57,6 +57,7 @@ const Confetti = ({ active }: { active: boolean }) => {
 
 export default function LoginPage() {
   const router = useRouter();
+  const [step, setStep] = useState<'email' | 'password'>('email');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -66,6 +67,14 @@ export default function LoginPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [success, setSuccess] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Persist email when going back from password step
+  useEffect(() => {
+    const savedEmail = sessionStorage.getItem('login_email');
+    if (savedEmail) {
+      setIdentifier(savedEmail);
+    }
+  }, []);
 
   useEffect(() => {
     if (isTyping) {
@@ -77,7 +86,19 @@ export default function LoginPage() {
     };
   }, [isTyping]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!identifier.trim()) {
+      setError('Please enter your email or username');
+      return;
+    }
+    // Save email for persistence
+    sessionStorage.setItem('login_email', identifier);
+    setError('');
+    setStep('password');
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -101,15 +122,26 @@ export default function LoginPage() {
 
       if (response.ok) {
         setSuccess(true);
+        // Clear saved email
+        sessionStorage.removeItem('login_email');
         setTimeout(() => router.push('/dashboard'), 800);
       } else {
         setError(data.error || 'Login failed');
+        setStep('password');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
+      setStep('password');
     } finally {
       setLoading(false);
     }
+  };
+
+  const goBackToEmail = () => {
+    setStep('email');
+    setPassword('');
+    setError('');
+    setIsPasswordFocused(false);
   };
 
   return (
@@ -131,7 +163,13 @@ export default function LoginPage() {
         className="max-w-md w-full relative z-10"
       >
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 sm:p-12 shadow-2xl border border-slate-100 dark:border-slate-800">
-          <div className="text-center mb-10">
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className={`w-3 h-1.5 rounded-full transition-all duration-300 ${step === 'email' ? 'w-8 bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
+            <div className={`w-3 h-1.5 rounded-full transition-all duration-300 ${step === 'password' ? 'w-8 bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`} />
+          </div>
+
+          <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <MonkeyAvatar
                 isPasswordVisible={showPassword}
@@ -139,103 +177,164 @@ export default function LoginPage() {
                 isTyping={isTyping}
                 isError={!!error}
                 isSuccess={success}
-                size={180}
+                size={140}
               />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-4 leading-tight">
-              Welcome Back 👋
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-3 leading-tight">
+              {step === 'email' ? 'What\'s your email?' : 'Enter your password'}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm sm:text-base">
-              Let's continue building your habits.
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">
+              {step === 'email' 
+                ? 'We\'ll check if you have an account.' 
+                : `Signing in as ${identifier || '...'}`}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <AnimatePresence mode="wait">
-              {error && (
-                <motion.div
-                  key="error"
-                  initial={{ x: -10, opacity: 0 }}
-                  animate={{ x: [0, -10, 10, -10, 10, 0], opacity: 1 }}
-                  className="bg-red-500/10 text-red-600 px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center border border-red-500/20"
-                >
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div
+                key="error"
+                initial={{ x: -10, opacity: 0 }}
+                animate={{ x: [0, -10, 10, -10, 10, 0], opacity: 1 }}
+                className="bg-red-500/10 text-red-600 px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center border border-red-500/20 mb-6"
+              >
+                {error}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-            <div className="space-y-4">
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1 group-focus-within:text-blue-600 transition-colors">Email Address</label>
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => {
-                    setIdentifier(e.target.value);
-                    setIsTyping(true);
-                  }}
-                  required
-                  placeholder="name@example.com"
-                  className="w-full px-6 py-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
-                />
-              </div>
-
-              <div className="group">
-                <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1 group-focus-within:text-blue-600 transition-colors">Secret Password</label>
-                <div className="relative">
+          <AnimatePresence mode="wait">
+            {step === 'email' ? (
+              <motion.form
+                key="email-step"
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 50 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                onSubmit={handleEmailSubmit}
+                className="space-y-6"
+              >
+                <div className="group">
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1 group-focus-within:text-blue-600 transition-colors">
+                    Email or Username
+                  </label>
                   <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
+                    type="text"
+                    value={identifier}
                     onChange={(e) => {
-                      setPassword(e.target.value);
+                      setIdentifier(e.target.value);
                       setIsTyping(true);
+                      setError('');
                     }}
-                    onFocus={() => setIsPasswordFocused(true)}
-                    onBlur={() => setIsPasswordFocused(false)}
                     required
-                    placeholder="••••••••"
-                    className="w-full px-6 py-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400"
+                    placeholder="name@example.com"
+                    className="w-full px-6 py-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-base"
+                    autoComplete="email"
+                    autoFocus
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
                 </div>
-              </div>
-            </div>
 
-            <motion.button
-              type="submit"
-              disabled={loading || success}
-              whileHover={{ scale: 1.02, translateY: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className={`w-full py-6 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center shadow-xl shadow-blue-500/10 ${
-                success 
-                  ? 'bg-emerald-500 text-white' 
-                  : loading
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25'
-              }`}
-            >
-              {success ? (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2">
-                  <CheckCircle size={18} /> Authenticated
-                </motion.div>
-              ) : (
-                <ButtonLoader loading={loading} text="Sign In" loadingText="Authenticating..." />
-              )}
-            </motion.button>
-          </form>
+                <motion.button
+                  type="submit"
+                  whileHover={{ scale: 1.02, translateY: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25 shadow-xl"
+                >
+                  Next
+                  <ChevronRight size={18} />
+                </motion.button>
 
-          <p className="mt-10 text-center">
-            <span className="text-slate-500 text-sm font-medium">New around here?</span>{' '}
-            <Link href="/register" className="text-blue-600 font-black text-sm hover:text-blue-700 transition-colors ml-1 uppercase tracking-widest text-[10px]">
-              SIGN UP
-            </Link>
-          </p>
+                <p className="text-center mt-6">
+                  <span className="text-slate-500 text-sm font-medium">New around here?</span>{' '}
+                  <Link href="/register" className="text-blue-600 font-black text-sm hover:text-blue-700 transition-colors ml-1 uppercase tracking-widest text-[10px]">
+                    SIGN UP
+                  </Link>
+                </p>
+              </motion.form>
+            ) : (
+              <motion.form
+                key="password-step"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                onSubmit={handlePasswordSubmit}
+                className="space-y-6"
+              >
+                {/* Back Button */}
+                <button
+                  type="button"
+                  onClick={goBackToEmail}
+                  className="flex items-center gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors text-sm font-medium mb-2 px-2"
+                >
+                  <ChevronLeft size={16} />
+                  Back to email
+                </button>
+
+                <div className="group">
+                  <label className="block text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.3em] mb-2 ml-1 group-focus-within:text-blue-600 transition-colors">
+                    Secret Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setIsTyping(true);
+                        setError('');
+                      }}
+                      onFocus={() => setIsPasswordFocused(true)}
+                      onBlur={() => setIsPasswordFocused(false)}
+                      required
+                      placeholder="••••••••"
+                      className="w-full px-6 py-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl border-2 border-slate-100 dark:border-slate-800 focus:border-blue-600 rounded-2xl outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-400 text-base"
+                      autoComplete="current-password"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
+                <motion.button
+                  type="submit"
+                  disabled={loading || success}
+                  whileHover={{ scale: 1.02, translateY: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full py-4.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-500/10 ${
+                    success 
+                      ? 'bg-emerald-500 text-white' 
+                      : loading
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/25'
+                  }`}
+                >
+                  {success ? (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2">
+                      <CheckCircle size={18} /> Logged In
+                    </motion.div>
+                  ) : (
+                    <>
+                      <ButtonLoader loading={loading} text="Log in" loadingText="Signing in..." />
+                    </>
+                  )}
+                </motion.button>
+
+                <p className="text-center mt-6">
+                  <span className="text-slate-500 text-sm font-medium">New around here?</span>{' '}
+                  <Link href="/register" className="text-blue-600 font-black text-sm hover:text-blue-700 transition-colors ml-1 uppercase tracking-widest text-[10px]">
+                    SIGN UP
+                  </Link>
+                </p>
+              </motion.form>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
     </div>
@@ -248,3 +347,4 @@ const CheckCircle = ({ size }: { size: number }) => (
     <polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
+
