@@ -2,8 +2,7 @@
   "name": "daily-habit-tracker",
   "compatibility_date": "2026-01-31",
   "assets": {
-    "directory": ".next",
-    "binding": "ASSETS"
+    "directory": ".next"
   }
 }
 

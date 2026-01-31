@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "init-admin": "node -e \"require('./lib/init-admin').initAdmin().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\""
+    "init-admin": "node -e \"require('./lib/init-admin').initAdmin().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "deploy": "npm run build && npx wrangler pages deploy .next --project-name=daily-habit-tracker"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
