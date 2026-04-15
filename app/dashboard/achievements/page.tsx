@@ -50,10 +50,10 @@ export default function AchievementsPage() {
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="space-y-1.5">
-          <h1 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tightest">
+          <h1 className="responsive-text-xl font-black text-slate-900 dark:text-white tracking-tightest leading-none">
             Achievements
           </h1>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 font-medium">
+          <p className="responsive-text-xs sm:responsive-text-base text-slate-500 dark:text-slate-400 font-medium tracking-tight">
             Celebrate your consistency and growth.
           </p>
         </div>

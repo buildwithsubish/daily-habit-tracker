@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Habit } from '@/types';
 import { Plus, Target, Zap, Clock, Calendar, Sparkles, Info, ChevronRight, MessageCircle, X, Bell, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -482,30 +483,38 @@ export default function HabitsPage() {
         )}
       </AnimatePresence>
       <div className="responsive-container">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-6 sm:gap-8 mb-8 sm:mb-12">
-          <div className="space-y-2 sm:space-y-3">
-            <div className="flex items-center gap-3 mb-1 sm:mb-2">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20"><Target size={20} className="text-white sm:w-6 sm:h-6" /></div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-8 mb-6 sm:mb-12">
+          <div className="space-y-1 sm:space-y-3">
+            <div className="flex items-center gap-2 sm:gap-3 mb-1">
+              <div className="relative w-8 h-8 sm:w-12 sm:h-12 overflow-hidden rounded-lg sm:rounded-2xl transition-transform hover:scale-110">
+                <Image
+                  src="/logo.png"
+                  alt="Management"
+                  fill
+                  className="object-contain"
+                />
+              </div>
               <span className="responsive-text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Management</span>
             </div>
-            <h1 className="responsive-text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">Your <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Rituals</span></h1>
-            <p className="responsive-text-sm sm:responsive-text-base text-zinc-600 dark:text-zinc-400 font-medium">Curate the habits that define who you are.</p>
+            <h1 className="responsive-text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tightest leading-none">Your <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Rituals</span></h1>
+            <p className="responsive-text-xs sm:responsive-text-base text-zinc-500 dark:text-zinc-400 font-medium tracking-tight">Curate the habits that define who you are.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 sm:mt-0">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1 rounded-xl sm:rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl overflow-x-auto no-scrollbar max-w-full">
-              {categories.map((cat) => (<motion.button key={cat} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(cat)} className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl responsive-text-xs font-bold capitalize transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md sm:shadow-lg shadow-indigo-500/30' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}>{cat}</motion.button>))}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1 rounded-lg sm:rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm overflow-x-auto no-scrollbar max-w-full">
+              {categories.map((cat) => (<motion.button key={cat} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setActiveCategory(cat)} className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-md sm:rounded-xl responsive-text-xs font-bold capitalize transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}>{cat}</motion.button>))}
             </motion.div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setShowWhatsAppModal(true)} className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all touch-button ${isWhatsAppReady ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-green-50'}`}>
-                <MessageCircle size={18} /><span className="sm:inline">{isWhatsAppReady ? 'Automation' : 'WhatsApp'}</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => setShowWhatsAppModal(true)} className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold text-[11px] sm:text-xs transition-all touch-button ${isWhatsAppReady ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-md' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300'}`}>
+                <MessageCircle size={14} /><span className="">{isWhatsAppReady ? 'Automation' : 'WhatsApp'}</span>
               </motion.button>
-              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold text-sm hover:shadow-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 touch-button"><Plus size={18} />New Ritual</motion.button>
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg font-bold text-[11px] sm:text-xs hover:shadow-lg transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20 touch-button"><Plus size={14} />New Ritual</motion.button>
             </div>
           </div>
         </motion.div>
-        {loading ? (<div className="responsive-grid-mobile md:responsive-grid">{[...Array(6)].map((_, i) => <HabitSkeleton key={i} />)}</div>) : (<div className="responsive-grid-mobile md:responsive-grid"><AnimatePresence mode="popLayout">{filteredHabits.map((habit, index) => (<motion.div key={habit.id} layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.3, delay: index * 0.05 }}><HabitCard habit={habit} completed={false} onToggle={() => fetchHabits()} userWhatsAppNumber={userWhatsAppNumber} userWhatsAppAutomation={userWhatsAppAutomation} onEdit={handleEditHabit} onDelete={handleDeleteHabit} /></motion.div>))}{filteredHabits.length === 0 && (<motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full py-24 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-2xl border-2 border-dashed border-zinc-300 dark:border-zinc-700"><div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-6"><Info size={28} className="text-indigo-500 dark:text-indigo-400 sm:w-8 sm:h-8" /></div><h3 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">No rituals found</h3><p className="text-zinc-500 dark:text-zinc-400 text-xs sm:text-sm mb-6">Start by creating your first ritual.</p><motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="px-6 py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-bold hover:shadow-xl shadow-lg shadow-indigo-500/30 transition-all touch-button">Create Your First Habit</motion.button></motion.div>)}</AnimatePresence></div>)}
+        {loading ? (<div className="responsive-grid-mobile md:responsive-grid">{[...Array(6)].map((_, i) => <HabitSkeleton key={i} />)}</div>) : (<div className="responsive-grid-mobile md:responsive-grid"><AnimatePresence mode="popLayout">{filteredHabits.map((habit, index) => (<motion.div key={habit.id} layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2, delay: index * 0.03 }}><HabitCard habit={habit} completed={false} onToggle={() => fetchHabits()} userWhatsAppNumber={userWhatsAppNumber} userWhatsAppAutomation={userWhatsAppAutomation} onEdit={handleEditHabit} onDelete={handleDeleteHabit} /></motion.div>))}{filteredHabits.length === 0 && (<motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full py-16 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800"><div className="w-12 h-12 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4"><Info size={24} className="text-indigo-500 dark:text-indigo-400 sm:w-8 sm:h-8" /></div><h3 className="responsive-text-sm sm:responsive-text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">No rituals found</h3><p className="responsive-text-xs text-zinc-500 dark:text-zinc-400 mb-4">Start by creating your first ritual.</p><motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-500/20">Create Your First Habit</motion.button></motion.div>)}</AnimatePresence></div>)}
         <EditHabitModal isOpen={isEditModalOpen} habit={selectedHabitForEdit} onClose={() => setIsEditModalOpen(false)} onSuccess={fetchHabits} />
       </div>
+
 
     </div>
   );

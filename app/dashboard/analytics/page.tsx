@@ -64,12 +64,12 @@ export default function AnalyticsPage() {
           >
             <ArrowLeft size={14} /> Back to Dashboard
           </button>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+          <h1 className="responsive-text-xl font-black text-slate-900 dark:text-white tracking-tightest flex items-center gap-2 sm:gap-3 leading-none">
             Habit Intelligence
-            <SparkleIcon className="text-indigo-500 animate-pulse" />
+            <SparkleIcon className="text-indigo-500 animate-pulse w-5 h-5 sm:w-8 sm:h-8" />
           </h1>
-          <p className="text-slate-500 font-medium mt-2 max-w-lg">
-            Deep insights into your performance, consistency, and fitness trends.
+          <p className="responsive-text-xs sm:responsive-text-base text-slate-500 font-medium mt-1 sm:mt-2 max-w-lg tracking-tight">
+            Deep insights into your performance and consistency.
           </p>
         </div>
 

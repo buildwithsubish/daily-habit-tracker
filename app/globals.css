@@ -140,12 +140,12 @@
     @apply bg-white/70 dark:bg-zinc-900/70 backdrop-blur-xl border border-white/20 dark:border-zinc-800/50 rounded-3xl shadow-xl shadow-zinc-200/20 dark:shadow-none transition-all duration-300;
   }
 
-  /* Responsive Typography System */
-  .responsive-text-xs { @apply text-[10px] sm:text-xs; }
-  .responsive-text-sm { @apply text-xs sm:text-sm; }
-  .responsive-text-base { @apply text-sm sm:text-base; }
-  .responsive-text-lg { @apply text-base sm:text-lg; }
-  .responsive-text-xl { @apply text-xl sm:text-2xl lg:text-3xl; }
+  /* Responsive Typography System - Optimized for Mobile Professionalism */
+  .responsive-text-xs { @apply text-[9px] sm:text-[11px] lg:text-xs; }
+  .responsive-text-sm { @apply text-[11px] sm:text-[13px] lg:text-sm; }
+  .responsive-text-base { @apply text-[13px] sm:text-[15px] lg:text-base; }
+  .responsive-text-lg { @apply text-[15px] sm:text-[17px] lg:text-lg; }
+  .responsive-text-xl { @apply text-[18px] sm:text-2xl lg:text-3xl; }
   .responsive-text-2xl { @apply text-2xl sm:text-3xl lg:text-4xl; }
 
   /* Responsive Grid System */

@@ -326,12 +326,12 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-slate-50 tracking-tightest">
+          <h1 className="responsive-text-xl font-black text-slate-900 dark:text-slate-50 tracking-tightest leading-none">
             {getGreeting()}
           </h1>
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-            <Calendar size={14} className="opacity-60" />
-            <p className="text-xs font-bold uppercase tracking-widest">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+            <Calendar size={12} className="opacity-60" />
+            <p className="responsive-text-xs font-bold uppercase tracking-widest">
               {format(new Date(selectedDate), 'MMM d, yyyy')}
             </p>
           </div>

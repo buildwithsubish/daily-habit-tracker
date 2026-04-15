@@ -163,7 +163,7 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                </div>
              </div>
  
-             <div className="flex items-center gap-2 sm:gap-3">
+             <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-3 flex-shrink-0">
                {habit.streak > 0 && !isFullyDone && (
                  <div className="hidden sm:flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/50">
                    <Flame size={12} className="text-orange-500" />
@@ -171,43 +171,46 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                  </div>
                )}
  
-               {/* WhatsApp Config Trigger for all habits */}
-               <button
-                 onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
-                 className={`p-2 rounded-xl transition-all duration-200 flex items-center justify-center border ${isHabitWhatsAppReady
-                     ? 'text-green-600 bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/30 hover:bg-green-100 dark:hover:bg-green-500/25 shadow-sm shadow-green-500/10'
-                     : 'text-green-500 bg-green-50/60 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/20 hover:bg-green-100 dark:hover:bg-green-500/20 animate-pulse'
-                   }`}
-                 title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
-               >
-                 <MessageCircle size={16} />
-               </button>
- 
-               {onEdit && (
+               {/* Action Group: WhatsApp -> Edit -> Delete */}
+               <div className="flex items-center gap-1 sm:gap-2">
+                 {/* WhatsApp Config Trigger */}
                  <button
-                   onClick={(e) => { e.stopPropagation(); onEdit(habit); }}
-                   className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
-                   title="Edit Ritual"
+                   onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
+                   className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center border ${isHabitWhatsAppReady
+                       ? 'text-green-600 bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/30 hover:bg-green-100 dark:hover:bg-green-500/25 shadow-sm shadow-green-500/10'
+                       : 'text-green-500 bg-green-50/60 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/20 hover:bg-green-100 dark:hover:bg-green-500/20 animate-pulse'
+                     }`}
+                   title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
                  >
-                   <Edit2 size={16} />
+                   <MessageCircle size={14} className="sm:w-4 sm:h-4" />
                  </button>
-               )}
  
-               {onDelete && (
-                 <button
-                   onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
-                   className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 touch-button"
-                   title="Delete Ritual"
-                 >
-                   <Trash2 size={16} />
-                 </button>
-               )}
+                 {onEdit && (
+                   <button
+                     onClick={(e) => { e.stopPropagation(); onEdit(habit); }}
+                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg sm:rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
+                     title="Edit Ritual"
+                   >
+                     <Edit2 size={14} className="sm:w-4 sm:h-4" />
+                   </button>
+                 )}
+ 
+                 {onDelete && (
+                   <button
+                     onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
+                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 transition-colors rounded-lg sm:rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 touch-button"
+                     title="Delete Ritual"
+                   >
+                     <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                   </button>
+                 )}
+               </div>
  
                {/* Show large toggle only on summary/dashboard, hide on management page */}
                {(!onEdit && !onDelete) && (
                  <button
                    onClick={() => handleToggle()}
-                   className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
+                   className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
                      ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
                      : 'border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'
                      }`}
@@ -218,7 +221,7 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                        animate={{ scale: 1 }}
                        transition={{ duration: 0.2 }}
                      >
-                       <CheckCircle2 size={16} strokeWidth={2.5} />
+                       <CheckCircle2 size={12} className="sm:w-4 sm:h-4" strokeWidth={3} />
                      </motion.div>
                    ) : null}
                  </button>
@@ -229,9 +232,9 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                    whileHover={{ scale: 1.1 }}
                    whileTap={{ scale: 0.9 }}
                    onClick={() => setExpanded(!expanded)}
-                   className="p-2 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
+                   className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
                  >
-                   {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                   {expanded ? <ChevronUp size={16} className="sm:w-5 sm:h-5" /> : <ChevronDown size={16} className="sm:w-5 sm:h-5" />}
                  </motion.button>
                )}
              </div>
