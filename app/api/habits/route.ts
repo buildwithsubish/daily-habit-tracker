@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       steps: any[];
       targetPerDay: number;
       schedule: any;
+      hidden?: boolean;
       createdAt: Date;
     };
     const typedHabits = habits as unknown as HabitLean[];
@@ -66,6 +67,7 @@ export async function GET(request: NextRequest) {
       activityLoggingEnabled: (h as any).activityLoggingEnabled || false,
       advancedMode: (h as any).advancedMode || false,
       subActivities: (h as any).subActivities || [],
+      hidden: (h as any).hidden || false,
       createdAt: h.createdAt.toISOString(),
     }));
 
@@ -146,6 +148,7 @@ export async function POST(request: NextRequest) {
         lastCompletedDate: habit.lastCompletedDate,
         active: habit.active !== false,
         inactiveAlertDays: habit.inactiveAlertDays || 3,
+        hidden: habit.hidden || false,
         createdAt: habit.createdAt.toISOString(),
       }
     }, { status: 201 });
