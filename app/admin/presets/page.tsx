@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Plus, Search, Grid, List as ListIcon, 
@@ -204,5 +204,3 @@ export default function AdminPresetsPage() {
     </div>
   );
 }
-
-import * as React from 'react';

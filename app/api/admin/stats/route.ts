@@ -3,6 +3,8 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
+import MessageLog from '@/lib/models/MessageLog';
+import AuditLog from '@/lib/models/AuditLog';
 import { requireAdmin } from '@/lib/admin-middleware';
 import { initAdmin } from '@/lib/init-admin';
 import mongoose from 'mongoose';
@@ -108,8 +110,43 @@ export async function GET(request: NextRequest) {
       { $sort: { _id: 1 } },
     ]);
     
+    // WhatsApp stats
+    const whatsappVerifiedUsers = await User.countDocuments({ whatsappVerified: true });
+    const whatsappAutomationUsers = await User.countDocuments({ 
+      whatsappVerified: true, 
+      whatsappAutomation: true 
+    });
+    
+    // User status counts
+    const activeUsers = await User.countDocuments({ isActive: true });
+    const inactiveUsers = await User.countDocuments({ isActive: false });
+    
+    // Users with WhatsApp enabled
+    const usersWithWhatsApp = await User.countDocuments({ 
+      whatsappNumber: { $exists: true, $ne: '' } 
+    });
+    
+    const today = new Date().toISOString().split('T')[0];
+    const messagesSentToday = await MessageLog.countDocuments({ 
+      date: today, 
+      status: { $in: ['sent', 'delivered'] } 
+    });
+    
+    const messagesRespondedToday = await MessageLog.countDocuments({ 
+      date: today, 
+      respondedAt: { $exists: true } 
+    });
+    
+    // Audit Logs
+    const auditLogs = await AuditLog.find({})
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
     return NextResponse.json({
       totalUsers,
+      activeUsers,
+      inactiveUsers,
       totalHabits,
       totalLogs,
       completedLogs,
@@ -125,6 +162,12 @@ export async function GET(request: NextRequest) {
         total: d.total,
         completed: d.completed,
       })),
+      whatsappVerifiedUsers,
+      whatsappAutomationUsers,
+      usersWithWhatsApp,
+      messagesSentToday,
+      messagesRespondedToday,
+      auditLogs,
     });
   } catch (error: any) {
     if (error.message === 'Unauthorized') {

@@ -11,16 +11,21 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB();
-    const user = await User.findById(userId).select('username email');
-    
+    const user = await User.findById(userId).select('username email whatsappNumber whatsappAutomation whatsappVerified timeZone');
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
+      id: userId,
       username: user.username,
       email: user.email,
+      whatsappNumber: user.whatsappNumber || '',
+      whatsappAutomation: user.whatsappAutomation || false,
+      whatsappVerified: user.whatsappVerified || false,
+      timeZone: user.timeZone || 'UTC',
     });
   } catch (error: any) {
     return NextResponse.json(

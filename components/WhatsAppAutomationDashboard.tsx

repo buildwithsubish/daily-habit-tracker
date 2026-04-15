@@ -1,0 +1,1188 @@
+'use client';
+
+import { useState, useEffect, useCallback, ReactNode, ElementType } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  MessageCircle,
+  Send,
+  Clock,
+  Calendar,
+  Bell,
+  BellOff,
+  Zap,
+  ZapOff,
+  Play,
+  Pause,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Settings,
+  Users,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Minimize2,
+  Maximize2,
+  Smartphone,
+  Wifi,
+  WifiOff,
+  Activity,
+  Timer,
+  MessageSquare,
+  Eye,
+  EyeOff
+} from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
+interface AutomationSettings {
+  enabled: boolean;
+  dailyReminder: boolean;
+  weeklySummary: boolean;
+  pollCreation: boolean;
+  streakAlerts: boolean;
+  reminderTime: string;
+  summaryDay: number;
+  pollSchedule?: {
+    enabled: boolean;
+    time: string;
+    frequency: 'daily' | 'weekdays' | 'weekends' | 'custom';
+    customDays: number[];
+  };
+  weeklyReportSchedule?: {
+    enabled: boolean;
+    day: number;
+    time: string;
+  };
+}
+
+interface WhatsAppAutomationDashboardProps {
+  isOpen: boolean;
+  onClose: () => void;
+  isAdmin?: boolean;
+}
+
+interface SchedulerStatus {
+  running: boolean;
+  nextRun?: string;
+  jobs: string[];
+}
+
+interface QuickAction {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  action: string;
+  description: string;
+}
+
+export default function WhatsAppAutomationDashboard({
+  isOpen,
+  onClose,
+  isAdmin = false
+}: WhatsAppAutomationDashboardProps) {
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<string | null>('status');
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [isVerified, setIsVerified] = useState<boolean>(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationStep, setVerificationStep] = useState<'input' | 'verify'>('input');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  const [automationSettings, setAutomationSettings] = useState<AutomationSettings>({
+    enabled: false,
+    dailyReminder: true,
+    weeklySummary: true,
+    pollCreation: true,
+    streakAlerts: true,
+    reminderTime: '08:00',
+    summaryDay: 0
+  });
+  
+  const [schedulerStatus, setSchedulerStatus] = useState<SchedulerStatus>({
+    running: false,
+    jobs: []
+  });
+  
+  const [quickActions, setQuickActions] = useState<QuickAction[]>([
+    { id: 'send_daily', label: 'Send Daily Checklist', icon: Send, action: 'send_daily', description: 'Send today\'s habits to all users' },
+    { id: 'send_reminder', label: 'Send Reminder', icon: Bell, action: 'send_reminder', description: 'Send reminder to pending users' },
+    { id: 'send_poll', label: 'Create Poll', icon: BarChart3, action: 'send_poll', description: 'Create weekly poll for all users' },
+    { id: 'send_summary', label: 'Weekly Summary', icon: Calendar, action: 'send_summary', description: 'Send weekly progress summary' },
+  ]);
+
+  const [testMessage, setTestMessage] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    onConnect: true,
+    onDisconnect: true,
+    onMessageReceived: true,
+    onScheduleMissed: true
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    fetchStatus();
+    fetchAutomationSettings();
+    fetchSchedulerStatus();
+    
+    const timeInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    const statusInterval = setInterval(fetchStatus, 30000);
+    const schedulerInterval = setInterval(fetchSchedulerStatus, 30000);
+    
+    return () => {
+      clearInterval(timeInterval);
+      clearInterval(statusInterval);
+      clearInterval(schedulerInterval);
+    };
+  }, [isOpen]);
+
+  const fetchStatus = async () => {
+    try {
+      const endpoint = isAdmin ? '/api/admin/whatsapp/session' : '/api/whatsapp/status';
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const data = await res.json();
+        setConnectionStatus(data.status || 'disconnected');
+        setPhoneNumber(data.phoneNumber || '');
+        setIsVerified(data.isVerified || false);
+        
+        if (!data.isVerified && data.status === 'connected') {
+          setShowVerificationModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Failed to fetch status:', error);
+      setConnectionStatus('disconnected');
+    }
+  };
+
+  const fetchAutomationSettings = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/automation-settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings) {
+          setAutomationSettings(prev => ({ ...prev, ...data.settings }));
+        }
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Failed to fetch settings:', error);
+    }
+  };
+
+  const fetchSchedulerStatus = async () => {
+    try {
+      const res = await fetch('/api/admin/whatsapp/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get_status' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSchedulerStatus(data.status || { running: false, jobs: [] });
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Failed to fetch scheduler:', error);
+    }
+  };
+
+  const handleToggleAutomation = async (enabled: boolean) => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/whatsapp/automation-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      
+      if (res.ok) {
+        setAutomationSettings(prev => ({ ...prev, enabled }));
+        toast.success(enabled ? 'WhatsApp automation enabled' : 'WhatsApp automation disabled');
+      } else {
+        toast.error('Failed to update automation settings');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Toggle error:', error);
+      toast.error('Failed to update settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSettingChange = async (key: keyof AutomationSettings, value: any) => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/whatsapp/automation-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value })
+      });
+      
+      if (res.ok) {
+        setAutomationSettings(prev => ({ ...prev, [key]: value }));
+        toast.success('Settings updated');
+      } else {
+        toast.error('Failed to update setting');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Setting change error:', error);
+      toast.error('Failed to update setting');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleScheduleUpdate = async (type: 'pollSchedule' | 'weeklyReportSchedule', updates: any) => {
+    setSaving(true);
+    try {
+      const currentSchedule = automationSettings[type];
+      const newSchedule = { ...currentSchedule, ...updates };
+      
+      const res = await fetch('/api/whatsapp/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: 'me',
+          settings: { [type]: newSchedule }
+        })
+      });
+      
+      if (res.ok) {
+        setAutomationSettings(prev => ({ ...prev, [type]: newSchedule }));
+        toast.success(`${type === 'pollSchedule' ? 'Poll' : 'Weekly Report'} schedule updated`);
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to update schedule');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Schedule update error:', error);
+      toast.error('Failed to update schedule');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleQuickAction = async (action: string) => {
+    if (!isAdmin) {
+      toast.error('Admin access required');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/whatsapp/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Action completed successfully');
+      } else {
+        toast.error(data.error || 'Action failed');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Quick action error:', error);
+      toast.error('Action failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSchedulerToggle = async () => {
+    if (!isAdmin) {
+      toast.error('Admin access required');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const action = schedulerStatus.running ? 'stop_scheduler' : 'start_scheduler';
+      const res = await fetch('/api/admin/whatsapp/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message);
+        fetchSchedulerStatus();
+      } else {
+        toast.error(data.error || 'Failed to toggle scheduler');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Scheduler toggle error:', error);
+      toast.error('Failed to toggle scheduler');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendTestMessage = async () => {
+    if (!testMessage.trim()) {
+      toast.error('Please enter a test message');
+      return;
+    }
+    
+    setSendingTest(true);
+    try {
+      const res = await fetch('/api/whatsapp/send-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: testMessage })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Test message sent successfully');
+        setTestMessage('');
+      } else {
+        toast.error(data.error || 'Failed to send test message');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Send test error:', error);
+      toast.error('Failed to send test message');
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleSendVerificationCode = async () => {
+    if (!phoneNumber.trim()) {
+      toast.error('Please enter your WhatsApp number');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const res = await fetch('/api/whatsapp/verify-number', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: phoneNumber.trim() })
+      });
+      
+      const data = await res.json();
+      
+      // Check if already verified - no need to ask for verification code
+      if (data.alreadyVerified) {
+        setIsVerified(true);
+        setShowVerificationModal(false);
+        toast.success('Your number is already verified!');
+        // Refresh status to get updated verification state from server
+        await fetchStatus();
+        return;
+      }
+      
+      if (res.ok) {
+        setVerificationStep('verify');
+        toast.success('Verification code sent to your WhatsApp!');
+      } else {
+        toast.error(data.error || 'Failed to send verification code');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Send verification error:', error);
+      toast.error('Failed to send verification code');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode.trim() || verificationCode.length !== 6) {
+      toast.error('Please enter the 6-digit verification code');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const res = await fetch('/api/whatsapp/verify-number', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verificationCode: verificationCode.trim() })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        setIsVerified(true);
+        setShowVerificationModal(false);
+        setVerificationCode('');
+        toast.success('Phone number verified successfully!');
+        // Refresh status to get updated verification state from server
+        await fetchStatus();
+      } else {
+        toast.error(data.error || 'Invalid verification code');
+      }
+    } catch (error) {
+      console.error('[WhatsApp Dashboard] Verify error:', error);
+      toast.error('Failed to verify code');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'bg-green-500';
+      case 'connecting': return 'bg-yellow-500 animate-pulse';
+      default: return 'bg-red-500';
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (connectionStatus) {
+      case 'connected': return Wifi;
+      case 'connecting': return RefreshCw;
+      default: return WifiOff;
+    }
+  };
+
+  const StatusIcon = getStatusIcon();
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  const ToggleSwitch = ({ 
+    enabled, 
+    onChange, 
+    disabled = false,
+    color = 'green'
+  }: { 
+    enabled: boolean; 
+    onChange: (val: boolean) => void;
+    disabled?: boolean;
+    color?: 'green' | 'blue' | 'red';
+  }) => {
+    const colors = {
+      green: { active: 'bg-green-500', inactive: 'bg-zinc-300 dark:bg-zinc-700' },
+      blue: { active: 'bg-blue-500', inactive: 'bg-zinc-300 dark:bg-zinc-700' },
+      red: { active: 'bg-red-500', inactive: 'bg-zinc-300 dark:bg-zinc-700' }
+    };
+    
+    return (
+      <button
+        onClick={() => !disabled && onChange(!enabled)}
+        className={`relative w-12 h-6 rounded-full transition-all duration-300 ${
+          enabled ? colors[color].active : colors[color].inactive
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        disabled={disabled}
+      >
+        <motion.div
+          className="absolute top-1 w-4 h-4 rounded-full bg-white shadow-md"
+          animate={{ left: enabled ? '1.75rem' : '0.25rem' }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        />
+      </button>
+    );
+  };
+
+  const SectionCard = ({ 
+    id, 
+    title, 
+    icon: Icon, 
+    children, 
+    badge,
+    badgeColor
+  }: { 
+    id: string; 
+    title: string; 
+    icon: ElementType; 
+    children: ReactNode; 
+    badge?: string;
+    badgeColor?: 'green' | 'red' | 'yellow' | 'blue';
+  }) => {
+    const isExpanded = expandedSection === id;
+    const badgeColors = {
+      green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+      red: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+      blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+    };
+    
+    return (
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <button
+          onClick={() => toggleSection(id)}
+          className="w-full flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isExpanded ? 'bg-green-500 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+            }`}>
+              <Icon size={20} />
+            </div>
+            <div className="text-left">
+              <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{title}</h3>
+              {badge && (
+                <span className={`text-xs px-2 py-0.5 rounded-full ${badgeColors[badgeColor || 'green']}`}>
+                  {badge}
+                </span>
+              )}
+            </div>
+          </div>
+          {isExpanded ? <ChevronUp size={20} className="text-zinc-400" /> : <ChevronDown size={20} className="text-zinc-400" />}
+        </button>
+        
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 border-t border-zinc-100 dark:border-zinc-800">
+                {children}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className={`relative bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden w-full ${
+            isMinimized ? 'max-w-md' : 'max-w-2xl max-h-[90vh]'
+          }`}
+        >
+          {/* Header */}
+          <div className="sticky top-0 z-10 bg-gradient-to-r from-green-600 to-emerald-600 p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <MessageCircle className="text-white w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">WhatsApp Automation</h2>
+                  <p className="text-green-100 text-xs sm:text-sm">
+                    {isAdmin ? 'Admin Control Panel' : 'Manage your automation settings'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsMinimized(!isMinimized)}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                >
+                  {isMinimized ? <Maximize2 size={18} className="text-white" /> : <Minimize2 size={18} className="text-white" />}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                >
+                  <X size={18} className="text-white" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Status Bar */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full">
+                  <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor()}`} />
+                  <span className="text-white text-sm font-medium capitalize">{connectionStatus}</span>
+                </div>
+                
+                {connectionStatus === 'connected' && phoneNumber && (
+                  <div className="flex items-center gap-1.5 text-green-100 text-xs">
+                    <Smartphone size={14} />
+                    <span className="font-mono">{phoneNumber}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="text-right">
+                <p className="text-green-100 text-xs">IST Time</p>
+                <p className="text-white font-bold text-lg">{formatTime(currentTime)}</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Content */}
+          {!isMinimized && (
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* Master Toggle */}
+              <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    automationSettings.enabled 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-600' 
+                      : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500'
+                  }`}>
+                    {automationSettings.enabled ? <Zap size={24} /> : <ZapOff size={24} />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Automation</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {automationSettings.enabled ? 'Active and running' : 'Disabled'}
+                    </p>
+                  </div>
+                </div>
+                <ToggleSwitch
+                  enabled={automationSettings.enabled}
+                  onChange={handleToggleAutomation}
+                  disabled={saving || connectionStatus !== 'connected'}
+                />
+              </div>
+              
+              {/* Quick Schedule Settings - Global */}
+              {automationSettings.enabled && isVerified && (
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-4 border border-green-200 dark:border-green-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                      <Clock size={18} className="text-green-600" />
+                      Global Schedule
+                    </h3>
+                    <span className="text-xs text-green-600 font-medium">Applies to all habits</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Daily Reminder Time */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Daily Reminder</label>
+                      <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 border border-green-200 dark:border-green-700">
+                        <Bell size={14} className="text-green-500" />
+                        <input
+                          type="time"
+                          value={automationSettings.reminderTime}
+                          onChange={(e) => handleSettingChange('reminderTime', e.target.value)}
+                          disabled={saving}
+                          className="flex-1 bg-transparent text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Poll Schedule */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Polls</label>
+                      <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 border border-green-200 dark:border-green-700">
+                        <BarChart3 size={14} className="text-purple-500" />
+                        <select
+                          value={automationSettings.pollSchedule?.frequency || 'daily'}
+                          onChange={(e) => handleScheduleUpdate('pollSchedule', { frequency: e.target.value })}
+                          disabled={saving}
+                          className="flex-1 bg-transparent text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekdays">Weekdays</option>
+                          <option value="weekends">Weekends</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    {/* Weekly Report */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Weekly Report</label>
+                      <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl px-3 py-2 border border-green-200 dark:border-green-700">
+                        <Calendar size={14} className="text-blue-500" />
+                        <select
+                          value={automationSettings.weeklyReportSchedule?.day || 0}
+                          onChange={(e) => handleScheduleUpdate('weeklyReportSchedule', { day: parseInt(e.target.value) })}
+                          disabled={saving}
+                          className="flex-1 bg-transparent text-sm font-medium text-zinc-900 dark:text-zinc-100 outline-none cursor-pointer"
+                        >
+                          <option value={0}>Sunday</option>
+                          <option value={1}>Monday</option>
+                          <option value={2}>Tuesday</option>
+                          <option value={3}>Wednesday</option>
+                          <option value={4}>Thursday</option>
+                          <option value={5}>Friday</option>
+                          <option value={6}>Saturday</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3 text-center">
+                    These settings apply to all your habits. Individual habit settings are ignored when automation is enabled.
+                  </p>
+                </div>
+              )}
+               
+              {/* Connection Status Section */}
+              <SectionCard
+                id="status"
+                title="Connection Status"
+                icon={StatusIcon}
+                badge={connectionStatus === 'connected' ? 'Active' : 'Offline'}
+                badgeColor={connectionStatus === 'connected' ? 'green' : 'red'}
+              >
+                <div className="pt-4 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-center">
+                      <Wifi size={20} className={`mx-auto mb-1 ${connectionStatus === 'connected' ? 'text-green-500' : 'text-zinc-400'}`} />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Status</p>
+                      <p className={`font-bold text-sm capitalize ${connectionStatus === 'connected' ? 'text-green-600' : 'text-red-500'}`}>
+                        {connectionStatus}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-center">
+                      <Activity size={20} className="mx-auto mb-1 text-blue-500" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Scheduler</p>
+                      <p className={`font-bold text-sm ${schedulerStatus.running ? 'text-green-600' : 'text-zinc-400'}`}>
+                        {schedulerStatus.running ? 'Running' : 'Stopped'}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-center">
+                      <Timer size={20} className="mx-auto mb-1 text-purple-500" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Next Run</p>
+                      <p className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
+                        {schedulerStatus.nextRun ? formatTime(new Date(schedulerStatus.nextRun)) : '--:--'}
+                      </p>
+                    </div>
+                    
+                    <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl p-3 text-center">
+                      <MessageSquare size={20} className="mx-auto mb-1 text-orange-500" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Jobs</p>
+                      <p className="font-bold text-sm text-zinc-700 dark:text-zinc-300">
+                        {schedulerStatus.jobs.length}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {isAdmin && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <button
+                        onClick={handleSchedulerToggle}
+                        disabled={loading}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all ${
+                          schedulerStatus.running
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 hover:bg-red-200 dark:hover:bg-red-900/50'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-600 hover:bg-green-200 dark:hover:bg-green-900/50'
+                        }`}
+                      >
+                        {schedulerStatus.running ? <><Pause size={16} /> Stop Scheduler</> : <><Play size={16} /> Start Scheduler</>}
+                      </button>
+                      
+                      <button
+                        onClick={fetchStatus}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl font-medium text-sm hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all"
+                      >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+              
+              {/* Scheduling Section */}
+              <SectionCard
+                id="scheduling"
+                title="Scheduling"
+                icon={Calendar}
+                badge={automationSettings.enabled ? 'Enabled' : 'Disabled'}
+                badgeColor={automationSettings.enabled ? 'green' : 'yellow'}
+              >
+                <div className="pt-4 space-y-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Bell size={18} className="text-green-500" />
+                        <div>
+                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Daily Reminders</p>
+                          <p className="text-xs text-zinc-500">Send habit checklist daily</p>
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        enabled={automationSettings.dailyReminder}
+                        onChange={(val) => handleSettingChange('dailyReminder', val)}
+                        disabled={!automationSettings.enabled || saving}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Calendar size={18} className="text-blue-500" />
+                        <div>
+                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Weekly Summary</p>
+                          <p className="text-xs text-zinc-500">Send weekly progress report</p>
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        enabled={automationSettings.weeklySummary}
+                        onChange={(val) => handleSettingChange('weeklySummary', val)}
+                        disabled={!automationSettings.enabled || saving}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <BarChart3 size={18} className="text-purple-500" />
+                        <div>
+                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Poll Creation</p>
+                          <p className="text-xs text-zinc-500">Create weekly polls</p>
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        enabled={automationSettings.pollCreation}
+                        onChange={(val) => handleSettingChange('pollCreation', val)}
+                        disabled={!automationSettings.enabled || saving}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <Zap size={18} className="text-orange-500" />
+                        <div>
+                          <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">Streak Alerts</p>
+                          <p className="text-xs text-zinc-500">Notify on streak milestones</p>
+                        </div>
+                      </div>
+                      <ToggleSwitch
+                        enabled={automationSettings.streakAlerts}
+                        onChange={(val) => handleSettingChange('streakAlerts', val)}
+                        disabled={!automationSettings.enabled || saving}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Reminder Time */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Daily Reminder Time (IST)</label>
+                    <div className="flex items-center gap-3">
+                      <Clock size={18} className="text-zinc-400" />
+                      <input
+                        type="time"
+                        value={automationSettings.reminderTime}
+                        onChange={(e) => handleSettingChange('reminderTime', e.target.value)}
+                        disabled={!automationSettings.enabled || !automationSettings.dailyReminder || saving}
+                        className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-zinc-900 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Poll Schedule */}
+                  {automationSettings.pollCreation && (
+                    <div className="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Poll Schedule</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-zinc-500 dark:text-zinc-400">Time</label>
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-zinc-400" />
+                            <input
+                              type="time"
+                              value={automationSettings.pollSchedule?.time || '08:00'}
+                              onChange={(e) => handleScheduleUpdate('pollSchedule', { time: e.target.value })}
+                              disabled={!automationSettings.enabled || saving}
+                              className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-zinc-500 dark:text-zinc-400">Frequency</label>
+                          <select
+                            value={automationSettings.pollSchedule?.frequency || 'daily'}
+                            onChange={(e) => handleScheduleUpdate('pollSchedule', { frequency: e.target.value })}
+                            disabled={!automationSettings.enabled || saving}
+                            className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekdays">Weekdays</option>
+                            <option value="weekends">Weekends</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Weekly Report Schedule */}
+                  {automationSettings.weeklySummary && (
+                    <div className="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Weekly Report Schedule</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-xs text-zinc-500 dark:text-zinc-400">Day</label>
+                          <select
+                            value={automationSettings.weeklyReportSchedule?.day || 0}
+                            onChange={(e) => handleScheduleUpdate('weeklyReportSchedule', { day: parseInt(e.target.value) })}
+                            disabled={!automationSettings.enabled || saving}
+                            className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                          >
+                            <option value={0}>Sunday</option>
+                            <option value={1}>Monday</option>
+                            <option value={2}>Tuesday</option>
+                            <option value={3}>Wednesday</option>
+                            <option value={4}>Thursday</option>
+                            <option value={5}>Friday</option>
+                            <option value={6}>Saturday</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-zinc-500 dark:text-zinc-400">Time</label>
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-zinc-400" />
+                            <input
+                              type="time"
+                              value={automationSettings.weeklyReportSchedule?.time || '09:00'}
+                              onChange={(e) => handleScheduleUpdate('weeklyReportSchedule', { time: e.target.value })}
+                              disabled={!automationSettings.enabled || saving}
+                              className="flex-1 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all disabled:opacity-50"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+              
+              {/* Quick Actions - Admin Only */}
+              {isAdmin && (
+                <SectionCard
+                  id="actions"
+                  title="Quick Actions"
+                  icon={Zap}
+                  badge={`${quickActions.length} available`}
+                  badgeColor="blue"
+                >
+                  <div className="pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {quickActions.map((action) => (
+                        <button
+                          key={action.id}
+                          onClick={() => handleQuickAction(action.action)}
+                          disabled={loading || connectionStatus !== 'connected'}
+                          className="flex items-start gap-3 p-4 bg-zinc-50 dark:bg-zinc-800 rounded-xl text-left hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:bg-green-500 group-hover:text-white transition-all">
+                            <action.icon size={20} className="text-green-600 group-hover:text-white" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100 truncate">{action.label}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{action.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+              
+              {/* Test Message */}
+              <SectionCard
+                id="test"
+                title="Test Message"
+                icon={Send}
+                badge="Send to your number"
+                badgeColor="blue"
+              >
+                <div className="pt-4 space-y-3">
+                  <textarea
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    placeholder="Type your test message here..."
+                    rows={3}
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-900 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all resize-none"
+                  />
+                  <button
+                    onClick={handleSendTestMessage}
+                    disabled={sendingTest || !testMessage.trim() || connectionStatus !== 'connected'}
+                    className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {sendingTest ? <RefreshCw size={18} className="animate-spin" /> : <Send size={18} />}
+                    Send Test Message
+                  </button>
+                </div>
+              </SectionCard>
+              
+              {/* Notifications */}
+              <SectionCard
+                id="notifications"
+                title="Notifications"
+                icon={Bell}
+              >
+                <div className="pt-4 space-y-3">
+                  {[
+                    { key: 'onConnect', label: 'Connection alerts', desc: 'Notify when WhatsApp connects/disconnects' },
+                    { key: 'onMessageReceived', label: 'Message alerts', desc: 'Notify when users respond' },
+                    { key: 'onScheduleMissed', label: 'Missed schedules', desc: 'Alert when scheduled jobs fail' }
+                  ].map((notif) => (
+                    <div key={notif.key} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl">
+                      <div>
+                        <p className="font-medium text-sm text-zinc-900 dark:text-zinc-100">{notif.label}</p>
+                        <p className="text-xs text-zinc-500">{notif.desc}</p>
+                      </div>
+                      <ToggleSwitch
+                        enabled={notificationPrefs[notif.key as keyof typeof notificationPrefs]}
+                        onChange={(val) => setNotificationPrefs(prev => ({ ...prev, [notif.key]: val }))}
+                        color="blue"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+              
+              {/* Error Display */}
+              {connectionStatus === 'disconnected' && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+                    <div>
+                      <h4 className="font-bold text-red-700 dark:text-red-400">WhatsApp Not Connected</h4>
+                      <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                        Please ask the admin to connect WhatsApp Web to enable automation features.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Footer */}
+          <div className="sticky bottom-0 bg-zinc-50 dark:bg-zinc-800/50 p-4 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <p>WhatsApp Automation v1.0</p>
+              <p>{formatDate(currentTime)} • {formatTime(currentTime)} IST</p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Verification Modal */}
+      <AnimatePresence>
+        {showVerificationModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          >
+            <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm" onClick={() => setShowVerificationModal(false)} />
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+            >
+              <div className="p-6 bg-gradient-to-r from-indigo-600 to-purple-600">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
+                      <Smartphone className="text-white w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Verify WhatsApp</h3>
+                      <p className="text-indigo-100 text-sm">Required for automation</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowVerificationModal(false)}
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors"
+                  >
+                    <X size={18} className="text-white" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {verificationStep === 'input' ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Your WhatsApp Number</label>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+1 234 567 8900"
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-900 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendVerificationCode}
+                      disabled={saving || !phoneNumber.trim()}
+                      className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {saving ? 'Sending...' : 'Send Verification Code'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Enter 6-digit Code</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                        placeholder="000000"
+                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-900 dark:text-zinc-100 font-bold text-center text-2xl tracking-widest focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
+                        autoFocus
+                      />
+                    </div>
+                    <button
+                      onClick={handleVerifyCode}
+                      disabled={saving || verificationCode.length !== 6}
+                      className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {saving ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                    <button
+                      onClick={() => setVerificationStep('input')}
+                      className="w-full text-sm text-zinc-500 hover:text-zinc-700"
+                    >
+                      Wrong number? Go back
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </AnimatePresence>
+  );
+}
+

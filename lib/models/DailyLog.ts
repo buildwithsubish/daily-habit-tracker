@@ -29,6 +29,19 @@ const DailyLogSchema = new Schema({
   completedAt: {
     type: Date,
   },
+  dynamicSteps: [{
+    name: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+  }],
+  activityNote: {
+    type: String,
+    default: null,
+  },
+  subActivities: [{
+    name: { type: String, required: true },
+    type: { type: String, required: true },
+    value: { type: Schema.Types.Mixed, required: true },
+  }],
 });
 
 DailyLogSchema.index({ userId: 1, date: 1 });

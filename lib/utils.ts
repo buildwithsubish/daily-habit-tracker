@@ -7,7 +7,10 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function getToday(): string {
@@ -25,10 +28,13 @@ export function isToday(date: string): boolean {
 }
 
 export function isHabitScheduled(habit: any, dateStr: string): boolean {
-  const date = new Date(dateStr);
-  const dayOfWeek = date.getUTCDay(); // Use UTC to avoid timezone issues with date strings
+  // Parse date string directly to avoid timezone issues
+  // Date strings are YYYY-MM-DD, parse parts to get correct day-of-week
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // local date
+  const dayOfWeek = date.getDay(); // local day of week
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-  
+
   const { schedule } = habit;
   if (!schedule) return true;
 

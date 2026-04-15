@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -44,9 +45,52 @@ module.exports = {
     'text-purple-600',
     'text-yellow-600',
     'text-slate-600',
+    // Color classes used dynamically in UnifiedHabitList.tsx
+    'bg-rose-100', 'dark:bg-rose-500/15', 'text-rose-600', 'dark:text-rose-400',
+    'bg-orange-100', 'dark:bg-orange-500/15', 'text-orange-600', 'dark:text-orange-400',
+    'bg-blue-100', 'dark:bg-blue-500/15', 'text-blue-600', 'dark:text-blue-400',
+    'bg-purple-100', 'dark:bg-purple-500/15', 'text-purple-600', 'dark:text-purple-400',
+    'bg-emerald-100', 'dark:bg-emerald-500/15', 'text-emerald-600', 'dark:text-emerald-400',
+    'bg-amber-100', 'dark:bg-amber-500/15', 'text-amber-600', 'dark:text-amber-400',
+    'bg-green-100', 'dark:bg-green-500/15', 'text-green-600', 'dark:text-green-400',
+    'bg-cyan-100', 'dark:bg-cyan-500/15', 'text-cyan-600', 'dark:text-cyan-400',
+    'bg-slate-100', 'dark:bg-slate-500/15', 'text-slate-600', 'dark:text-slate-400',
+    'bg-indigo-100', 'dark:bg-indigo-500/15', 'text-indigo-600', 'dark:text-indigo-400',
+    'bg-pink-100', 'dark:bg-pink-500/15', 'text-pink-600', 'dark:text-pink-400',
+    'from-rose-500', 'to-pink-500',
+    'from-orange-500', 'to-amber-500',
+    'from-blue-500', 'to-indigo-500',
+    'from-purple-500', 'to-violet-500',
+    'from-emerald-500', 'to-teal-500',
+    'from-amber-500', 'to-yellow-500',
+    'from-green-500', 'to-emerald-500',
+    'from-cyan-500', 'to-sky-500',
+    'from-slate-500', 'to-zinc-500',
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        heading: ['var(--font-space-grotesk)', 'Space Grotesk', 'sans-serif'],
+      },
+      screens: {
+        'xs': '475px',
+        'sm': '640px',
+        'md': '768px',
+        'lg': '1024px',
+        'xl': '1280px',
+        '2xl': '1536px',
+        // Custom breakpoints for better mobile/tablet experience
+        'mobile': {'max': '767px'},
+        'tablet': {'min': '768px', 'max': '1023px'},
+        'desktop': {'min': '1024px'},
+        'large-desktop': {'min': '1280px'},
+      },
+      spacing: {
+        '18': '4.5rem',
+        '88': '22rem',
+        '128': '32rem',
+      },
       colors: {
         primary: {
           50: '#f0f9ff',
@@ -59,6 +103,32 @@ module.exports = {
           700: '#0369a1',
           800: '#075985',
           900: '#0c4a6e',
+        },
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'bounce-soft': 'bounceSoft 2s infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        bounceSoft: {
+          '0%, 20%, 53%, 80%, 100%': { transform: 'translate3d(0,0,0)' },
+          '40%, 43%': { transform: 'translate3d(0, -8px, 0)' },
+          '70%': { transform: 'translate3d(0, -4px, 0)' },
+          '90%': { transform: 'translate3d(0, -2px, 0)' },
         },
       },
     },

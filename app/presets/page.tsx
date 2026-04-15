@@ -5,7 +5,7 @@ import { Zap, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Trophy, Rocke
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import GlobalMonkey from '@/components/GlobalMonkey';
+// Decorative mascot component removed for a more premium, professional aesthetic.
 
 interface Preset {
   _id: string;
@@ -113,7 +113,7 @@ export default function PresetsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-indigo-950 text-zinc-900 dark:text-zinc-100 font-sans">
-      <GlobalMonkey />
+      {/* Decorative component removed */}
       {/* Dynamic Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse" />

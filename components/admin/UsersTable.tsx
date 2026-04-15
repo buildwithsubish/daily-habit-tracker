@@ -13,11 +13,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { 
-  ArrowUpDown, ChevronDown, MoreHorizontal, 
-  Search, Download, Trash2, Shield, 
+import {
+  ArrowUpDown, ChevronDown, MoreHorizontal,
+  Search, Download, Trash2, Shield,
   Mail, Calendar, Target, TrendingUp,
-  UserCheck, UserMinus, Edit2, MoreVertical
+  UserCheck, UserMinus, Edit2, MoreVertical, MessageCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -48,6 +48,8 @@ interface User {
     completionRate: string | number;
     lastActivity: string | null;
   };
+  whatsappNumber?: string;
+  whatsappAutomation?: boolean;
 }
 
 export function UsersTable() {
@@ -108,9 +110,21 @@ export function UsersTable() {
             {row.getValue("email")}
             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
           </div>
-          <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+          <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
             <Mail size={12} />
             {row.original.username}
+            {row.original.whatsappNumber && (
+              <a
+                href={`https://wa.me/${row.original.whatsappNumber.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-green-600 hover:text-green-700 bg-green-50 px-1.5 py-0.5 rounded ml-2 transition-colors"
+                title={row.original.whatsappAutomation ? "WhatsApp Automation Enabled - Click to Message" : "WhatsApp Number Linked - Click to Message"}
+              >
+                <MessageCircle size={12} />
+                <span className="text-[10px] font-bold">WhatsApp</span>
+              </a>
+            )}
           </div>
         </div>
       ),
@@ -133,12 +147,12 @@ export function UsersTable() {
         return (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-               <Target size={14} className="text-indigo-500" />
-               <span className="text-xs font-bold text-slate-700">{stats.habitCount} Habits</span>
+              <Target size={14} className="text-indigo-500" />
+              <span className="text-xs font-bold text-slate-700">{stats.habitCount} Habits</span>
             </div>
             <div className="flex items-center gap-2">
-               <TrendingUp size={14} className="text-emerald-500" />
-               <span className="text-xs font-bold text-slate-700">{stats.completionRate}% Rate</span>
+              <TrendingUp size={14} className="text-emerald-500" />
+              <span className="text-xs font-bold text-slate-700">{stats.completionRate}% Rate</span>
             </div>
           </div>
         );
@@ -169,28 +183,28 @@ export function UsersTable() {
             <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
               <Edit2 size={16} />
             </Button>
-            <Button 
-               variant="ghost" 
-               size="icon" 
-               className="h-8 w-8 text-slate-400 hover:text-red-600"
-               onClick={() => {
-                  toast((t) => (
-                    <div className="flex items-center gap-3">
-                      <span>User suspended</span>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="h-7 px-2 text-[10px] font-bold"
-                        onClick={() => {
-                          toast.success("Action reverted");
-                          toast.dismiss(t.id);
-                        }}
-                      >
-                        Undo
-                      </Button>
-                    </div>
-                  ));
-               }}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-red-600"
+              onClick={() => {
+                toast((t) => (
+                  <div className="flex items-center gap-3">
+                    <span>User suspended</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="h-7 px-2 text-[10px] font-bold"
+                      onClick={() => {
+                        toast.success("Action reverted");
+                        toast.dismiss(t.id);
+                      }}
+                    >
+                      Undo
+                    </Button>
+                  </div>
+                ));
+              }}
             >
               <UserMinus size={16} />
             </Button>
@@ -237,10 +251,10 @@ export function UsersTable() {
             />
           </div>
           <Button variant="outline" size="icon" className="text-slate-500">
-             <Download size={18} />
+            <Download size={18} />
           </Button>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <AnimatePresence>
             {selectedCount > 0 && (
@@ -252,9 +266,9 @@ export function UsersTable() {
               >
                 <span className="text-sm font-bold text-indigo-600">{selectedCount} selected</span>
                 <div className="h-4 w-[1px] bg-indigo-200 mx-1"></div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-7 text-xs font-bold text-red-600 hover:bg-red-100"
                   onClick={() => toast.success(`Bulk deleted ${selectedCount} users`)}
                 >
@@ -281,9 +295,9 @@ export function UsersTable() {
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                       </TableHead>
                     );
                   })}
@@ -323,7 +337,7 @@ export function UsersTable() {
         </div>
         <div className="flex items-center justify-between px-4 py-4 border-t border-slate-100 bg-slate-50/30">
           <div className="text-xs font-medium text-slate-500">
-             Showing {table.getRowModel().rows.length} of {users.length} users
+            Showing {table.getRowModel().rows.length} of {users.length} users
           </div>
           <div className="flex items-center space-x-2">
             <Button

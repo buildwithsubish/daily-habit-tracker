@@ -1,34 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import Admin from '@/lib/models/Admin';
+import { getAdminFromRequest } from '@/lib/admin-middleware';
+
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
-
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@habittracker.com';
-    const admin = await Admin.findOne({ email: adminEmail });
-
+    const admin = getAdminFromRequest(request);
+    
     if (!admin) {
-      return NextResponse.json({
-        exists: false,
-        message: 'Admin not found in database',
-        expectedEmail: adminEmail,
-      });
+      return NextResponse.json(
+        { authenticated: false },
+        { status: 401 }
+      );
     }
-
+    
     return NextResponse.json({
-      exists: true,
+      authenticated: true,
+      adminId: admin.adminId,
       email: admin.email,
-      passwordHashPreview: admin.passwordHash?.substring(0, 30) + '...',
-      loginAttempts: admin.loginAttempts,
-      lockUntil: admin.lockUntil,
-      createdAt: admin.createdAt,
-      updatedAt: admin.updatedAt,
+      role: admin.role,
+      twoFactorEnabled: admin.twoFactorVerified,
     });
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message },
+      { error: 'Authentication check failed' },
       { status: 500 }
     );
   }

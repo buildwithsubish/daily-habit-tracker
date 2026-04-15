@@ -1,41 +1,13 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Flame, X, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Trophy, Flame, X, CheckCircle2 } from 'lucide-react';
 
 interface StreakCelebrationProps {
   isOpen: boolean;
   onClose: () => void;
   type: '7-day' | '30-day' | 'daily';
 }
-
-const ConfettiParticle = ({ index }: { index: number }) => {
-  const x = Math.random() * 400 - 200;
-  const y = Math.random() * -400 - 100;
-  const rotation = Math.random() * 360;
-  const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-  const color = colors[index % colors.length];
-
-  return (
-    <motion.div
-      initial={{ x: 0, y: 0, scale: 0, rotate: 0 }}
-      animate={{ 
-        x, 
-        y, 
-        scale: [0, 1, 0.5, 0], 
-        rotate: rotation,
-        opacity: [0, 1, 1, 0]
-      }}
-      transition={{ 
-        duration: 2.5, 
-        ease: "easeOut",
-        delay: Math.random() * 0.2
-      }}
-      className="absolute w-2 h-2 rounded-sm"
-      style={{ backgroundColor: color }}
-    />
-  );
-};
 
 export default function StreakCelebration({ isOpen, onClose, type }: StreakCelebrationProps) {
   const isMonth = type === '30-day';
@@ -50,82 +22,76 @@ export default function StreakCelebration({ isOpen, onClose, type }: StreakCeleb
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm"
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 bg-zinc-950/20 backdrop-blur-sm"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative bg-white dark:bg-zinc-900 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden p-8 sm:p-12 text-center border border-zinc-200 dark:border-zinc-800"
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ duration: 0.3 }}
+            className="relative bg-white dark:bg-zinc-900 w-full max-w-sm rounded-3xl shadow-xl overflow-hidden p-8 text-center border border-zinc-200 dark:border-zinc-800"
           >
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
 
             <div className="relative">
-              {/* Confetti container */}
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {Array.from({ length: 40 }).map((_, i) => (
-                  <ConfettiParticle key={i} index={i} />
-                ))}
-              </div>
-
               <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', damping: 12, delay: 0.1 }}
-                className="w-24 h-24 bg-indigo-50 dark:bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-8"
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="w-16 h-16 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6"
               >
                 {isMonth ? (
-                  <Trophy className="text-indigo-600 dark:text-indigo-400" size={40} />
+                  <Trophy className="text-zinc-900 dark:text-zinc-100" size={28} />
                 ) : isDaily ? (
-                  <CheckCircle2 className="text-indigo-600 dark:text-indigo-400" size={40} />
+                  <CheckCircle2 className="text-zinc-900 dark:text-zinc-100" size={28} />
                 ) : (
-                  <Flame className="text-indigo-600 dark:text-indigo-400" size={40} />
+                  <Flame className="text-zinc-900 dark:text-zinc-100" size={28} />
                 )}
               </motion.div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
                 >
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Sparkles size={14} className="text-indigo-500" />
-                    <span className="text-[10px] font-semibold tracking-widest text-indigo-600 dark:text-indigo-400 uppercase">Momentum Achieved</span>
-                  </div>
-                  <h2 className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
-                    {isMonth ? 'Incredible consistency!' : isDaily ? 'Nice work showing up again!' : 'A whole week of growth!'}
+                  <span className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">
+                    {isMonth ? 'Milestone' : isDaily ? 'Daily Goal' : 'Consistency'}
+                  </span>
+                  <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight mt-1">
+                    {isMonth ? 'Incredible consistency.' : isDaily ? 'Great work today.' : 'One week strong.'}
                   </h2>
                 </motion.div>
-                
+
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
                   className="text-zinc-500 dark:text-zinc-400 text-sm font-medium leading-relaxed max-w-xs mx-auto"
                 >
-                  {isDaily 
-                    ? "You've completed your rituals for today. Take a moment to appreciate your progress."
-                    : `You've maintained your habits for ${isMonth ? '30' : '7'} consecutive days. This is becoming part of who you are.`}
+                  {isDaily
+                    ? "You've successfully completed your rituals for today."
+                    : `You've maintained your habits for ${isMonth ? '30' : '7'} consecutive days.`}
                 </motion.p>
               </div>
 
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
-                className="pt-10"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.4 }}
+                className="pt-8"
               >
                 <button
                   onClick={onClose}
-                  className="w-full sm:w-auto bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-10 py-3.5 rounded-2xl font-semibold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-zinc-900/10"
+                  className="w-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-6 py-3 rounded-xl font-medium text-sm transition-all hover:bg-zinc-800 dark:hover:bg-zinc-200"
                 >
-                  Continue your journey
+                  Continue
                 </button>
               </motion.div>
             </div>

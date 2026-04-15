@@ -20,6 +20,8 @@
 # misc
 .DS_Store
 *.pem
+*.swp
+*.swo
 
 # debug
 npm-debug.log*
@@ -29,6 +31,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+!.env.example
 
 # vercel
 .vercel
@@ -41,6 +44,38 @@ oracle-key.pem
 # Ngrok
 ngrok
 ngrok-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Deployment scripts (keep in repo but make executable)
 # setup-server.sh

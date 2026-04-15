@@ -106,7 +106,7 @@ export async function initPresets() {
       name: 'Financial Health',
       type: 'financial',
       description: 'Build wealth and manage money wisely.',
-      category: 'Growth',
+      category: 'Finance',
       structure: {
         habits: [
           { name: 'Track Spending', category: 'Finance', type: 'single-step', steps: [{ order: 0, name: 'Log all expenses for the day' }], schedule: { weekdays: true, weekends: true } },
@@ -120,7 +120,7 @@ export async function initPresets() {
       name: 'Social Connections',
       type: 'social',
       description: 'Nurture relationships and build a stronger network.',
-      category: 'Mindfulness',
+      category: 'Social',
       structure: {
         habits: [
           { name: 'Reach Out to Someone', category: 'Social', type: 'single-step', steps: [{ order: 0, name: 'Call or message a friend/family' }], schedule: { weekdays: true, weekends: true } },
@@ -142,7 +142,30 @@ export async function initPresets() {
           { name: 'Rest and Recharge', category: 'Mindfulness', type: 'single-step', steps: [{ order: 0, name: 'Do something you enjoy' }], schedule: { weekdays: false, weekends: true } }
         ]
       }
-    }
+    },
+    {
+      name: 'Gym Workout',
+      type: 'gym-workout',
+      description: 'A structured multi-step workout routine with warmup, exercises, and cooldown.',
+      category: 'Fitness',
+      structure: {
+        habits: [
+          {
+            name: 'Gym Session',
+            category: 'Fitness',
+            type: 'multi-step',
+            steps: [
+              { order: 0, name: 'Warm Up (5-10 min)' },
+              { order: 1, name: 'Cardio (15-20 min)' },
+              { order: 2, name: 'Strength Training (30 min)' },
+              { order: 3, name: 'Core Work (10 min)' },
+              { order: 4, name: 'Cool Down & Stretch (5-10 min)' },
+            ],
+            schedule: { weekdays: true, weekends: false },
+          },
+        ],
+      },
+    },
   ];
 
   for (const preset of presets) {

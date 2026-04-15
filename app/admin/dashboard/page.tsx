@@ -26,6 +26,7 @@ interface AdminStats {
   habitsByCategory: Array<{ category: string; count: number }>;
   topHabits: Array<{ name: string; category: string; completions: number }>;
   dailyActivity: Array<{ date: string; total: number; completed: number }>;
+  auditLogs: Array<{ action: string; category: string; createdAt: string; details?: string }>;
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -126,36 +127,33 @@ export default function AdminDashboard() {
         </motion.div>
 
         <motion.div variants={item}>
-          <GlassCard className="p-6 bg-gradient-to-br from-slate-800 to-slate-900">
+          <GlassCard className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden relative">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-white/20 rounded-lg">
-                <DollarSign className="text-white" size={24} />
+                <CheckCircle className="text-white" size={24} />
               </div>
               <Badge variant="glass" className="bg-emerald-500/20 text-emerald-300 border-none">
-                +8%
+                {stats.completionRate}%
               </Badge>
             </div>
-            <p className="text-slate-400 text-sm font-medium">Revenue MRR</p>
-            <h3 className="text-3xl font-bold text-white mt-1">$2.4k</h3>
-            <p className="mt-4 text-xs text-slate-500">Target: $5k by Q2</p>
+            <p className="text-slate-400 text-sm font-medium">Completion Rate</p>
+            <h3 className="text-3xl font-bold text-white mt-1">{Math.round(stats.completionRate)}%</h3>
+            <p className="mt-4 text-xs text-slate-500">Platform-wide average</p>
           </GlassCard>
         </motion.div>
 
         <motion.div variants={item}>
-          <GlassCard className="p-6 bg-gradient-to-br from-violet-600 to-violet-700">
+          <GlassCard className="p-6 bg-gradient-to-br from-violet-600 to-violet-700 overflow-hidden relative">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-white/20 rounded-lg">
-                <PieChartIcon className="text-white" size={24} />
+                <Target className="text-white" size={24} />
               </div>
-              <Badge variant="glass" className="bg-red-500/20 text-red-300 border-none">
-                <ArrowDownRight size={12} className="mr-1" /> 0.5%
-              </Badge>
             </div>
-            <p className="text-violet-100 text-sm font-medium">Churn Rate</p>
-            <h3 className="text-3xl font-bold text-white mt-1">2.1%</h3>
+            <p className="text-violet-100 text-sm font-medium">Total Logs</p>
+            <h3 className="text-3xl font-bold text-white mt-1">{stats.totalLogs.toLocaleString()}</h3>
             <div className="mt-4 flex gap-1">
-              {[40, 60, 30, 80, 50].map((h, i) => (
-                <div key={i} style={{ height: `${h}%` }} className="w-full bg-white/20 rounded-sm"></div>
+              {stats.dailyActivity.slice(-7).map((day, i) => (
+                <div key={i} style={{ height: `${Math.min(100, (day.completed / (day.total || 1)) * 100)}%` }} className="w-full bg-white/20 rounded-sm"></div>
               ))}
             </div>
           </GlassCard>
@@ -319,22 +317,25 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
                <div className="space-y-6">
-                  {[
-                    { user: 'Admin', action: 'Modified Preset "Gym"', time: '2m ago', color: 'bg-indigo-500' },
-                    { user: 'System', action: 'Daily Backup Completed', time: '1h ago', color: 'bg-emerald-500' },
-                    { user: 'Editor', action: 'Suspended user user_99', time: '3h ago', color: 'bg-orange-500' },
-                    { user: 'Admin', action: 'Updated API Keys', time: '5h ago', color: 'bg-indigo-500' },
-                    { user: 'System', action: 'Security Scan Finished', time: '1d ago', color: 'bg-emerald-500' },
-                  ].map((log, i) => (
+                  {stats.auditLogs.length > 0 ? stats.auditLogs.map((log, i) => (
                     <div key={i} className="flex gap-4 relative">
-                       {i !== 4 && <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-100"></div>}
-                       <div className={cn("h-6 w-6 rounded-full flex-shrink-0 border-4 border-white shadow-sm z-10", log.color)}></div>
-                       <div>
-                          <p className="text-sm font-bold text-slate-900 leading-none">{log.action}</p>
-                          <p className="text-xs text-slate-500 mt-1">{log.user} • {log.time}</p>
+                       {i !== stats.auditLogs.length - 1 && <div className="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-100"></div>}
+                       <div className={cn("h-6 w-6 rounded-full flex-shrink-0 border-4 border-white shadow-sm z-10", 
+                         log.category === 'security' ? 'bg-red-500' : 
+                         log.category === 'whatsapp_message' ? 'bg-emerald-500' : 'bg-indigo-500'
+                       )}></div>
+                       <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-slate-900 leading-none truncate">{log.action}</p>
+                          <p className="text-xs text-slate-500 mt-1 truncate">
+                            {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {log.category.replace('_', ' ')}
+                          </p>
                        </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="py-8 text-center">
+                      <p className="text-xs text-slate-400 font-medium italic">No recent activity logs found</p>
+                    </div>
+                  )}
                </div>
                <Button variant="outline" className="w-full mt-8 font-bold text-xs border-slate-200">View Full Audit Trail</Button>
             </CardContent>

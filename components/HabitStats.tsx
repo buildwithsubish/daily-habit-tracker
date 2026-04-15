@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, Flame, Trophy, TrendingUp } from 'lucide-react';
+import { Activity, Flame, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
-import { motion } from 'framer-motion';
 import { Habit, DailyLog } from '@/types';
 
 interface Stats {
@@ -44,9 +43,12 @@ export default function HabitStats({ habits = [], logs = [] }: HabitStatsProps) 
           date: s.date
         })).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
         setStats({
           totalHabits: data.habitStats?.length || 0,
-          completedToday: completionStats.find((s: any) => s.date === new Date().toISOString().split('T')[0])?.completed || 0,
+          completedToday: completionStats.find((s: any) => s.date === todayStr)?.completed || 0,
           weeklyCompletion: averageCompletion,
           longestStreak,
           currentStreak,
@@ -59,95 +61,83 @@ export default function HabitStats({ habits = [], logs = [] }: HabitStatsProps) 
 
   if (!mounted || loading || !stats) {
     return (
-      <div className="modern-card animate-pulse p-6">
-        <div className="h-4 bg-neutral-100 dark:bg-zinc-800 rounded-full w-1/3 mb-8" />
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="h-20 bg-neutral-50 dark:bg-zinc-800/30 rounded-2xl" />
-          <div className="h-20 bg-neutral-50 dark:bg-zinc-800/30 rounded-2xl" />
+      <div className="card animate-pulse">
+        <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-1/3 mb-6" />
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="h-16 bg-slate-50 dark:bg-slate-800/30 rounded-lg" />
+          <div className="h-16 bg-slate-50 dark:bg-slate-800/30 rounded-lg" />
         </div>
-        <div className="h-32 bg-neutral-50 dark:bg-zinc-800/30 rounded-2xl" />
+        <div className="h-28 bg-slate-50 dark:bg-slate-800/30 rounded-lg" />
       </div>
     );
   }
 
   return (
-    <div className="modern-card p-6">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-9 h-9 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center">
-          <Activity size={18} className="text-indigo-600 dark:text-indigo-400" />
-        </div>
-        <div>
-          <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">Growth</span>
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">Overview</h3>
-        </div>
-      </div>
+    <div className="card">
+      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Overview</h3>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-2 gap-3 mb-5">
         {[
-          { label: 'Streak', value: stats.currentStreak, icon: Flame, color: 'text-orange-500', bg: 'bg-orange-50/50 dark:bg-orange-500/10' },
-          { label: 'Consistency', value: `${stats.weeklyCompletion.toFixed(0)}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50/50 dark:bg-emerald-500/10' },
+          { label: 'Streak', value: stats.currentStreak, icon: Flame, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' },
+          { label: 'Consistency', value: `${stats.weeklyCompletion.toFixed(0)}%`, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
         ].map((item, i) => (
-          <div key={i} className="bg-neutral-50/50 dark:bg-zinc-900 rounded-2xl p-4 border border-zinc-100 dark:border-zinc-800/50">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`p-1 rounded-lg ${item.bg}`}>
-                <item.icon className={item.color} size={12} />
-              </div>
-              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest">{item.label}</span>
+          <div key={i} className="rounded-lg p-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <item.icon className={item.color} size={12} />
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{item.label}</span>
             </div>
-            <div className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{item.value}</div>
+            <div className="text-xl font-bold text-slate-900 dark:text-slate-100">{item.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="h-32 w-full mb-8">
+      <div className="h-28 w-full mb-5">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={stats.dailyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorOverview" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.08}/>
                 <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
               </linearGradient>
             </defs>
             <Tooltip 
               contentStyle={{ 
-                borderRadius: '12px', 
+                borderRadius: '8px', 
                 border: '1px solid #e2e8f0', 
                 backgroundColor: '#fff',
-                color: '#18181b',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', 
-                fontSize: '11px', 
+                color: '#1e293b',
+                boxShadow: '0 2px 8px -2px rgb(0 0 0 / 0.08)', 
+                fontSize: '12px', 
                 fontWeight: 500, 
                 padding: '6px 10px' 
               }}
-              cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '3 3' }}
             />
             <Area 
               type="monotone" 
               dataKey="completed" 
               stroke="#6366f1" 
-              strokeWidth={2}
+              strokeWidth={1.5}
               fillOpacity={1} 
               fill="url(#colorOverview)" 
-              animationDuration={1000}
+              animationDuration={800}
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 grid grid-cols-2 gap-4">
+      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-3">
         <div>
-          <div className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest mb-1">Best Streak</div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{stats.longestStreak}</span>
-            <span className="text-[9px] font-semibold text-zinc-400 uppercase">days</span>
-          </div>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Best Streak</p>
+          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {stats.longestStreak} <span className="text-xs font-normal text-slate-400">days</span>
+          </p>
         </div>
         <div className="text-right">
-          <div className="text-[9px] font-semibold text-zinc-400 uppercase tracking-widest mb-1">Rituals</div>
-          <div className="flex items-baseline justify-end gap-1">
-            <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{stats.totalHabits}</span>
-            <span className="text-[9px] font-semibold text-zinc-400 uppercase">active</span>
-          </div>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Active</p>
+          <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {stats.totalHabits} <span className="text-xs font-normal text-slate-400">habits</span>
+          </p>
         </div>
       </div>
     </div>

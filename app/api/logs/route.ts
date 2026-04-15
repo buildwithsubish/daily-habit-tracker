@@ -4,6 +4,7 @@ import DailyLog from '@/lib/models/DailyLog';
 import Habit from '@/lib/models/Habit';
 import { requireAuth } from '@/lib/middleware';
 import { getToday, getDaysAgo } from '@/lib/utils';
+import { SubActivity } from '@/types';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
@@ -42,6 +43,8 @@ export async function GET(request: NextRequest) {
       stepIndex: number | null; 
       completed: boolean; 
       completedAt: Date | null;
+      activityNote?: string | null;
+      subActivities?: SubActivity[];
     };
     const typedLogs = logs as unknown as LogLean[];
     
@@ -53,6 +56,8 @@ export async function GET(request: NextRequest) {
       stepIndex: log.stepIndex,
       completed: log.completed,
       completedAt: log.completedAt?.toISOString(),
+      activityNote: log.activityNote || null,
+      subActivities: log.subActivities || [],
     }));
     
     return NextResponse.json({ logs: formattedLogs });
@@ -70,72 +75,109 @@ export async function POST(request: NextRequest) {
     const userId = requireAuth(request);
     const data = await request.json();
     
-    const { habitId, date, stepIndex, completed } = data;
+    const { habitId, date, stepIndex, completed, activityNote, subActivities } = data;
     
     if (habitId === undefined || date === undefined || completed === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+    const habitIdObj = new mongoose.Types.ObjectId(habitId);
     
     // Upsert log
+    const updateData: any = {
+      completed,
+      completedAt: completed ? new Date() : null,
+    };
+    
+    // Only set activityNote if provided
+    if (activityNote !== undefined) {
+      updateData.activityNote = activityNote || null;
+    }
+
+    // Only set subActivities if provided
+    if (subActivities !== undefined) {
+      updateData.subActivities = subActivities || [];
+    }
+    
     await DailyLog.findOneAndUpdate(
       {
-        userId: new mongoose.Types.ObjectId(userId),
-        habitId: new mongoose.Types.ObjectId(habitId),
+        userId: userIdObj,
+        habitId: habitIdObj,
         date,
         stepIndex: stepIndex ?? null,
       },
-      {
-        completed,
-        completedAt: completed ? new Date() : null,
-      },
+      updateData,
       { upsert: true, new: true }
     );
 
-    // Update habit streak logic
-    const habit = await Habit.findById(habitId);
-    if (habit) {
-      const today = getToday();
-      const yesterday = getDaysAgo(1);
-      
-      // Check if habit is fully completed for the given date
-      const logsForDate = await DailyLog.find({
-        userId: new mongoose.Types.ObjectId(userId),
-        habitId: new mongoose.Types.ObjectId(habitId),
-        date,
-        completed: true
-      });
-
-      const isFullyCompleted = habit.type === 'single-step' 
-        ? logsForDate.length > 0 
-        : logsForDate.length === habit.steps.length;
-
-      if (isFullyCompleted && date === today) {
-        if (habit.lastCompletedDate === yesterday) {
-          habit.streak += 1;
-        } else if (habit.lastCompletedDate !== today) {
-          habit.streak = 1;
-        }
-        habit.lastCompletedDate = today;
-      } else if (!isFullyCompleted && date === today && habit.lastCompletedDate === today) {
-        // If it was completed today and now it's not, check if it was completed yesterday
-        const logsForYesterday = await DailyLog.find({
-          userId: new mongoose.Types.ObjectId(userId),
-          habitId: new mongoose.Types.ObjectId(habitId),
-          date: yesterday,
-          completed: true
-        });
-        const completedYesterday = habit.type === 'single-step' 
-          ? logsForYesterday.length > 0 
-          : logsForYesterday.length === habit.steps.length;
-        
-        habit.streak = completedYesterday ? 1 : 0;
-        habit.lastCompletedDate = completedYesterday ? yesterday : null;
-      }
-      
-      await habit.save();
+    // Update habit streak logic (race-safe, avoids double updates)
+    const habitResult = await Habit.findOne({ _id: habitIdObj, userId: userIdObj }).lean().exec();
+    const habit = Array.isArray(habitResult) ? habitResult[0] : habitResult;
+    if (!habit) {
+      return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
     }
-    
-    return NextResponse.json({ success: true, streak: habit?.streak || 0 });
+
+    const today = getToday();
+    const yesterday = getDaysAgo(1);
+
+    // Determine if the habit is fully completed for the given date
+    const completedCount = await DailyLog.countDocuments({
+      userId: userIdObj,
+      habitId: habitIdObj,
+      date,
+      completed: true,
+    });
+
+    const isFullyCompleted =
+      habit.type === 'single-step'
+        ? completedCount > 0
+        : completedCount === (habit.steps?.length || 0);
+
+    let updatedHabit: any = null;
+
+    // Only streak today is tracked/stored in the habit doc.
+    if (date === today) {
+      if (isFullyCompleted) {
+        // Case 1: If last completed was yesterday, increment streak atomically.
+        updatedHabit = await Habit.findOneAndUpdate(
+          { _id: habitIdObj, userId: userIdObj, lastCompletedDate: yesterday },
+          { $inc: { streak: 1 }, $set: { lastCompletedDate: today } },
+          { new: true }
+        ).lean();
+
+        // Case 2: Otherwise, if we haven't already recorded today, set streak to 1 atomically.
+        if (!updatedHabit) {
+          updatedHabit = await Habit.findOneAndUpdate(
+            { _id: habitIdObj, userId: userIdObj, lastCompletedDate: { $ne: today } },
+            { $set: { streak: 1, lastCompletedDate: today } },
+            { new: true }
+          ).lean();
+        }
+      } else {
+        // If it was marked completed today and now isn't, revert streak based on whether yesterday was fully completed.
+        const yesterdayCount = await DailyLog.countDocuments({
+          userId: userIdObj,
+          habitId: habitIdObj,
+          date: yesterday,
+          completed: true,
+        });
+
+        const completedYesterday =
+          habit.type === 'single-step'
+            ? yesterdayCount > 0
+            : yesterdayCount === (habit.steps?.length || 0);
+
+        updatedHabit = await Habit.findOneAndUpdate(
+          { _id: habitIdObj, userId: userIdObj, lastCompletedDate: today },
+          { $set: { streak: completedYesterday ? 1 : 0, lastCompletedDate: completedYesterday ? yesterday : null } },
+          { new: true }
+        ).lean();
+      }
+    }
+
+    const streakValue = (updatedHabit?.streak ?? (habit as any).streak ?? 0) as number;
+    return NextResponse.json({ success: true, streak: streakValue });
   } catch (error: any) {
     console.error('Save log error:', error);
     return NextResponse.json(

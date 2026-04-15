@@ -34,14 +34,14 @@ export function AdminNavbar() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="text-slate-500">
+        <Button variant="ghost" size="icon" className="text-slate-600 hover:text-slate-900">
           <Keyboard size={20} />
         </Button>
-        <Button variant="ghost" size="icon" className="text-slate-500 relative">
+        <Button variant="ghost" size="icon" className="text-slate-600 hover:text-slate-900 relative">
           <Bell size={20} />
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-white"></span>
         </Button>
-        <Button variant="ghost" size="icon" className="text-slate-500">
+        <Button variant="ghost" size="icon" className="text-slate-600 hover:text-slate-900">
           <Sun size={20} />
         </Button>
         <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>

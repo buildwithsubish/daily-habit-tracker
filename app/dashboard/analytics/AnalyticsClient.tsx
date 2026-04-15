@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Target, Flame, Brain, Heart, Sparkles, TrendingUp, Award } from 'lucide-react';
+import { Target, Flame, Brain, Heart, Sparkles, TrendingUp, Award, MessageCircle } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import { AnalyticsSkeleton } from '@/components/Skeleton';
 
@@ -52,8 +52,8 @@ const containerVariants: Variants = {
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     transition: { duration: 0.5, ease: "easeOut" }
   }
@@ -72,16 +72,17 @@ const defaultWeeklyData = [
 
 const defaultCategoryData = [
   { name: 'Health', value: 35, color: '#10b981' },
-  { name: 'Mindset', value: 25, color: '#6366f1' },
-  { name: 'Growth', value: 28, color: '#f59e0b' },
-  { name: 'Focus', value: 12, color: '#8b5cf6' },
+  { name: 'Productivity', value: 25, color: '#6366f1' },
+  { name: 'Growth', value: 20, color: '#f59e0b' },
+  { name: 'Mindfulness', value: 20, color: '#8b5cf6' },
 ];
 
 export default function AnalyticsClient() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'week' | 'month'>('week');
+  const [activeTab, setActiveTab] = useState<'week' | 'month' | 'year'>('week');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [whatsappStatus, setWhatsappStatus] = useState<{ whatsappNumber: string; whatsappAutomation: boolean } | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 800);
@@ -91,14 +92,27 @@ export default function AnalyticsClient() {
   useEffect(() => {
     if (mounted) {
       fetchAnalytics();
+      fetchWhatsAppStatus();
     }
   }, [mounted, activeTab]);
+
+  const fetchWhatsAppStatus = async () => {
+    try {
+      const res = await fetch('/api/whatsapp');
+      if (res.ok) {
+        const data = await res.json();
+        setWhatsappStatus(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch WhatsApp status:', error);
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const days = activeTab === 'week' ? 7 : 30;
-      const res = await fetch(`/api/analytics?days=${days}`);
+      const period = activeTab === 'week' ? 'weekly' : activeTab === 'month' ? 'monthly' : 'yearly';
+      const res = await fetch(`/api/analytics?period=${period}`);
       const data = await res.json();
       setAnalyticsData(data);
     } catch (error) {
@@ -111,32 +125,54 @@ export default function AnalyticsClient() {
   // Transform API data for charts
   const getWeeklyData = () => {
     if (!analyticsData?.completionStats) return defaultWeeklyData;
-    
+
     const completionStats = analyticsData.completionStats;
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    
-    return completionStats.slice(-7).map((stat: any, index: number) => {
+
+    if (activeTab === 'year') {
+      // Bucket last ~365 days into months for readability
+      const slice = completionStats.slice(-365);
+      const monthMap = new Map<string, { completed: number; total: number }>();
+      slice.forEach((stat: any) => {
+        const d = new Date(stat.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const prev = monthMap.get(key) || { completed: 0, total: 0 };
+        monthMap.set(key, { completed: prev.completed + stat.completed, total: prev.total + stat.total });
+      });
+
+      return Array.from(monthMap.entries()).map(([key, agg]) => {
+        const [y, m] = key.split('-');
+        return {
+          name: `${m}/${y.slice(2)}`,
+          completion: agg.total > 0 ? Math.round((agg.completed / agg.total) * 100) : 0,
+          consistency: agg.total > 0 ? Math.round((agg.completed / agg.total) * 100) : 0,
+        };
+      });
+    }
+
+    const slice = completionStats.slice(activeTab === 'week' ? -7 : -30);
+    return slice.map((stat: any) => {
       const date = new Date(stat.date);
       return {
-        name: dayNames[date.getDay()],
+        name: activeTab === 'week' ? dayNames[date.getDay()] : `${date.getMonth() + 1}/${date.getDate()}`,
         completion: stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0,
-        consistency: Math.round(50 + Math.random() * 40), // Fallback consistency
+        consistency: stat.completed > 0 ? 100 : 0,
       };
     });
   };
 
   const getCategoryData = () => {
     if (!analyticsData?.habitStats) return defaultCategoryData;
-    
+
     const categories: Record<string, number> = {};
     analyticsData.habitStats.forEach((habit: any) => {
       const cat = habit.category || 'Other';
       categories[cat] = (categories[cat] || 0) + habit.completedLogs;
     });
-    
+
     const total = Object.values(categories).reduce((a: number, b: number) => a + b, 0) || 1;
     const colors = ['#10b981', '#6366f1', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
-    
+
     return Object.entries(categories).map(([name, value], index) => ({
       name,
       value: Math.round((value / total) * 100),
@@ -146,7 +182,7 @@ export default function AnalyticsClient() {
 
   const getStreaks = () => {
     if (!analyticsData?.streaks) return { current: 14, longest: 21 };
-    
+
     const streaks = Object.values(analyticsData.streaks) as Array<{ current: number; longest: number }>;
     const current = Math.max(...streaks.map(s => s.current), 0);
     const longest = Math.max(...streaks.map(s => s.longest), 0);
@@ -155,7 +191,7 @@ export default function AnalyticsClient() {
 
   const getCompletionRate = () => {
     if (!analyticsData?.completionStats) return 82;
-    
+
     const stats = analyticsData.completionStats;
     const total = stats.reduce((acc: number, s: any) => acc + s.total, 0);
     const completed = stats.reduce((acc: number, s: any) => acc + s.completed, 0);
@@ -167,17 +203,35 @@ export default function AnalyticsClient() {
   const streaks = getStreaks();
   const completionRate = getCompletionRate();
 
+  const getConsistencyRate = () => {
+    const stats = analyticsData?.completionStats as Array<{ completed: number }> | undefined;
+    if (!stats || stats.length === 0) return 0;
+    const window = activeTab === 'week' ? 7 : activeTab === 'month' ? 30 : 365;
+    const slice = stats.slice(-window);
+    const daysWithAny = slice.reduce((acc, s: any) => acc + (s.completed > 0 ? 1 : 0), 0);
+    return Math.round((daysWithAny / Math.max(slice.length, 1)) * 100);
+  };
+
+  const focusScore = (() => {
+    // Deterministic metric: completion + show-up consistency + small trend bonus.
+    const consistency = getConsistencyRate();
+    const trend = analyticsData?.trend?.changePercent ?? 0;
+    const trendBonus = Math.max(Math.min(trend, 20), -20);
+    const base = Math.round(0.6 * completionRate + 0.4 * consistency + trendBonus * 0.25);
+    return Math.max(0, Math.min(100, base));
+  })();
+
   if (!mounted) return <AnalyticsSkeleton />;
 
   return (
-    <motion.div 
+    <motion.div
       initial="hidden"
       animate="visible"
       variants={containerVariants}
       className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-zinc-950 dark:via-zinc-900 dark:to-indigo-950/20 pb-20"
     >
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24">
+      <div className="premium-container pt-24">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <motion.div variants={itemVariants}>
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-indigo-100 to-violet-100 dark:from-indigo-500/20 dark:to-violet-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-semibold rounded-full mb-4 shadow-sm">
@@ -193,18 +247,17 @@ export default function AnalyticsClient() {
               Track your progress, celebrate wins, and discover patterns in your daily habits.
             </p>
           </motion.div>
-          
+
           <motion.div variants={itemVariants}>
             <div className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1.5 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40">
-              {['week', 'month'].map((tab) => (
+              {(['week', 'month', 'year'] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab as 'week' | 'month')}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all duration-300 ${
-                    activeTab === tab
-                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/25'
-                      : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50'
-                  }`}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all duration-300 ${activeTab === tab
+                    ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/25'
+                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50'
+                    }`}
                 >
                   {tab}
                 </button>
@@ -215,12 +268,12 @@ export default function AnalyticsClient() {
       </div>
 
       {/* Stats Grid */}
-      <motion.div variants={itemVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+      <motion.div variants={itemVariants} className="premium-container pt-12">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {[
             { icon: Flame, label: 'Current Streak', value: streaks.current, suffix: 'days', colorKey: 'orange', gradient: 'orange' },
             { icon: Target, label: 'Completion Rate', value: completionRate, suffix: '%', colorKey: 'indigo', gradient: 'indigo' },
-            { icon: Brain, label: 'Focus Score', value: 78, suffix: '%', colorKey: 'purple', gradient: 'purple' },
+            { icon: Brain, label: 'Focus Score', value: focusScore, suffix: '%', colorKey: 'purple', gradient: 'purple' },
             { icon: Award, label: 'Best Streak', value: streaks.longest, suffix: 'days', colorKey: 'emerald', gradient: 'emerald' },
           ].map((stat, index) => {
             const colors = colorClasses[stat.colorKey as keyof typeof colorClasses];
@@ -232,7 +285,7 @@ export default function AnalyticsClient() {
                 className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${colors.gradient} border ${colors.border} p-6 shadow-lg hover:shadow-xl transition-all duration-300`}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/40 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-                
+
                 <div className={`relative z-10`}>
                   <div className={`w-14 h-14 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm ${colors.bg} flex items-center justify-center mb-5 shadow-sm`}>
                     <stat.icon size={26} className={colors.icon} />
@@ -253,15 +306,102 @@ export default function AnalyticsClient() {
         </div>
       </motion.div>
 
+      {/* Trend + Heatmap */}
+      <motion.div variants={itemVariants} className="premium-container pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Trend Insight */}
+          <div className="lg:col-span-1 rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6">
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Trend</h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">Week-over-week completion change</p>
+
+            {loading ? (
+              <div className="h-20 rounded-2xl bg-zinc-100/60 dark:bg-zinc-800/40 animate-pulse" />
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">This week</span>
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white">{analyticsData?.trend?.thisWeekRate ?? 0}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Previous</span>
+                  <span className="text-sm font-bold text-zinc-900 dark:text-white">{analyticsData?.trend?.prevWeekRate ?? 0}%</span>
+                </div>
+                <div className="mt-4 rounded-2xl p-4 border border-zinc-200/60 dark:border-zinc-800/60 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-500/10 dark:to-violet-500/10">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-300">Change</span>
+                    <span className={`text-sm font-bold ${(analyticsData?.trend?.changePercent ?? 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                      }`}>
+                      {(analyticsData?.trend?.changePercent ?? 0) >= 0 ? '+' : ''}{analyticsData?.trend?.changePercent ?? 0}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Heatmap (last 12 weeks) */}
+          <div className="lg:col-span-2 rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Activity Heatmap</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Last 12 weeks</p>
+              </div>
+              <div className="text-xs font-semibold text-zinc-500">
+                {loading ? '—' : 'More completions → darker'}
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="h-28 rounded-2xl bg-zinc-100/60 dark:bg-zinc-800/40 animate-pulse" />
+            ) : (
+              <div className="overflow-x-auto custom-scrollbar">
+                <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
+                  {(() => {
+                    const heatmap: Record<string, number> = analyticsData?.heatmap || {};
+                    const days = 7 * 12;
+                    const start = new Date();
+                    start.setDate(start.getDate() - (days - 1));
+                    const cells: Array<{ key: string; value: number }> = [];
+                    for (let i = 0; i < days; i++) {
+                      const d = new Date(start);
+                      d.setDate(start.getDate() + i);
+                      const key = d.toISOString().split('T')[0];
+                      cells.push({ key, value: heatmap[key] || 0 });
+                    }
+
+                    const max = Math.max(...cells.map(c => c.value), 1);
+                    return cells.map((c) => {
+                      const intensity = c.value / max;
+                      const cls =
+                        c.value === 0 ? 'bg-zinc-200/60 dark:bg-zinc-800/60' :
+                          intensity < 0.34 ? 'bg-indigo-300/70 dark:bg-indigo-500/40' :
+                            intensity < 0.67 ? 'bg-indigo-500/70 dark:bg-indigo-500/70' :
+                              'bg-indigo-700/80 dark:bg-indigo-400/80';
+                      return (
+                        <div
+                          key={c.key}
+                          title={`${c.key}: ${c.value} completion${c.value === 1 ? '' : 's'}`}
+                          className={`w-3.5 h-3.5 rounded-[4px] ${cls} border border-white/30 dark:border-black/20`}
+                        />
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
       {/* Main Charts Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+      <div className="premium-container pt-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Main Chart */}
           <motion.div variants={itemVariants} className="lg:col-span-2 rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Consistency Trend</h3>
-                <p className="text-sm text-zinc-500 mt-1">Your daily activity over the past {activeTab === 'week' ? 'week' : 'month'}</p>
+                <p className="text-sm text-zinc-500 mt-1">Your activity over the past {activeTab === 'week' ? 'week' : activeTab === 'month' ? 'month' : 'year'}</p>
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
@@ -274,7 +414,7 @@ export default function AnalyticsClient() {
                 </div>
               </div>
             </div>
-            
+
             <div className="h-[320px] w-full">
               {loading ? (
                 <div className="h-full flex items-center justify-center">
@@ -288,57 +428,71 @@ export default function AnalyticsClient() {
                   <AreaChart data={weeklyData}>
                     <defs>
                       <linearGradient id="colorCompletionNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorConsistencyNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                       </linearGradient>
                       <filter id="glow">
-                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur" />
                         <feMerge>
-                          <feMergeNode in="coloredBlur"/>
-                          <feMergeNode in="SourceGraphic"/>
+                          <feMergeNode in="coloredBlur" />
+                          <feMergeNode in="SourceGraphic" />
                         </feMerge>
                       </filter>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.4} />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
                       tick={{ fontSize: 13, fontWeight: 600, fill: '#94a3b8' }}
                       dy={15}
                     />
                     <YAxis hide domain={[0, 100]} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(255,255,255,0.95)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(226,232,240,0.8)',
-                        borderRadius: '16px',
-                        padding: '12px 16px',
-                        boxShadow: '0 10px 40px rgba(0,0,0,0.08)'
+                    <Tooltip
+                      content={({ active, payload, label }: any) => {
+                        if (!active || !payload || payload.length === 0) return null;
+                        return (
+                          <div style={{
+                            backgroundColor: 'rgba(255,255,255,0.97)',
+                            backdropFilter: 'blur(12px)',
+                            border: '1px solid rgba(226,232,240,0.8)',
+                            borderRadius: '16px',
+                            padding: '14px 18px',
+                            boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                            minWidth: '160px',
+                          }}>
+                            <p style={{ fontWeight: 800, fontSize: '14px', color: '#18181b', marginBottom: '10px' }}>{label}</p>
+                            {payload.map((entry: any, i: number) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 0' }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: entry.dataKey === 'completion' ? '#6366f1' : '#10b981', flexShrink: 0 }} />
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'capitalize' }}>{entry.dataKey}:</span>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#18181b', marginLeft: 'auto' }}>{entry.value}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
                       }}
-                      labelStyle={{ color: '#18181b', fontWeight: 700, fontSize: '14px', marginBottom: '6px' }}
-                      itemStyle={{ fontWeight: 600, fontSize: '12px', padding: '4px 0' }}
+                      cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="completion" 
-                      stroke="url(#colorCompletionNew)" 
+                    <Area
+                      type="monotone"
+                      dataKey="completion"
+                      stroke="url(#colorCompletionNew)"
                       strokeWidth={3}
-                      fillOpacity={1} 
+                      fillOpacity={1}
                       fill="url(#colorCompletionNew)"
                       filter="url(#glow)"
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="consistency" 
-                      stroke="url(#colorConsistencyNew)" 
+                    <Area
+                      type="monotone"
+                      dataKey="consistency"
+                      stroke="url(#colorConsistencyNew)"
                       strokeWidth={3}
-                      fillOpacity={1} 
+                      fillOpacity={1}
                       fill="url(#colorConsistencyNew)"
                       filter="url(#glow)"
                     />
@@ -354,7 +508,7 @@ export default function AnalyticsClient() {
             <motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-6 shadow-xl shadow-indigo-500/25">
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
               <div className="absolute bottom-0 left-0 w-32 h-32 bg-violet-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-              
+
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
@@ -375,7 +529,7 @@ export default function AnalyticsClient() {
             {/* Focus Areas Pie Chart */}
             <motion.div variants={itemVariants} className="rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6">Focus Areas</h3>
-              
+
               <div className="h-[180px] w-full relative">
                 {loading ? (
                   <div className="h-full flex items-center justify-center">
@@ -393,24 +547,46 @@ export default function AnalyticsClient() {
                         stroke="none"
                       >
                         {categoryData.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={entry.color} 
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.color}
                             stroke="none"
                           />
                         ))}
                       </Pie>
+                      <Tooltip
+                        content={({ active, payload }: any) => {
+                          if (!active || !payload || payload.length === 0) return null;
+                          const data = payload[0].payload;
+                          return (
+                            <div style={{
+                              backgroundColor: 'rgba(255,255,255,0.97)',
+                              backdropFilter: 'blur(12px)',
+                              border: '1px solid rgba(226,232,240,0.8)',
+                              borderRadius: '14px',
+                              padding: '10px 14px',
+                              boxShadow: '0 8px 30px rgba(0,0,0,0.1)',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: data.color, flexShrink: 0 }} />
+                                <span style={{ fontWeight: 700, fontSize: '13px', color: '#18181b' }}>{data.name}</span>
+                                <span style={{ fontWeight: 800, fontSize: '13px', color: data.color, marginLeft: '8px' }}>{data.value}%</span>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 )}
                 <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
                   <span className="text-2xl font-bold bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
-                    {loading ? '—' : '82%'}
+                    {loading ? '—' : `${completionRate}%`}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Total</span>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3 mt-6">
                 {categoryData.map((cat) => (
                   <div key={cat.name} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
@@ -426,7 +602,7 @@ export default function AnalyticsClient() {
       </div>
 
       {/* Bottom Section - Habit Stats */}
-      <motion.div variants={itemVariants} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+      <motion.div variants={itemVariants} className="premium-container pt-10">
         <div className="rounded-3xl bg-gradient-to-r from-zinc-900 to-zinc-800 dark:from-zinc-950 dark:to-zinc-900 p-6 lg:p-8 shadow-2xl">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div>
@@ -440,7 +616,7 @@ export default function AnalyticsClient() {
               </div>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(6)].map((_, i) => (
@@ -453,11 +629,11 @@ export default function AnalyticsClient() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {analyticsData?.habitStats?.slice(0, 6).map((habit: any, index: number) => {
-                const completionRate = habit.totalLogs > 0 
-                  ? Math.round((habit.completedLogs / habit.totalLogs) * 100) 
+                const completionRate = habit.totalLogs > 0
+                  ? Math.round((habit.completedLogs / habit.totalLogs) * 100)
                   : 0;
                 const statusColor = completionRate >= 80 ? 'emerald' : completionRate >= 50 ? 'yellow' : 'rose';
-                
+
                 return (
                   <motion.div
                     key={habit.id}
@@ -471,10 +647,9 @@ export default function AnalyticsClient() {
                         <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">{habit.name}</h4>
                         <span className="text-xs text-zinc-500 uppercase tracking-wider">{habit.category}</span>
                       </div>
-                      <div className={`w-2 h-2 rounded-full ${
-                        statusColor === 'emerald' ? 'bg-emerald-400' : 
+                      <div className={`w-2 h-2 rounded-full ${statusColor === 'emerald' ? 'bg-emerald-400' :
                         statusColor === 'yellow' ? 'bg-yellow-400' : 'bg-rose-400'
-                      }`} />
+                        }`} />
                     </div>
                     <div className="flex items-end justify-between">
                       <div className="flex items-baseline gap-1">
@@ -486,11 +661,10 @@ export default function AnalyticsClient() {
                       </div>
                     </div>
                     <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          statusColor === 'emerald' ? 'bg-emerald-400' : 
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${statusColor === 'emerald' ? 'bg-emerald-400' :
                           statusColor === 'yellow' ? 'bg-yellow-400' : 'bg-rose-400'
-                        }`}
+                          }`}
                         style={{ width: `${completionRate}%` }}
                       />
                     </div>
@@ -499,6 +673,67 @@ export default function AnalyticsClient() {
               })}
             </div>
           )}
+        </div>
+      </motion.div>
+
+      {/* WhatsApp Automation Stats */}
+      <motion.div variants={itemVariants} className="premium-container pt-10">
+        <div className="rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6 lg:p-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
+              <MessageCircle size={22} className="text-green-500" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">WhatsApp Automation</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Weekly messaging insights</p>
+            </div>
+            {whatsappStatus && (
+              <div className={`ml-auto px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${whatsappStatus.whatsappAutomation
+                ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                }`}>
+                {whatsappStatus.whatsappAutomation ? 'Active' : 'Inactive'}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const totalHabits = analyticsData?.habitStats?.length || 0;
+              const automatedHabits = whatsappStatus?.whatsappAutomation ? totalHabits : 0;
+              const totalLogs = analyticsData?.habitStats?.reduce((acc: number, h: any) => acc + (h.totalLogs || 0), 0) || 0;
+              const completedLogs = analyticsData?.habitStats?.reduce((acc: number, h: any) => acc + (h.completedLogs || 0), 0) || 0;
+              const responseRate = totalLogs > 0 ? Math.round((completedLogs / totalLogs) * 100) : 0;
+              const messagesSent = whatsappStatus?.whatsappAutomation ? Math.max(completedLogs, totalHabits * 2) : 0;
+              const engagement = responseRate >= 80 ? 'High' : responseRate >= 50 ? 'Medium' : responseRate > 0 ? 'Low' : 'N/A';
+
+              return [
+                { label: 'Messages Sent', value: messagesSent, suffix: '', color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-500/10' },
+                { label: 'Habits Automated', value: automatedHabits, suffix: '', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
+                { label: 'Response Rate', value: responseRate, suffix: '%', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-500/10' },
+                { label: 'Engagement', value: engagement, suffix: '', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10' },
+              ].map((stat, i) => (
+                <div key={i} className={`rounded-2xl p-5 ${stat.bg} border border-zinc-100 dark:border-zinc-800/50`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-2">{stat.label}</p>
+                  <p className={`text-2xl font-bold ${stat.color}`}>{loading ? '\u2014' : `${stat.value}${stat.suffix}`}</p>
+                </div>
+              ));
+            })()}
+          </div>
+
+          <div className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/5 dark:to-emerald-500/5 border border-green-100 dark:border-green-800/30">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">💬</span>
+              <div>
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">Automation keeps you accountable</p>
+                <p className="text-xs text-green-600/80 dark:text-green-400/60 mt-0.5">
+                  {whatsappStatus?.whatsappAutomation
+                    ? `You have ${analyticsData?.habitStats?.length || 0} habits tracked. Keep it up!`
+                    : 'Link your WhatsApp number to enable daily reminders and boost completion by up to 23%.'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
 

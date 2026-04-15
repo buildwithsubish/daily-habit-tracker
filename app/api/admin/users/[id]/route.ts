@@ -21,21 +21,35 @@ export async function GET(
 
     // Get user details
     const user = await User.findById(userIdObj)
-      .select('email username passwordHash createdAt timeZone notificationPreferences')
+      .select('email username passwordHash createdAt timeZone notificationPreferences whatsappNumber whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule')
       .lean();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    
-    type UserLean = { 
-      _id: mongoose.Types.ObjectId; 
-      email: string; 
-      username?: string; 
-      passwordHash: string; 
-      createdAt: Date; 
-      timeZone: string; 
+
+    type UserLean = {
+      _id: mongoose.Types.ObjectId;
+      email: string;
+      username?: string;
+      passwordHash: string;
+      createdAt: Date;
+      timeZone: string;
       notificationPreferences: any;
+      whatsappNumber?: string;
+      whatsappAutomation?: boolean;
+      whatsappVerified?: boolean;
+      pollSchedule?: {
+        enabled: boolean;
+        time: string;
+        frequency: string;
+        customDays: number[];
+      };
+      weeklyReportSchedule?: {
+        enabled: boolean;
+        day: number;
+        time: string;
+      };
     };
     const typedUser = user as unknown as UserLean;
 
@@ -44,7 +58,7 @@ export async function GET(
       .select('name category type steps order createdAt')
       .sort({ order: 1, createdAt: 1 })
       .lean();
-    
+
     type HabitLean = { _id: mongoose.Types.ObjectId; name: string; category: string; type: string; steps: any[]; order: number; createdAt: Date };
     const typedHabits = habits as unknown as HabitLean[];
 
@@ -53,7 +67,7 @@ export async function GET(
       .sort({ date: -1 })
       .limit(100)
       .lean();
-    
+
     type LogLean = { _id: mongoose.Types.ObjectId; habitId: mongoose.Types.ObjectId; date: string; completed: boolean; stepIndex: number | null; completedAt: Date | null };
     const typedLogs = logs as unknown as LogLean[];
 
@@ -64,20 +78,20 @@ export async function GET(
 
     // Get streaks
     const habitStreaks: Record<string, { current: number; longest: number }> = {};
-    
+
     for (const habit of typedHabits) {
       const habitLogs = await DailyLog.find({ userId: userIdObj, habitId: habit._id })
         .sort({ date: -1 })
         .lean();
-      
+
       type StreakLogLean = { date: string; completed: boolean };
       const typedHabitLogs = habitLogs as unknown as StreakLogLean[];
-      
+
       let currentStreak = 0;
       let longestStreak = 0;
       let tempStreak = 0;
       const today = new Date().toISOString().split('T')[0];
-      
+
       for (let i = 0; i < typedHabitLogs.length; i++) {
         const log = typedHabitLogs[i];
         if (log.completed) {
@@ -88,7 +102,7 @@ export async function GET(
             const prevDate = new Date(typedHabitLogs[i - 1].date);
             const currDate = new Date(log.date);
             const diffDays = Math.floor((prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24));
-            
+
             if (diffDays === 1) {
               tempStreak++;
               if (i === 0) currentStreak = tempStreak;
@@ -131,6 +145,11 @@ export async function GET(
         username: typedUser.username || 'N/A',
         createdAt: typedUser.createdAt,
         timeZone: typedUser.timeZone,
+        whatsappNumber: typedUser.whatsappNumber,
+        whatsappAutomation: typedUser.whatsappAutomation,
+        whatsappVerified: typedUser.whatsappVerified,
+        pollSchedule: typedUser.pollSchedule || { enabled: true, time: '20:00', frequency: 'daily', customDays: [] },
+        weeklyReportSchedule: typedUser.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' },
         passwordHash: typedUser.passwordHash, // Secured - this is hashed, not plain text
         notificationPreferences: typedUser.notificationPreferences,
       },
@@ -186,8 +205,129 @@ export async function PUT(
 
     const { id: userId } = await params;
     const userIdObj = new mongoose.Types.ObjectId(userId);
-    const { preferredTheme } = await request.json();
+    const body = await request.json();
+    const { preferredTheme, whatsappAction, scheduleSettings } = body;
 
+    // Handle schedule settings update
+    if (scheduleSettings) {
+      const updateFields: any = {};
+      
+      if (scheduleSettings.pollSchedule) {
+        const { enabled, time, frequency, customDays } = scheduleSettings.pollSchedule;
+        if (typeof enabled === 'boolean') {
+          updateFields['pollSchedule.enabled'] = enabled;
+        }
+        if (time) {
+          updateFields['pollSchedule.time'] = time;
+        }
+        if (frequency) {
+          updateFields['pollSchedule.frequency'] = frequency;
+        }
+        if (customDays && Array.isArray(customDays)) {
+          updateFields['pollSchedule.customDays'] = customDays;
+        }
+      }
+      
+      if (scheduleSettings.weeklyReportSchedule) {
+        const { enabled, day, time } = scheduleSettings.weeklyReportSchedule;
+        if (typeof enabled === 'boolean') {
+          updateFields['weeklyReportSchedule.enabled'] = enabled;
+        }
+        if (day !== undefined) {
+          updateFields['weeklyReportSchedule.day'] = day;
+        }
+        if (time) {
+          updateFields['weeklyReportSchedule.time'] = time;
+        }
+      }
+      
+      const user = await User.findByIdAndUpdate(
+        userIdObj,
+        updateFields,
+        { new: true }
+      );
+
+      if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Schedule settings updated successfully',
+        pollSchedule: user.pollSchedule,
+        weeklyReportSchedule: user.weeklyReportSchedule,
+      });
+    }
+
+    // Handle WhatsApp-related actions
+    if (whatsappAction) {
+      if (whatsappAction === 'remove_phone') {
+        const user = await User.findByIdAndUpdate(
+          userIdObj,
+          {
+            whatsappNumber: '',
+            whatsappNumberEncrypted: '',
+            whatsappNumberHash: '',
+            whatsappVerified: false,
+            whatsappAutomation: false,
+          },
+          { new: true }
+        );
+
+        if (!user) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'WhatsApp number removed successfully',
+        });
+      }
+
+      if (whatsappAction === 'toggle_automation') {
+        const { enable } = body;
+        const user = await User.findByIdAndUpdate(
+          userIdObj,
+          { whatsappAutomation: enable },
+          { new: true }
+        );
+
+        if (!user) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `WhatsApp automation ${enable ? 'enabled' : 'disabled'} successfully`,
+          whatsappAutomation: user.whatsappAutomation,
+        });
+      }
+
+      if (whatsappAction === 'reset_verification') {
+        const user = await User.findByIdAndUpdate(
+          userIdObj,
+          {
+            whatsappVerified: false,
+            whatsappVerificationCode: '',
+            whatsappAutomation: false,
+          },
+          { new: true }
+        );
+
+        if (!user) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'WhatsApp verification reset successfully',
+        });
+      }
+
+      return NextResponse.json({ error: 'Invalid WhatsApp action' }, { status: 400 });
+    }
+
+    // Handle theme update
     if (!preferredTheme) {
       return NextResponse.json(
         { error: 'preferredTheme is required' },

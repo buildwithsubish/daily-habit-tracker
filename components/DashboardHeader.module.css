@@ -1,0 +1,834 @@
+/**
+ * DashboardHeader.module.css
+ * Professional, responsive dashboard header with mobile-first design
+ * 
+ * Responsive Breakpoints:
+ * - Mobile: 320px - 639px
+ * - Tablet: 640px - 1023px
+ * - Laptop: 1024px - 1439px
+ * - Desktop: 1440px+
+ */
+
+/* ============================================================================
+   BASE STYLES & COLOR VARIABLES
+   ============================================================================ */
+
+.header {
+  /* Sticky positioning - stays at top during scroll */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  
+  /* Subtle shadow for depth */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  
+  /* Smooth transitions */
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Light mode (default) */
+.lightMode {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  color: #2c3e50;
+  border-bottom: 1px solid #e8eaed;
+}
+
+/* Dark mode */
+.darkMode {
+  background: linear-gradient(135deg, #1a1f2e 0%, #0f1419 100%);
+  color: #e8eaed;
+  border-bottom: 1px solid #2a3f5f;
+}
+
+.darkMode .notificationBtn,
+.darkMode .themeToggleBtn,
+.darkMode .profileBtn {
+  color: #e8eaed;
+}
+
+.darkMode .navLink:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.darkMode .navLink.active {
+  color: #60a5fa;
+  background-color: rgba(96, 165, 250, 0.1);
+}
+
+.darkMode .dropdownItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.darkMode .profileDropdown {
+  background-color: #1a1f2e;
+  border: 1px solid #2a3f5f;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+}
+
+.darkMode .divider {
+  border-color: #2a3f5f;
+}
+
+/* ============================================================================
+   HEADER CONTAINER & LAYOUT
+   ============================================================================ */
+
+.headerContainer {
+  /* Use CSS Grid for flexible 3-section layout */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 2rem;
+  align-items: center;
+  
+  /* Responsive padding */
+  padding: 1rem 1.5rem;
+  height: 70px;
+  
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+/* ============================================================================
+   LEFT SECTION - LOGO & BRAND
+   ============================================================================ */
+
+.leftSection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  
+  /* Ensure logo doesn't shrink on smaller screens */
+  min-width: 0;
+}
+
+.brandContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  
+  /* For touch targets on mobile */
+  padding: 0.5rem;
+  margin: -0.5rem;
+  
+  /* Smooth hover effect */
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+  border-radius: 8px;
+  
+  /* Accessibility: focus state */
+  outline: none;
+}
+
+.brandContainer:hover {
+  opacity: 0.8;
+}
+
+.dashboardIcon {
+  /* Grid icon - 2x2 squares */
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: #3b82f6;
+  stroke-width: 1.5;
+}
+
+.brandName {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  
+  /* Hide on mobile */
+  display: none;
+}
+
+/* ============================================================================
+   CENTER SECTION - NAVIGATION
+   ============================================================================ */
+
+.centerSection {
+  /* Flex layout for responsive behavior */
+  display: flex;
+  align-items: center;
+  position: relative;
+  
+  /* Allow this section to grow and take available space */
+  flex: 1;
+  justify-content: center;
+}
+
+.hamburgerBtn {
+  /* Hidden by default - shown only on mobile */
+  display: none;
+  
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  
+  /* For touch targets */
+  min-width: 44px;
+  min-height: 44px;
+  
+  color: inherit;
+}
+
+.hamburgerBtn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.hamburgerBtn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Hamburger line animation */
+.hamburgerLine {
+  width: 24px;
+  height: 2.5px;
+  background-color: currentColor;
+  border-radius: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hamburgerBtn.active .hamburgerLine:nth-child(1) {
+  transform: translateY(7.5px) rotate(45deg);
+}
+
+.hamburgerBtn.active .hamburgerLine:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburgerBtn.active .hamburgerLine:nth-child(3) {
+  transform: translateY(-7.5px) rotate(-45deg);
+}
+
+/* Navigation Menu */
+.navMenu {
+  /* Flexbox for horizontal layout on desktop */
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+  align-items: stretch;
+}
+
+.navMenu li {
+  display: flex;
+  align-items: center;
+}
+
+.navLink {
+  /* Flexible display of icon/label */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  /* Padding for touch targets */
+  padding: 0.75rem 1.25rem;
+  
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+  
+  /* Accessibility: focus state */
+  outline: none;
+}
+
+.navLink:hover {
+  background-color: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
+}
+
+.navLink:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Active nav item - underline indicator */
+.navLink.active {
+  color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.navLink.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 3px;
+  background-color: #3b82f6;
+  border-radius: 2px 2px 0 0;
+}
+
+/* Icon styling within nav link */
+.navIcon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  
+  /* Center content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  white-space: nowrap;
+  
+  /* Hide labels on tablet portrait */
+  display: block;
+}
+
+/* ============================================================================
+   RIGHT SECTION - USER PROFILE & CONTROLS
+   ============================================================================ */
+
+.rightSection {
+  /* Flex layout for icon grouping */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* Notification Button */
+.notificationBtn {
+  position: relative;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  color: inherit;
+  
+  /* Touch target size */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.notificationBtn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.notificationBtn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.bellIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Notification Badge */
+.notificationBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  
+  background-color: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 10px;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Theme Toggle Button */
+.themeToggleBtn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  color: inherit;
+  
+  /* Touch target size */
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  transition: background-color 0.2s ease;
+  outline: none;
+}
+
+.themeToggleBtn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.themeToggleBtn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.themeToggleBtn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Profile Container (Dropdown) */
+.profileContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.profileBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  background: none;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  padding: 0.5rem 0.75rem 0.5rem 0.5rem;
+  cursor: pointer;
+  border-radius: 8px;
+  color: inherit;
+  
+  transition: all 0.2s ease;
+  outline: none;
+  
+  /* Touch target minimum */
+  min-height: 44px;
+}
+
+.profileBtn:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.profileBtn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.userAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dropdownArrow {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.dropdownArrow.open {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.profileDropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  
+  min-width: 240px;
+  background: white;
+  border: 1px solid #e8eaed;
+  border-radius: 12px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.1);
+  
+  padding: 1rem;
+  
+  animation: slideDown 0.2s ease;
+  transform-origin: top right;
+  
+  z-index: 1001;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Profile Info in Dropdown */
+.profileInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.profileDropdownAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  font-size: 0.95rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profileDetails {
+  min-width: 0;
+  flex: 1;
+}
+
+.profileName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profileEmail {
+  font-size: 0.8rem;
+  color: #7f8c8d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #e8eaed;
+  margin: 0.75rem 0;
+}
+
+/* Dropdown Items (Settings, Logout) */
+.dropdownItem {
+  width: 100%;
+  padding: 0.75rem 0.75rem;
+  
+  background: none;
+  border: none;
+  border-radius: 8px;
+  
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  
+  font-size: 0.9rem;
+  color: #2c3e50;
+  cursor: pointer;
+  
+  transition: background-color 0.2s ease;
+  text-align: left;
+  
+  outline: none;
+}
+
+.dropdownItem:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdownItem:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.dropdownItem svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   MOBILE RESPONSIVE - 320px to 639px
+   ============================================================================ */
+
+@media (max-width: 639px) {
+  .headerContainer {
+    /* Adjust grid for smaller screens */
+    grid-template-columns: auto 1fr auto;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    height: 60px;
+  }
+
+  /* Show hamburger menu on mobile */
+  .hamburgerBtn {
+    display: flex;
+    order: 2;
+    margin-left: auto;
+  }
+
+  /* Mobile menu slides down */
+  .navMenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    
+    flex-direction: column;
+    gap: 0;
+    
+    background: inherit;
+    border-bottom: 1px solid #e8eaed;
+    border-top: 1px solid #e8eaed;
+    
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .navMenu.mobileOpen {
+    max-height: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .navLink {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border-radius: 0;
+    gap: 1rem;
+    justify-content: flex-start;
+  }
+
+  .navLink::after {
+    display: none;
+  }
+
+  .navLink.active {
+    border-left: 4px solid #3b82f6;
+    padding-left: calc(1.5rem - 4px);
+  }
+
+  .navLabel {
+    display: block;
+  }
+
+  .brandName {
+    display: none;
+  }
+
+  /* Reduce profile button complexity on mobile */
+  .profileBtn {
+    padding: 0.5rem;
+    border: none;
+  }
+
+  .rightSection {
+    gap: 0;
+  }
+
+  /* Dropdown positioning on mobile */
+  .profileDropdown {
+    position: fixed;
+    right: 1rem;
+    top: auto;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* ============================================================================
+   TABLET RESPONSIVE - 640px to 1023px
+   ============================================================================ */
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .headerContainer {
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    padding: 0.875rem 1.5rem;
+  }
+
+  /* Show brand name on tablets */
+  .brandName {
+    display: none; /* Hidden for compact tablets */
+  }
+
+  /* Navigation visible but compact */
+  .navMenu {
+    gap: 0;
+  }
+
+  .navLink {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  /* Collapse icon labels on tablet portrait */
+  @media (max-width: 768px) {
+    .navLabel {
+      display: none;
+    }
+
+    .navLink {
+      padding: 0.625rem;
+      justify-content: center;
+    }
+  }
+}
+
+/* ============================================================================
+   LAPTOP RESPONSIVE - 1024px to 1439px
+   ============================================================================ */
+
+@media (min-width: 1024px) {
+  .headerContainer {
+    padding: 1rem 2rem;
+    height: 72px;
+  }
+
+  /* Show brand name */
+  .brandName {
+    display: block;
+  }
+
+  /* Hide hamburger on desktop */
+  .hamburgerBtn {
+    display: none;
+  }
+
+  /* Full navigation menu visible */
+  .navMenu {
+    gap: 0.25rem;
+  }
+
+  .navLink {
+    padding: 0.75rem 1rem;
+  }
+
+  .navLabel {
+    display: block;
+  }
+
+  .rightSection {
+    gap: 0.75rem;
+  }
+}
+
+/* ============================================================================
+   DESKTOP RESPONSIVE - 1440px+
+   ============================================================================ */
+
+@media (min-width: 1440px) {
+  .headerContainer {
+    padding: 1rem 3rem;
+  }
+
+  .rightSection {
+    gap: 1rem;
+  }
+
+  .navLink {
+    padding: 0.75rem 1.25rem;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================ */
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .notificationBadge {
+    animation: none;
+  }
+}
+
+/* Improve contrast for users with color vision deficiency */
+@media (prefers-contrast: more) {
+  .navLink.active {
+    text-decoration: underline;
+  }
+
+  .profileBtn {
+    border-width: 2px;
+  }
+
+  .notificationBadge {
+    border: 2px solid rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  .header {
+    position: static;
+    box-shadow: none;
+  }
+
+  .navMenu.mobileOpen {
+    max-height: none;
+  }
+
+  .hamburgerBtn {
+    display: none;
+  }
+}
