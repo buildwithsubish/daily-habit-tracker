@@ -161,10 +161,10 @@ export default function UnifiedHabitList({
       return;
     }
 
-    // Streamlined logic: Only use drawer if it's multi-step OR logging is explicitly required
-    const needsDrawer = habit.type === 'multi-step' || habit.activityLoggingEnabled;
+    // Streamlined logic: Only use drawer if it's multi-step OR logging is explicitly required OR advanced mode is on
+    const needsDrawer = habit.type === 'multi-step' || habit.activityLoggingEnabled || habit.advancedMode;
     
-    if (needsDrawer && habit.type === 'single-step') {
+    if (needsDrawer && (habit.type === 'single-step' || habit.advancedMode)) {
       setActivityModal({ habit, stepIndex });
     } else if (habit.type === 'multi-step' && stepIndex === undefined) {
       // If a multi-step habit is clicked on the main row, expand it instead of checking all

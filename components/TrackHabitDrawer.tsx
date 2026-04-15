@@ -6,6 +6,8 @@ import { X, Save, Plus, Trash2, Calculator, Info, Sparkles, Heart, Brain, Dumbbe
 import { Habit, SubActivity, WorkoutData } from '@/types';
 import { useIsMobile } from '@/hooks/use-responsive';
 import WorkoutLogger from './WorkoutLogger';
+import KcalCalculator from './KcalCalculator';
+import { toast } from 'react-hot-toast';
 
 const CATEGORIES = {
   Health: { icon: Heart, color: 'rose' },
@@ -180,6 +182,23 @@ export default function TrackHabitDrawer({
                     goal={goal}
                     onUpdate={(data) => setWorkoutData(data)} 
                   />
+                )}
+
+                {/* Calorie Calculator for Diet/Fitness */}
+                {(habit.category === 'Diet' || habit.category === 'Fitness') && (
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Nutrition Engine</h4>
+                    <KcalCalculator 
+                      onSave={async (data) => {
+                        await fetch('/api/user/profile', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(data)
+                        });
+                        toast.success('Health profile updated');
+                      }}
+                    />
+                  </div>
                 )}
 
                 {/* Custom Sub-Activities */}

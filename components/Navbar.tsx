@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { Zap, Sparkles, LogOut, LayoutDashboard, Target, BarChart3, Menu, X, Settings, Award } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BrandMark from './BrandMark';
 import ThemeToggle from './ThemeToggle';
@@ -16,12 +16,25 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMounted(true);
     const handleScroll = () => setScrolled(window.scrollY > 10);
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -50,7 +63,9 @@ export default function Navbar() {
   );
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 h-14 flex items-center ${
+    <nav 
+      ref={navRef}
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 h-14 flex items-center ${
       scrolled
         ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm'
         : 'bg-white dark:bg-gray-900 border-b border-transparent'

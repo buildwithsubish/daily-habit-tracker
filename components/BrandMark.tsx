@@ -14,7 +14,7 @@ export default function BrandMark({ href = '/dashboard' }: { href?: string }) {
   const longPressedRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const HOLD_DURATION = 5000; // 5 seconds
+  const HOLD_DURATION = 2000; // 2 seconds
   const START_THRESHOLD = 200; // ms to distinguish between click and press start
 
   const startPress = (e: React.MouseEvent | React.TouchEvent) => {

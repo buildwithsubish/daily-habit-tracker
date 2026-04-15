@@ -15,6 +15,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HabitSkeleton, StatsSkeleton } from '@/components/Skeleton';
 import { toast } from 'react-hot-toast';
 import { useHiddenMode } from '@/context/HiddenModeContext';
+import HealthStatusCard from '@/components/HealthStatusCard';
+import KcalCalculator from '@/components/KcalCalculator';
+import ProfileSetupModal from '@/components/ProfileSetupModal';
  
 export default function DashboardPage() {
   const router = useRouter();
@@ -35,12 +38,14 @@ export default function DashboardPage() {
   });
   const [appreciation, setAppreciation] = useState<{ emoji: string; message: string } | null>(null);
   const [showAppreciation, setShowAppreciation] = useState(true);
+  const [showProfileSetup, setShowProfileSetup] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     setHasMounted(true);
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchHabits(), fetchLogs(), fetchUser(), fetchAppreciation()]);
+      await Promise.all([fetchHabits(), fetchLogs(), fetchUser(), fetchAppreciation(), fetchProfile()]);
       setLoading(false);
     };
     loadData();
@@ -96,6 +101,18 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Failed to fetch appreciation:', error);
+    }
+  };
+
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch('/api/user/profile');
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
     }
   };
 
@@ -462,6 +479,7 @@ export default function DashboardPage() {
             {/* Right Column — Sidebar */}
             <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-6">
               <div className="sticky top-20 space-y-6">
+                <HealthStatusCard onSetupRequest={() => setShowProfileSetup(true)} logs={logs} />
                 <div className="card-premium p-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Insights</h3>
                   <HabitStats habits={habits} logs={logs} />
@@ -475,6 +493,17 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      {/* Profile Setup Modal */}
+      <ProfileSetupModal 
+        isOpen={showProfileSetup} 
+        onClose={() => setShowProfileSetup(false)} 
+        onSuccess={() => {
+          fetchProfile();
+          window.location.reload(); // Refresh to update all components relying on profile
+        }}
+        initialData={userProfile}
+      />
     </div>
   );
 }

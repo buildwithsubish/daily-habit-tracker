@@ -116,6 +116,12 @@ const UserSchema = new Schema({
       end: { type: String, default: '07:00' },
     },
   },
+  age: { type: Number },
+  height: { type: Number }, // in cm
+  weight: { type: Number }, // in kg
+  gender: { type: String, enum: ['male', 'female', 'other'] },
+  activityLevel: { type: String, enum: ['sedentary', 'light', 'moderate', 'very', 'extra'] },
+  healthGoal: { type: String, enum: ['loss', 'maintain', 'gain'] },
   celebratedAchievements: {
     type: [String],
     default: [],

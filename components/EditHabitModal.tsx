@@ -258,6 +258,87 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
                 </button>
               </div>
 
+              {/* Advanced Mode Toggle */}
+              <div className="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.advancedMode ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
+                      <Zap size={18} className={formData.advancedMode ? 'text-white' : 'text-zinc-500'} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Advanced Mode</h3>
+                      <p className="text-[10px] text-zinc-500">Enable deep tracking & sub-activities</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, advancedMode: !formData.advancedMode })}
+                    className={`relative w-12 h-6 rounded-full transition-all duration-300 ${formData.advancedMode ? 'bg-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-all ${formData.advancedMode ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {formData.advancedMode && (
+                  <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Default Sub-Activities</label>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, subActivities: [...formData.subActivities, { name: '', type: 'text' }] })}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                      >
+                        <Plus size={12} /> Add Activity
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {formData.subActivities.map((sub, idx) => (
+                        <div key={idx} className="flex gap-2 items-start">
+                          <div className="flex-1 space-y-1">
+                            <input
+                              type="text"
+                              placeholder="Activity name"
+                              value={sub.name}
+                              onChange={(e) => {
+                                const newSubs = [...formData.subActivities];
+                                newSubs[idx].name = e.target.value;
+                                setFormData({ ...formData, subActivities: newSubs });
+                              }}
+                              className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1 text-xs"
+                            />
+                            <select
+                              value={sub.type}
+                              onChange={(e) => {
+                                const newSubs = [...formData.subActivities];
+                                newSubs[idx].type = e.target.value;
+                                setFormData({ ...formData, subActivities: newSubs });
+                              }}
+                              className="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2 py-1 text-[10px]"
+                            >
+                              <option value="text">Text Input</option>
+                              <option value="kg">Weight (kg)</option>
+                              <option value="reps">Reps</option>
+                              <option value="duration">Time (min)</option>
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, subActivities: formData.subActivities.filter((_, i) => i !== idx) })}
+                            className="p-1.5 text-zinc-400 hover:text-red-500"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      {formData.subActivities.length === 0 && (
+                        <p className="text-[10px] text-zinc-400 text-center py-2 opacity-60">No default sub-activities.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Steps */}
               {formData.type === 'multi-step' && (
                 <div className="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-700">

@@ -123,7 +123,15 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
             <div className="flex items-center gap-3 sm:gap-4 flex-1">
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                onClick={() => habit.type === 'single-step' ? handleToggle() : setExpanded(!expanded)}
+                onClick={() => {
+                  if (habit.advancedMode && !isFullyDone) {
+                    handleToggle(); // On dashboard this triggers drawer via parent
+                  } else if (habit.type === 'single-step') {
+                    handleToggle(); 
+                  } else {
+                    setExpanded(!expanded);
+                  }
+                }}
                 className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
                   ? 'bg-zinc-100 dark:bg-zinc-800/50'
                   : 'bg-zinc-50 dark:bg-zinc-800/30 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'
@@ -228,20 +236,24 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                {(!onEdit && !onDelete) && (
                  <button
                    onClick={() => handleToggle()}
-                   className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
-                     ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
-                     : 'border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'
-                     }`}
-                 >
-                   {isFullyDone ? (
-                     <motion.div
-                       initial={{ scale: 0 }}
-                       animate={{ scale: 1 }}
-                       transition={{ duration: 0.2 }}
-                     >
-                       <CheckCircle2 size={12} className="sm:w-4 sm:h-4" strokeWidth={3} />
-                     </motion.div>
-                   ) : null}
+                    className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
+                      ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
+                      : habit.advancedMode 
+                        ? 'border-indigo-400 dark:border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20'
+                        : 'border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'
+                      }`}
+                  >
+                    {isFullyDone ? (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <CheckCircle2 size={12} className="sm:w-4 sm:h-4" strokeWidth={3} />
+                      </motion.div>
+                    ) : habit.advancedMode ? (
+                      <Zap size={12} className="text-indigo-600 dark:text-indigo-400" />
+                    ) : null}
                  </button>
                )}
  
