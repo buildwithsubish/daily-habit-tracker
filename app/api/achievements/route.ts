@@ -5,11 +5,17 @@ import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
 import { calculateAchievements } from '@/lib/achievementService';
 import mongoose from 'mongoose';
+import User from '@/lib/models/User';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
     const userId = requireAuth(request);
+    
+    // Fetch user for celebrated achievements
+    const user: any = await User.findById(userId).lean();
+    const celebratedIds = user?.celebratedAchievements || [];
+
     
     // Fetch all habits and logs for the user
     const habits = await Habit.find({ userId: new mongoose.Types.ObjectId(userId) }).lean();
@@ -26,9 +32,16 @@ export async function GET(request: NextRequest) {
       id: l._id.toString(),
     }));
     
-    const achievements = calculateAchievements(formattedHabits, formattedLogs);
+    let achievements = calculateAchievements(formattedHabits, formattedLogs);
+    
+    // Add celebrated status
+    achievements = achievements.map(a => ({
+      ...a,
+      celebrated: celebratedIds.includes(a.id)
+    }));
     
     const totalPoints = achievements
+
       .filter(a => a.achieved)
       .reduce((sum, a) => sum + a.points, 0);
       

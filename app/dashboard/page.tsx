@@ -135,6 +135,25 @@ export default function DashboardPage() {
     );
 
     const completed = !existingLog?.completed;
+    const previousLogs = [...logs];
+
+    // Optimistic Update
+    if (completed) {
+      const newLog: DailyLog = {
+        id: `temp-${Date.now()}`,
+        userId: 'temp',
+        habitId,
+        date: selectedDate,
+        stepIndex,
+        completed: true,
+
+        activityNote,
+        subActivities: subActivities || [],
+      };
+      setLogs(prev => [...prev, newLog]);
+    } else {
+      setLogs(prev => prev.filter(l => l !== existingLog));
+    }
 
     try {
       const res = await fetch('/api/logs', {
@@ -150,44 +169,32 @@ export default function DashboardPage() {
         }),
       });
 
-      if (res.ok && completed) {
-        if (selectedDate === getToday()) {
-          const result = await res.json();
-          const newStreak = result.streak;
+      if (!res.ok) throw new Error('Failed to update log');
 
-          if (newStreak === 7) setCelebration({ isOpen: true, type: '7-day' });
-          else if (newStreak === 30) setCelebration({ isOpen: true, type: '30-day' });
-          else {
-            const updatedLogsRes = await fetch(`/api/logs?date=${getToday()}`);
-            const updatedLogsData = await updatedLogsRes.json();
-            const updatedLogs = updatedLogsData.logs || [];
+      const result = await res.json();
 
-            const scheduledToday = habits.filter(h => isHabitScheduled(h, getToday()));
-
-            const isHabitDone = (h: Habit, currentLogs: DailyLog[]) => {
-              if (h.type === 'single-step') {
-                return currentLogs.some(l => l.habitId === h.id && l.completed && (l.stepIndex === null || l.stepIndex === undefined));
-              } else {
-                const completedSteps = currentLogs.filter(l => l.habitId === h.id && l.completed && l.stepIndex !== null && l.stepIndex !== undefined).length;
-                return completedSteps === h.steps.length;
-              }
-            };
-
-            const allDone = scheduledToday.length > 0 && scheduledToday.every(h => isHabitDone(h, updatedLogs));
-            if (allDone) {
-              setCelebration({ isOpen: true, type: 'daily' });
-            }
-          }
+      // Handle celebrations using API-calculated status
+      if (completed && selectedDate === getToday()) {
+        const newStreak = result.streak;
+        if (newStreak === 7) setCelebration({ isOpen: true, type: '7-day' });
+        else if (newStreak === 30) setCelebration({ isOpen: true, type: '30-day' });
+        else if (result.dailyAllDone) {
+          setCelebration({ isOpen: true, type: 'daily' });
         }
       }
 
+      // Sync state for accuracy without full reload if possible
+      // but habits need streak updates, so fetchHabits still needed
       fetchLogs();
       fetchHabits();
       window.dispatchEvent(new CustomEvent('habit-refetch'));
     } catch (error) {
       console.error('Failed to update log:', error);
+      setLogs(previousLogs); // Rollback
+      toast.error('Failed to sync progress. Please try again.');
     }
   };
+
 
   const handleSettingsSave = async (habitId: string, settings: Partial<Habit>) => {
     try {

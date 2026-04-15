@@ -116,7 +116,12 @@ const UserSchema = new Schema({
       end: { type: String, default: '07:00' },
     },
   },
+  celebratedAchievements: {
+    type: [String],
+    default: [],
+  },
   createdAt: {
+
     type: Date,
     default: Date.now,
   },

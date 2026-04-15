@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { UserPlus, ChevronRight, Eye, EyeOff, Lock, Check, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ButtonLoader from '@/components/ButtonLoader';
+import BrandMark from '@/components/BrandMark';
+
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -100,13 +102,12 @@ export default function RegisterPage() {
         <div className="bg-white dark:bg-slate-900 rounded-[3rem] p-10 sm:p-12 shadow-2xl border border-slate-200 dark:border-slate-800">
           <div className="text-center mb-10">
             <div className="flex justify-center mb-6">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl">
-                 <UserPlus size={24} className="sm:w-7 sm:h-7" />
-              </div>
+              <BrandMark href="/" />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tighter mb-2">Build Better Habits, Every Day</h1>
             <p className="text-slate-500 dark:text-slate-400 font-medium text-sm sm:text-base px-2">Create routines that stick. Track progress. Win daily.</p>
           </div>
+
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (

@@ -3,9 +3,10 @@ import connectDB from '@/lib/mongodb';
 import DailyLog from '@/lib/models/DailyLog';
 import Habit from '@/lib/models/Habit';
 import { requireAuth } from '@/lib/middleware';
-import { getToday, getDaysAgo } from '@/lib/utils';
+import { getToday, getDaysAgo, isHabitScheduled } from '@/lib/utils';
 import { SubActivity } from '@/types';
 import mongoose from 'mongoose';
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -176,8 +177,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check if ALL scheduled habits for today are done (for celebration)
+    const allHabits = await Habit.find({ userId: userIdObj, active: { $ne: false } }).lean().exec();
+    const scheduledToday = allHabits.filter(h => isHabitScheduled(h, today));
+    
+    let dailyAllDone = false;
+    if (scheduledToday.length > 0) {
+      const todayLogs = await DailyLog.find({ userId: userIdObj, date: today, completed: true }).lean().exec();
+      dailyAllDone = scheduledToday.every((h: any) => {
+        const hLogs = todayLogs.filter(l => l.habitId.toString() === h._id.toString());
+        if (h.type === 'single-step') {
+          return hLogs.length > 0;
+        } else {
+          return hLogs.length === (h.steps?.length || 0);
+        }
+      });
+    }
+
+
     const streakValue = (updatedHabit?.streak ?? (habit as any).streak ?? 0) as number;
-    return NextResponse.json({ success: true, streak: streakValue });
+    return NextResponse.json({ 
+      success: true, 
+      streak: streakValue,
+      dailyAllDone: dailyAllDone && date === today && isFullyCompleted
+    });
+
   } catch (error: any) {
     console.error('Save log error:', error);
     return NextResponse.json(

@@ -109,19 +109,19 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
       )}
       <motion.div
         layout
-        className={`group relative overflow-hidden rounded-[1.5rem] transition-all duration-300 ${isFullyDone
+        className={`group relative overflow-hidden rounded-xl sm:rounded-2xl transition-all duration-300 ${isFullyDone
           ? 'bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800'
           : 'bg-white dark:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-sm'
           }`}
         whileHover={!isFullyDone ? { y: -2 } : {}}
       >
         <div className="relative z-10 p-4 sm:p-5 lg:p-6">
-          <div className="flex items-center justify-between gap-3 sm:gap-4 mb-4">
-            <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1">
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => habit.type === 'single-step' ? handleToggle() : setExpanded(!expanded)}
-                className={`relative w-12 h-12 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
+                className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
                   ? 'bg-zinc-100 dark:bg-zinc-800/50'
                   : 'bg-zinc-50 dark:bg-zinc-800/30 group-hover:bg-zinc-100 dark:group-hover:bg-zinc-800'
                   }`}
@@ -130,108 +130,112 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                   {getIcon()}
                 </div>
               </motion.button>
+ 
+               <div className="flex-1 min-w-0">
+                 <div className="flex items-center gap-2 mb-1">
+                   <span className={`responsive-text-xs font-medium uppercase tracking-widest px-2 py-0.5 rounded-md ${isFullyDone
+                     ? 'bg-zinc-200/50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                     : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                     }`}>
+                     {habit.category}
+                   </span>
+                   {habit.type === 'multi-step' && (
+                     <span className="responsive-text-xs font-medium text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md uppercase tracking-widest">
+                       {stepCompleted.length}/{habit.steps.length}
+                     </span>
+                   )}
+                   {isHabitWhatsAppReady && (
+                     <span
+                       className={`flex items-center justify-center w-5 h-5 bg-green-500/10 rounded-full cursor-pointer hover:bg-green-500/20 transition-colors ${dispatchingMsg ? 'animate-pulse opacity-50' : ''}`}
+                       title="WhatsApp linked - automation enabled. Click to dispatch."
+                       onClick={handleWhatsAppClick}
+                     >
+                       <MessageCircle size={10} className="text-green-600" />
+                     </span>
+                   )}
+                 </div>
+                 <h3 className={`responsive-text-base sm:text-[17px] font-semibold tracking-tight transition-all duration-300 ${isFullyDone
+                   ? 'text-zinc-500 dark:text-zinc-500 line-through decoration-1'
+                   : 'text-zinc-900 dark:text-zinc-100'
+                   }`}>
+                   {habit.name}
+                 </h3>
+               </div>
+             </div>
+ 
+             <div className="flex items-center gap-2 sm:gap-3">
+               {habit.streak > 0 && !isFullyDone && (
+                 <div className="hidden sm:flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/50">
+                   <Flame size={12} className="text-orange-500" />
+                   <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">{habit.streak}d</span>
+                 </div>
+               )}
+ 
+               {/* WhatsApp Config Trigger for all habits */}
+               <button
+                 onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
+                 className={`p-2 rounded-xl transition-all duration-200 flex items-center justify-center border ${isHabitWhatsAppReady
+                     ? 'text-green-600 bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/30 hover:bg-green-100 dark:hover:bg-green-500/25 shadow-sm shadow-green-500/10'
+                     : 'text-green-500 bg-green-50/60 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/20 hover:bg-green-100 dark:hover:bg-green-500/20 animate-pulse'
+                   }`}
+                 title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
+               >
+                 <MessageCircle size={16} />
+               </button>
+ 
+               {onEdit && (
+                 <button
+                   onClick={(e) => { e.stopPropagation(); onEdit(habit); }}
+                   className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
+                   title="Edit Ritual"
+                 >
+                   <Edit2 size={16} />
+                 </button>
+               )}
+ 
+               {onDelete && (
+                 <button
+                   onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
+                   className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 touch-button"
+                   title="Delete Ritual"
+                 >
+                   <Trash2 size={16} />
+                 </button>
+               )}
+ 
+               {/* Show large toggle only on summary/dashboard, hide on management page */}
+               {(!onEdit && !onDelete) && (
+                 <button
+                   onClick={() => handleToggle()}
+                   className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
+                     ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
+                     : 'border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'
+                     }`}
+                 >
+                   {isFullyDone ? (
+                     <motion.div
+                       initial={{ scale: 0 }}
+                       animate={{ scale: 1 }}
+                       transition={{ duration: 0.2 }}
+                     >
+                       <CheckCircle2 size={16} strokeWidth={2.5} />
+                     </motion.div>
+                   ) : null}
+                 </button>
+               )}
+ 
+               {habit.type === 'multi-step' && (
+                 <motion.button
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.9 }}
+                   onClick={() => setExpanded(!expanded)}
+                   className="p-2 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
+                 >
+                   {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                 </motion.button>
+               )}
+             </div>
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className={`text-[10px] font-medium uppercase tracking-widest px-2 py-0.5 rounded-full ${isFullyDone
-                    ? 'bg-zinc-200/50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
-                    }`}>
-                    {habit.category}
-                  </span>
-                  {habit.type === 'multi-step' && (
-                    <span className="text-[10px] font-medium text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full uppercase tracking-widest">
-                      {stepCompleted.length}/{habit.steps.length}
-                    </span>
-                  )}
-                  {isHabitWhatsAppReady && (
-                    <span
-                      className={`flex items-center justify-center w-5 h-5 bg-green-500/10 rounded-full cursor-pointer hover:bg-green-500/20 transition-colors ${dispatchingMsg ? 'animate-pulse opacity-50' : ''}`}
-                      title="WhatsApp linked - automation enabled. Click to dispatch."
-                      onClick={handleWhatsAppClick}
-                    >
-                      <MessageCircle size={10} className="text-green-600" />
-                    </span>
-                  )}
-                </div>
-                <h3 className={`text-base sm:text-[17px] font-semibold tracking-tight transition-all duration-300 ${isFullyDone
-                  ? 'text-zinc-500 dark:text-zinc-500 line-through decoration-1'
-                  : 'text-zinc-900 dark:text-zinc-100'
-                  }`}>
-                  {habit.name}
-                </h3>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3">
-              {habit.streak > 0 && !isFullyDone && (
-                <div className="hidden sm:flex items-center gap-1 bg-zinc-100/80 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700/50">
-                  <Flame size={12} className="text-orange-500" />
-                  <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">{habit.streak}d</span>
-                </div>
-              )}
-
-              {/* WhatsApp Config Trigger for all habits */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
-                className={`p-2 rounded-xl transition-all duration-200 flex items-center justify-center border ${isHabitWhatsAppReady
-                    ? 'text-green-600 bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/30 hover:bg-green-100 dark:hover:bg-green-500/25 shadow-sm shadow-green-500/10'
-                    : 'text-green-500 bg-green-50/60 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/20 hover:bg-green-100 dark:hover:bg-green-500/20 animate-pulse'
-                  }`}
-                title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
-              >
-                <MessageCircle size={16} />
-              </button>
-
-              {onEdit && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(habit); }}
-                  className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
-                  title="Edit Ritual"
-                >
-                  <Edit2 size={16} />
-                </button>
-              )}
-
-              {onDelete && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
-                  className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 touch-button"
-                  title="Delete Ritual"
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
-
-              <button
-                onClick={() => handleToggle()}
-                className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-full border-2 flex items-center justify-center transition-all duration-300 touch-button ${isFullyDone
-                  ? 'bg-zinc-900 border-zinc-900 text-white dark:bg-zinc-100 dark:border-zinc-100 dark:text-zinc-900'
-                  : 'border-zinc-300 dark:border-zinc-600 bg-transparent hover:border-zinc-400 dark:hover:border-zinc-500'
-                  }`}
-              >
-                {isFullyDone ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <CheckCircle2 size={16} strokeWidth={2.5} />
-                  </motion.div>
-                ) : null}
-              </button>
-
-              {habit.type === 'multi-step' && (
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setExpanded(!expanded)}
-                  className="p-2 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
-                >
-                  {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </motion.button>
-              )}
-            </div>
           </div>
 
           {/* Progress Bar */}

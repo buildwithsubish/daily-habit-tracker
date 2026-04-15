@@ -5,7 +5,7 @@ export const Skeleton = ({ className }: { className?: string }) => (
 );
 
 export const HabitSkeleton = () => (
-  <div className="card flex items-center gap-3 !py-3 !px-4">
+  <div className="card-premium flex items-center gap-3 !py-3 !px-4 !rounded-xl !border-zinc-200 dark:!border-zinc-800/50">
     <Skeleton className="w-5 h-5 !rounded-full" />
     <Skeleton className="w-8 h-8 !rounded-lg" />
     <div className="flex-1 space-y-1.5">

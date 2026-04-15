@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Eye, EyeOff, CheckCircle2, AlertCircle, Mail, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ButtonLoader from '@/components/ButtonLoader';
+import BrandMark from '@/components/BrandMark';
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -148,8 +150,11 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-center mb-10"
+              className="text-center mb-8 flex flex-col items-center"
             >
+              <div className="mb-6">
+                <BrandMark href="/" />
+              </div>
               <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
                 Welcome Back
               </h1>
@@ -157,6 +162,7 @@ export default function LoginPage() {
                 Sign in to continue tracking your habits
               </p>
             </motion.div>
+
 
             {/* Error Message */}
             <AnimatePresence mode="wait">

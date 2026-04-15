@@ -183,14 +183,12 @@ export default function Home() {
       {/* Footer */}
       <footer className="relative z-10 border-t border-slate-100 dark:border-zinc-900 py-10 px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[14px] font-bold text-slate-900 dark:text-white">DailyHabit</span>
-            <span className="text-[14px] font-semibold italic text-emerald-500">Flow</span>
-          </div>
+          <BrandMark href="/" />
           <div className="text-[12px] font-medium text-slate-400">
             © 2026 DailyHabit Flow. Designed for discipline.
           </div>
         </div>
+
       </footer>
     </div>
   );

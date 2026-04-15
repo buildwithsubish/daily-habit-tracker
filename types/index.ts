@@ -30,8 +30,10 @@ export interface User {
     sms: boolean;
     quietHours: { start: string; end: string };
   };
+  celebratedAchievements: string[];
   createdAt: string;
 }
+
 
 export interface HabitStep {
   id?: number;
@@ -190,7 +192,9 @@ export interface Achievement {
   tier: AchievementTier;
   points: number;
   achieved: boolean;
+  celebrated?: boolean;
   category: AchievementCategory;
+
   hidden?: boolean;
   unlockedAt?: string;
   progress?: number; // 0 to 100
