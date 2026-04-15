@@ -13,6 +13,29 @@ const HiddenModeContext = createContext<HiddenModeContextType | undefined>(undef
 export function HiddenModeProvider({ children }: { children: React.ReactNode }) {
   const [isHiddenMode, setIsHiddenMode] = useState(false);
 
+  // Auto-reset Hidden Mode after 5 minutes of inactivity if active
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
+    if (isHiddenMode) {
+      timeoutId = setTimeout(() => {
+        setIsHiddenMode(false);
+        toast('Hidden Mode Reset (Security)', {
+          icon: '🔒',
+          style: {
+            borderRadius: '16px',
+            fontSize: '13px',
+            fontWeight: 'bold',
+          },
+        });
+      }, 5 * 60 * 1000); // 5 minutes
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isHiddenMode]);
+
   const toggleHiddenMode = () => {
     setIsHiddenMode((prev) => {
       const next = !prev;

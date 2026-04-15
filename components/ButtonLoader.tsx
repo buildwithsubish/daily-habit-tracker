@@ -19,14 +19,12 @@ export default function ButtonLoader({ loading, text, loadingText }: ButtonLoade
               <motion.div
                 key={i}
                 className="absolute inset-0"
-                animate={{
-                  rotate: 360,
-                }}
+                initial={{ rotate: i * 120 }}
+                animate={{ rotate: i * 120 + 360 }}
                 transition={{
                   duration: 1.5,
                   repeat: Infinity,
                   ease: "linear",
-                  delay: i * 0.15,
                 }}
               >
                 <div className="w-1.5 h-1.5 bg-current rounded-full absolute top-0 left-1/2 -translate-x-1/2" />

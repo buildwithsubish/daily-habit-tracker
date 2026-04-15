@@ -44,6 +44,7 @@ interface UserDetails {
     type: string;
     steps: any[];
     order: number;
+    hidden?: boolean;
     createdAt: string;
     streak: { current: number; longest: number };
   }>;
@@ -358,6 +359,11 @@ export default function UserDetailsPage() {
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                         {habit.category}
                       </span>
+                      {habit.hidden && (
+                        <span className="flex items-center gap-1 text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-red-100">
+                          <EyeOff size={10} /> Hidden
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <span className="flex items-center gap-1">

@@ -55,11 +55,11 @@ export async function GET(
 
     // Get user habits
     const habits = await Habit.find({ userId: userIdObj })
-      .select('name category type steps order createdAt')
+      .select('name category type steps order createdAt hidden')
       .sort({ order: 1, createdAt: 1 })
       .lean();
 
-    type HabitLean = { _id: mongoose.Types.ObjectId; name: string; category: string; type: string; steps: any[]; order: number; createdAt: Date };
+    type HabitLean = { _id: mongoose.Types.ObjectId; name: string; category: string; type: string; steps: any[]; order: number; createdAt: Date; hidden: boolean };
     const typedHabits = habits as unknown as HabitLean[];
 
     // Get daily logs with completion stats
@@ -160,6 +160,7 @@ export async function GET(
         type: h.type,
         steps: h.steps,
         order: h.order,
+        hidden: h.hidden,
         createdAt: h.createdAt,
         streak: habitStreaks[h._id.toString()] || { current: 0, longest: 0 },
       })),

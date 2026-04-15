@@ -10,6 +10,8 @@ import HabitCard from '@/components/HabitCard';
 import { HabitSkeleton } from '@/components/Skeleton';
 import { toast } from 'react-hot-toast';
 import EditHabitModal from '@/components/EditHabitModal';
+import { useHiddenMode } from '@/context/HiddenModeContext';
+import BrandMark from '@/components/BrandMark';
 
 // Stable country codes array - moved outside component to prevent re-creation
 const COUNTRY_CODES = [
@@ -478,9 +480,16 @@ export default function HabitsPage() {
 
   const reminderCount = habits.filter(h => h.reminderEnabled).length;
   const isWhatsAppReady = !!userWhatsAppNumber && !!userWhatsAppAutomation;
+  const { isHiddenMode } = useHiddenMode();
 
   const categories = ['All', 'Health', 'Mindset', 'Growth', 'Other'];
-  const filteredHabits = activeCategory === 'All' ? habits : habits.filter(h => h.category === activeCategory);
+  const filteredHabits = useMemo(() => {
+    let base = activeCategory === 'All' ? habits : habits.filter(h => h.category === activeCategory);
+    if (!isHiddenMode) {
+      return base.filter(h => !h.hidden);
+    }
+    return base;
+  }, [habits, activeCategory, isHiddenMode]);
 
   if (!hasMounted) return null;
 
@@ -506,20 +515,7 @@ export default function HabitsPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-8 mb-6 sm:mb-12">
           <div className="flex flex-col gap-1 sm:gap-2">
             <span className="responsive-text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest px-1">Management</span>
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="relative w-10 h-10 sm:w-16 sm:h-16 flex-shrink-0">
-                <Image
-                  src="/logo.png"
-                  alt="DailyHabit Flow"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
-              <h1 className="responsive-text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tightest leading-none">
-                Daily Habit <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Flow</span>
-              </h1>
-            </div>
+            <BrandMark />
             <p className="responsive-text-xs sm:responsive-text-base text-zinc-500 dark:text-zinc-400 font-medium tracking-tight px-1">Curate the habits that define who you are.</p>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
