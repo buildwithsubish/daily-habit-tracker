@@ -76,6 +76,7 @@ export interface Habit {
     weekends?: boolean;
     custom?: number[]; 
   };
+  hidden?: boolean;
   inactiveAlertDays?: number;
   active?: boolean;
   streak: number;

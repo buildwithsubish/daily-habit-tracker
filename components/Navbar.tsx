@@ -92,7 +92,7 @@ export default function Navbar() {
           </div>
 
           {/* Actions - Right */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-4">
             {/* Advanced Mode Toggle */}
             <button
               onClick={toggleAdvancedMode}
@@ -106,9 +106,9 @@ export default function Navbar() {
               <span className="text-[10px] font-black uppercase tracking-wider">Advanced</span>
             </button>
 
-            <div className="h-4 w-px bg-gray-200 dark:bg-gray-800 mx-1 hidden sm:block" />
+            <div className="h-4 w-px bg-gray-200 dark:bg-gray-800 mx-0.5 sm:mx-1 hidden sm:block" />
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-3">
               <ThemeToggle />
               
               <Link

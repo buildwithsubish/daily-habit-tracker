@@ -456,6 +456,26 @@ export default function HabitsPage() {
     }
   };
 
+  const handleToggleVisibility = async (habitId: string, hidden: boolean) => {
+    try {
+      const res = await fetch(`/api/habits/${habitId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden }),
+      });
+      if (res.ok) {
+        toast.success(hidden ? 'Ritual concealed' : 'Ritual revealed', {
+          icon: hidden ? '👻' : '👁️',
+        });
+        fetchHabits();
+      } else {
+        toast.error('Failed to update visibility');
+      }
+    } catch (error) {
+      toast.error('An error occurred');
+    }
+  };
+
   const reminderCount = habits.filter(h => h.reminderEnabled).length;
   const isWhatsAppReady = !!userWhatsAppNumber && !!userWhatsAppAutomation;
 
@@ -484,20 +504,23 @@ export default function HabitsPage() {
       </AnimatePresence>
       <div className="responsive-container">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-8 mb-6 sm:mb-12">
-          <div className="space-y-1 sm:space-y-3">
-            <div className="flex items-center gap-2 sm:gap-3 mb-1">
-              <div className="relative w-8 h-8 sm:w-12 sm:h-12 overflow-hidden rounded-lg sm:rounded-2xl transition-transform hover:scale-110">
-                <Image
-                  src="/logo.png"
-                  alt="Management"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-              <span className="responsive-text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Management</span>
+          <div className="flex items-start gap-4 sm:gap-6">
+            <div className="relative w-12 h-12 sm:w-20 sm:h-20 flex-shrink-0 mt-1 sm:mt-2">
+              <Image
+                src="/logo.png"
+                alt="DailyHabit Flow"
+                fill
+                className="object-contain"
+                priority
+              />
             </div>
-            <h1 className="responsive-text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tightest leading-none">Your <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Rituals</span></h1>
-            <p className="responsive-text-xs sm:responsive-text-base text-zinc-500 dark:text-zinc-400 font-medium tracking-tight">Curate the habits that define who you are.</p>
+            <div className="space-y-1 sm:space-y-3">
+              <span className="responsive-text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Management</span>
+              <h1 className="responsive-text-xl font-black text-zinc-900 dark:text-zinc-100 tracking-tightest leading-none">
+                Daily Habit <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Flow</span>
+              </h1>
+              <p className="responsive-text-xs sm:responsive-text-base text-zinc-500 dark:text-zinc-400 font-medium tracking-tight">Curate the rituals that define who you are.</p>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-1 rounded-lg sm:rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-sm overflow-x-auto no-scrollbar max-w-full">
@@ -511,7 +534,7 @@ export default function HabitsPage() {
             </div>
           </div>
         </motion.div>
-        {loading ? (<div className="responsive-grid-mobile md:responsive-grid">{[...Array(6)].map((_, i) => <HabitSkeleton key={i} />)}</div>) : (<div className="responsive-grid-mobile md:responsive-grid"><AnimatePresence mode="popLayout">{filteredHabits.map((habit, index) => (<motion.div key={habit.id} layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2, delay: index * 0.03 }}><HabitCard habit={habit} completed={false} onToggle={() => fetchHabits()} userWhatsAppNumber={userWhatsAppNumber} userWhatsAppAutomation={userWhatsAppAutomation} onEdit={handleEditHabit} onDelete={handleDeleteHabit} /></motion.div>))}{filteredHabits.length === 0 && (<motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full py-16 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800"><div className="w-12 h-12 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4"><Info size={24} className="text-indigo-500 dark:text-indigo-400 sm:w-8 sm:h-8" /></div><h3 className="responsive-text-sm sm:responsive-text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">No rituals found</h3><p className="responsive-text-xs text-zinc-500 dark:text-zinc-400 mb-4">Start by creating your first ritual.</p><motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-500/20">Create Your First Habit</motion.button></motion.div>)}</AnimatePresence></div>)}
+        {loading ? (<div className="responsive-grid-mobile md:responsive-grid">{[...Array(6)].map((_, i) => <HabitSkeleton key={i} />)}</div>) : (<div className="responsive-grid-mobile md:responsive-grid"><AnimatePresence mode="popLayout">{filteredHabits.map((habit, index) => (<motion.div key={habit.id} layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2, delay: index * 0.03 }}><HabitCard habit={habit} completed={false} onToggle={() => fetchHabits()} userWhatsAppNumber={userWhatsAppNumber} userWhatsAppAutomation={userWhatsAppAutomation} onEdit={handleEditHabit} onDelete={handleDeleteHabit} onToggleVisibility={handleToggleVisibility} /></motion.div>))}{filteredHabits.length === 0 && (<motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="col-span-full py-16 text-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800"><div className="w-12 h-12 sm:w-20 sm:h-20 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl sm:rounded-3xl flex items-center justify-center mx-auto mb-4"><Info size={24} className="text-indigo-500 dark:text-indigo-400 sm:w-8 sm:h-8" /></div><h3 className="responsive-text-sm sm:responsive-text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">No rituals found</h3><p className="responsive-text-xs text-zinc-500 dark:text-zinc-400 mb-4">Start by creating your first ritual.</p><motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => router.push('/dashboard/habits/new')} className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-indigo-500/20">Create Your First Habit</motion.button></motion.div>)}</AnimatePresence></div>)}
         <EditHabitModal isOpen={isEditModalOpen} habit={selectedHabitForEdit} onClose={() => setIsEditModalOpen(false)} onSuccess={fetchHabits} />
       </div>
 

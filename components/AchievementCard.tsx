@@ -38,16 +38,16 @@ export default function AchievementCard({ achievement }: AchievementCardProps) {
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={achievement.achieved ? { y: -4, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' } : {}}
       className={cn(
-        "relative p-5 rounded-3xl border-2 transition-all duration-300",
+        "relative p-3.5 sm:p-5 rounded-3xl border-2 transition-all duration-300",
         achievement.achieved 
           ? "bg-white dark:bg-zinc-900 shadow-sm" 
           : "bg-zinc-50/50 dark:bg-zinc-900/30 opacity-60 border-dashed border-zinc-200 dark:border-zinc-800",
         achievement.achieved && TIER_BORDER[achievement.tier]
       )}
     >
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-3 sm:mb-4">
         <div className={cn(
-          "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner",
+          "w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl shadow-inner",
           achievement.achieved ? "bg-zinc-50 dark:bg-zinc-800" : "bg-zinc-100 dark:bg-zinc-800/50"
         )}>
           {isHidden ? "???" : achievement.icon}
@@ -55,22 +55,22 @@ export default function AchievementCard({ achievement }: AchievementCardProps) {
         
         {!isHidden && (
           <span className={cn(
-            "text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full",
+            "text-[9px] sm:text-[10px] font-black uppercase tracking-wider px-2 py-0.5 sm:py-1 rounded-full",
             TIER_STYLES[achievement.tier]
           )}>
             {achievement.tier}
           </span>
         )}
       </div>
-
-      <div className="space-y-1">
+ 
+      <div className="space-y-0.5 sm:space-y-1">
         <h4 className={cn(
-          "font-bold text-base leading-tight",
+          "font-bold responsive-text-base leading-tight",
           achievement.achieved ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-500"
         )}>
           {isHidden ? "Hidden Achievement" : achievement.title}
         </h4>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+        <p className="responsive-text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-tight">
           {isHidden ? "Keep pushing to uncover this secret ritual." : achievement.description}
         </p>
       </div>

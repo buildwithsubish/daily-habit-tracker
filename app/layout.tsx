@@ -40,6 +40,8 @@ export const viewport: Viewport = {
   themeColor: '#6366f1',
 };
 
+import { HiddenModeProvider } from '@/context/HiddenModeContext';
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -49,16 +51,18 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} ${outfit.variable}`}>
       <body className="font-sans antialiased bg-white dark:bg-[#0a0a0a] text-slate-900 dark:text-zinc-100 transition-colors duration-300">
         <Providers>
-          <ThemeProvider>
-            <AppProvider>
-              <WhatsAppProvider>
-                <CelebrationProvider>
-                  <AchievementNotifier />
-                  {children}
-                </CelebrationProvider>
-              </WhatsAppProvider>
-            </AppProvider>
-          </ThemeProvider>
+          <HiddenModeProvider>
+            <ThemeProvider>
+              <AppProvider>
+                <WhatsAppProvider>
+                  <CelebrationProvider>
+                    <AchievementNotifier />
+                    {children}
+                  </CelebrationProvider>
+                </WhatsAppProvider>
+              </AppProvider>
+            </ThemeProvider>
+          </HiddenModeProvider>
         </Providers>
       </body>
     </html>

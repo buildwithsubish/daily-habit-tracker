@@ -231,14 +231,14 @@ export default function AdvancedAnalytics({ habits, logs }: AdvancedAnalyticsPro
       {/* Deep Breakdown Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {deepStats.map((item, i) => (
-          <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-${item.color}-100 dark:border-${item.color}-900/50 flex items-center justify-center`}>
+          <div key={i} className="p-4 sm:p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-100 dark:border-slate-800 flex items-center gap-3 sm:gap-4">
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-${item.color}-100 dark:border-${item.color}-900/50 flex items-center justify-center shrink-0`}>
               {/* @ts-ignore */}
-              <item.icon size={20} className={`text-${item.color}-600 dark:text-${item.color}-400`} />
+              <item.icon size={18} className={`text-${item.color}-600 dark:text-${item.color}-400`} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
-              <p className="text-xl font-black text-slate-900 dark:text-white leading-tight">{item.value}</p>
+              <p className="responsive-text-xs font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+              <p className="responsive-text-xl font-black text-slate-900 dark:text-white leading-tight">{item.value}</p>
             </div>
           </div>
         ))}

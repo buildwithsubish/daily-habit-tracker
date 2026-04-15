@@ -1,11 +1,12 @@
 'use client';
 
 import { Habit } from '@/types';
-import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame, Zap, Sparkles, Star, MessageCircle, Edit2, Trash2 } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame, Zap, Sparkles, Star, MessageCircle, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import WhatsAppSettingsModal from './WhatsAppSettingsModal';
+import { useHiddenMode } from '@/context/HiddenModeContext';
 
 interface HabitCardProps {
   habit: Habit;
@@ -16,9 +17,11 @@ interface HabitCardProps {
   userWhatsAppAutomation?: boolean;
   onEdit?: (habit: Habit) => void;
   onDelete?: (habitId: string) => void;
+  onToggleVisibility?: (habitId: string, hidden: boolean) => void;
 }
 
-export default function HabitCard({ habit, completed, stepCompleted = [], onToggle, onSettingsSave, userWhatsAppNumber, userWhatsAppAutomation, onEdit, onDelete }: HabitCardProps & { onSettingsSave?: (id: string, settings: Partial<Habit>) => void }) {
+export default function HabitCard({ habit, completed, stepCompleted = [], onToggle, onSettingsSave, userWhatsAppNumber, userWhatsAppAutomation, onEdit, onDelete, onToggleVisibility }: HabitCardProps & { onSettingsSave?: (id: string, settings: Partial<Habit>) => void }) {
+  const { isHiddenMode } = useHiddenMode();
   const [expanded, setExpanded] = useState(false);
   const [wasCompleted, setWasCompleted] = useState(completed);
   const [showWhatsAppSettings, setShowWhatsAppSettings] = useState(false);
@@ -112,7 +115,7 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
         className={`group relative overflow-hidden rounded-xl sm:rounded-2xl transition-all duration-300 ${isFullyDone
           ? 'bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800'
           : 'bg-white dark:bg-zinc-900/80 border border-zinc-200/50 dark:border-zinc-800/50 hover:border-zinc-300 dark:hover:border-zinc-700 hover:shadow-sm'
-          }`}
+          } ${habit.hidden && isHiddenMode ? 'opacity-40 grayscale-[0.5] blur-[0.2px] hover:opacity-100 hover:grayscale-0 hover:blur-0 transition-all duration-500' : ''}`}
         whileHover={!isFullyDone ? { y: -2 } : {}}
       >
         <div className="relative z-10 p-4 sm:p-5 lg:p-6">
@@ -144,6 +147,11 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                        {stepCompleted.length}/{habit.steps.length}
                      </span>
                    )}
+                   {habit.hidden && isHiddenMode && (
+                     <span className="flex items-center justify-center w-5 h-5 bg-indigo-500/10 rounded-full" title="Concealed Ritual">
+                       <EyeOff size={10} className="text-indigo-600" />
+                     </span>
+                   )}
                    {isHabitWhatsAppReady && (
                      <span
                        className={`flex items-center justify-center w-5 h-5 bg-green-500/10 rounded-full cursor-pointer hover:bg-green-500/20 transition-colors ${dispatchingMsg ? 'animate-pulse opacity-50' : ''}`}
@@ -171,8 +179,8 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                  </div>
                )}
  
-               {/* Action Group: WhatsApp -> Edit -> Delete */}
-               <div className="flex items-center gap-1 sm:gap-2">
+               {/* Action Group: WhatsApp -> Edit -> Hide -> Delete */}
+               <div className="flex items-center gap-2 sm:gap-3.5">
                  {/* WhatsApp Config Trigger */}
                  <button
                    onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
@@ -194,6 +202,16 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                      <Edit2 size={14} className="sm:w-4 sm:h-4" />
                    </button>
                  )}
+
+                 {onToggleVisibility && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleVisibility(habit.id, !habit.hidden); }}
+                      className={`p-1.5 sm:p-2 transition-colors rounded-lg sm:rounded-xl touch-button ${habit.hidden ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'text-zinc-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
+                      title={habit.hidden ? "Show Ritual" : "Hide Ritual"}
+                    >
+                      {habit.hidden ? <Eye size={14} className="sm:w-4 sm:h-4" /> : <EyeOff size={14} className="sm:w-4 sm:h-4" />}
+                    </button>
+                  )}
  
                  {onDelete && (
                    <button

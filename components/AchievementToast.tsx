@@ -55,13 +55,13 @@ export default function AchievementToast({ achievement, t }: AchievementToastPro
       }}
 
       className={cn(
-        "relative flex items-center gap-4 p-4 min-w-[320px] max-w-md w-[92vw] sm:w-auto",
+        "relative flex items-center gap-3 sm:gap-4 p-3 sm:p-4 min-w-[280px] sm:min-w-[320px] max-w-md w-[92vw] sm:w-auto",
         "bg-zinc-900/90 backdrop-blur-xl border rounded-2xl md:rounded-3xl cursor-grab active:cursor-grabbing select-none",
         TIER_COLORS[achievement.tier],
         TIER_GLOW[achievement.tier]
       )}
     >
-      <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 bg-white/5 rounded-2xl flex items-center justify-center text-2xl md:text-3xl border border-white/10 shadow-inner">
+      <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-white/5 rounded-xl sm:rounded-2xl flex items-center justify-center text-xl sm:text-2xl md:text-3xl border border-white/10 shadow-inner">
         {achievement.icon}
       </div>
 

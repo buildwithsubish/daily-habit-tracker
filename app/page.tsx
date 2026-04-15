@@ -73,11 +73,11 @@ export default function Home() {
             <motion.h1 
               custom={1} 
               variants={fadeUp} 
-              className="text-4xl sm:text-6xl md:text-7xl font-[800] tracking-tight leading-[1.1] text-slate-900 dark:text-white mb-8"
+              className="text-[32px] sm:text-6xl md:text-7xl font-[800] tracking-tight leading-[1.1] text-slate-900 dark:text-white mb-6 sm:mb-8"
             >
               Master your time,
               <br />
-              <span className="text-slate-400 dark:text-zinc-500">one habit at a time.</span>
+              <span className="text-slate-400 dark:text-zinc-500 text-[24px] sm:text-[inherit]">one habit at a time.</span>
             </motion.h1>
 
             <motion.p 

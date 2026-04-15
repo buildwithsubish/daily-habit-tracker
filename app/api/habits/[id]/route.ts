@@ -73,6 +73,7 @@ export async function GET(
         activityLoggingEnabled: (habit as any).activityLoggingEnabled || false,
         advancedMode: (habit as any).advancedMode || false,
         subActivities: (habit as any).subActivities || [],
+        hidden: (habit as any).hidden || false,
         createdAt: (habit as any).createdAt?.toISOString(),
       }
     });
@@ -94,7 +95,7 @@ export async function PUT(
     const { id: habitId } = await params;
     const data = await request.json();
 
-    const { name, category, type, steps, targetPerDay, schedule, order, whatsappEnabled, whatsappFrequency, whatsappTime, active, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities } = data;
+    const { name, category, type, steps, targetPerDay, schedule, order, whatsappEnabled, whatsappFrequency, whatsappTime, active, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities, hidden } = data;
 
     // Verify ownership
     const existing = await Habit.findOne({
@@ -142,6 +143,7 @@ export async function PUT(
     if (activityLoggingEnabled !== undefined) updateData.activityLoggingEnabled = activityLoggingEnabled;
     if (advancedMode !== undefined) updateData.advancedMode = advancedMode;
     if (subActivities !== undefined) updateData.subActivities = subActivities;
+    if (hidden !== undefined) updateData.hidden = hidden;
 
     await Habit.findByIdAndUpdate(habitId, updateData);
 

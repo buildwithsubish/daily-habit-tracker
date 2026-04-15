@@ -14,6 +14,7 @@ import { format, startOfWeek, addDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HabitSkeleton, StatsSkeleton } from '@/components/Skeleton';
 import { toast } from 'react-hot-toast';
+import { useHiddenMode } from '@/context/HiddenModeContext';
  
 export default function DashboardPage() {
   const router = useRouter();
@@ -253,11 +254,14 @@ export default function DashboardPage() {
       .sort((a, b) => a - b);
   };
 
-  const scheduledHabits = habits.filter(h => (h.active !== false) && isHabitScheduled(h, selectedDate));
-  const completedHabitsCount = scheduledHabits.filter(h => getHabitCompletion(h.id)).length;
+  const { isHiddenMode } = useHiddenMode();
 
-  const completionRate = scheduledHabits.length > 0
-    ? (completedHabitsCount / scheduledHabits.length) * 100
+  const scheduledHabits = habits.filter(h => (h.active !== false) && isHabitScheduled(h, selectedDate));
+  const filteredHabits = scheduledHabits.filter(h => !h.hidden || isHiddenMode);
+  const completedHabitsCount = filteredHabits.filter(h => getHabitCompletion(h.id)).length;
+
+  const completionRate = filteredHabits.length > 0
+    ? (completedHabitsCount / filteredHabits.length) * 100
     : 0;
 
   const getGreeting = () => {
@@ -375,8 +379,8 @@ export default function DashboardPage() {
             {[
               { icon: Clock, value: format(new Date(selectedDate), 'MMM d'), label: 'Date', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
               { icon: Target, value: `${completionRate.toFixed(0)}%`, label: 'Consistency', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
-              { icon: CheckCircle2, value: `${completedHabitsCount}/${scheduledHabits.length}`, label: 'Completed', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
-              { icon: Target, value: `${scheduledHabits.length - completedHabitsCount}`, label: 'Remaining', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
+              { icon: CheckCircle2, value: `${completedHabitsCount}/${filteredHabits.length}`, label: 'Completed', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
+              { icon: Target, value: `${filteredHabits.length - completedHabitsCount}`, label: 'Remaining', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -443,7 +447,7 @@ export default function DashboardPage() {
                 />
               ) : (
                 <UnifiedHabitList
-                  habits={scheduledHabits}
+                  habits={filteredHabits}
                   logs={logs}
                   selectedDate={selectedDate}
                   onToggle={handleToggle}

@@ -19,6 +19,7 @@ import AnalyticsSummary from '@/components/AnalyticsSummary';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
 import { useApp } from '@/context/AppContext';
 import { toast } from 'react-hot-toast';
+import { useHiddenMode } from '@/context/HiddenModeContext';
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [activeTab, setActiveTab] = useState<'summary' | 'detailed'>(advancedMode ? 'detailed' : 'summary');
+
+  const { isHiddenMode } = useHiddenMode();
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,7 +44,10 @@ export default function AnalyticsPage() {
         const habitsData = await habitsRes.json();
         const logsData = await logsRes.json();
         
-        setHabits(habitsData.habits || []);
+        const allHabits = habitsData.habits || [];
+        const filtered = allHabits.filter((h: Habit) => !h.hidden || isHiddenMode);
+        
+        setHabits(filtered);
         setLogs(logsData.logs || []);
       } catch (error) {
         console.error('Failed to load analytics data:', error);
@@ -51,7 +57,7 @@ export default function AnalyticsPage() {
       }
     };
     loadData();
-  }, []);
+  }, [isHiddenMode]);
 
   return (
     <div className="pb-32">

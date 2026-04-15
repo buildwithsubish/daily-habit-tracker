@@ -97,6 +97,10 @@ const HabitSchema = new Schema({
     weekends: { type: Boolean, default: true },
     custom: { type: [Number] },
   },
+  hidden: {
+    type: Boolean,
+    default: false,
+  },
   streak: {
     type: Number,
     default: 0,

@@ -160,53 +160,53 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
           className="relative w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200/50 dark:border-zinc-800/50 flex flex-col max-h-full overflow-hidden"
         >
           {/* Header */}
-          <div className="p-6 border-b border-zinc-100 dark:border-zinc-800/50 flex items-center justify-between flex-shrink-0 bg-white dark:bg-zinc-900 z-10 sticky top-0">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <Sparkles className="text-white w-6 h-6" />
+          <div className="p-4 sm:p-6 border-b border-zinc-100 dark:border-zinc-800/50 flex items-center justify-between flex-shrink-0 bg-white dark:bg-zinc-900 z-10 sticky top-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                <Sparkles className="text-white w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Edit Habit</h3>
-                <p className="text-xs font-medium text-zinc-500">Modify your ritual settings</p>
+                <h3 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-zinc-100 leading-tight">Edit Habit</h3>
+                <p className="text-[10px] sm:text-xs font-medium text-zinc-500">Modify your ritual settings</p>
               </div>
             </div>
             <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:text-zinc-300 dark:hover:bg-zinc-800 rounded-full transition-colors">
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
           {/* Form Content */}
-          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 85px)' }}>
-            <form id="edit-habit-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="p-4 sm:p-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 85px)' }}>
+            <form id="edit-habit-form" onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
               {/* Name */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Habit Name</label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100">Habit Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g., Morning Meditation"
-                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-2xl py-3 px-4 text-zinc-900 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  className="w-full bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-2xl py-2.5 sm:py-3 px-4 text-zinc-900 dark:text-zinc-100 font-medium focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                   required
                 />
               </div>
 
               {/* Category */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Category</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <div className="space-y-1.5 sm:space-y-2">
+                <label className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100">Category</label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2">
                   {categories.map((cat) => (
                     <button
                       key={cat.value}
                       type="button"
                       onClick={() => setFormData({ ...formData, category: cat.value })}
-                      className={`p-2 rounded-xl border-2 transition-all text-center ${formData.category === cat.value
+                      className={`p-1.5 sm:p-2 rounded-xl border-2 transition-all text-center ${formData.category === cat.value
                           ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
                           : 'border-zinc-200/60 dark:border-zinc-700/60 hover:border-zinc-300 dark:hover:border-zinc-600'
                         }`}
                     >
-                      <div className="text-lg mb-1">{cat.icon}</div>
-                      <div className={`text-[10px] font-bold uppercase tracking-wide ${formData.category === cat.value ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-500'}`}>{cat.label}</div>
+                      <div className="text-base sm:text-lg mb-0.5 sm:mb-1">{cat.icon}</div>
+                      <div className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wide leading-tight ${formData.category === cat.value ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-500'}`}>{cat.label}</div>
                     </button>
                   ))}
                 </div>

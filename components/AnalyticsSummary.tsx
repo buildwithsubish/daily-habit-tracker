@@ -75,14 +75,14 @@ export default function AnalyticsSummary({ habits, logs }: AnalyticsSummaryProps
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
             key={i}
-            className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm"
+            className="p-3.5 sm:p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm"
           >
-            <div className={`w-10 h-10 rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-500/10 flex items-center justify-center mb-4`}>
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-${stat.color}-50 dark:bg-${stat.color}-500/10 flex items-center justify-center mb-3 sm:mb-4`}>
                {/* @ts-ignore */}
-              <stat.icon size={20} className={`text-${stat.color}-600 dark:text-${stat.color}-400`} />
+              <stat.icon size={18} className={`text-${stat.color}-600 dark:text-${stat.color}-400`} />
             </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-            <p className="text-xl font-black text-slate-900 dark:text-white">{stat.value}</p>
+            <p className="responsive-text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+            <p className="responsive-text-xl font-black text-slate-900 dark:text-white leading-tight">{stat.value}</p>
           </motion.div>
         ))}
       </div>
