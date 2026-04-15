@@ -31,6 +31,15 @@ export const metadata: Metadata = {
   title: 'DailyHabit Flow | Premium Habit Tracking Platform',
   description: 'Transform your daily routine with intelligent habit tracking, streak insights, and motivational milestones. Build lasting habits with DailyHabit Flow.',
   keywords: ['habit tracker', 'productivity', 'streaks', 'daily habits', 'goal tracking'],
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png' },
+    ],
+  },
 };
 
 export const viewport: Viewport = {

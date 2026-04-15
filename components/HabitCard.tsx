@@ -178,48 +178,48 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                    <span className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">{habit.streak}d</span>
                  </div>
                )}
- 
+
                {/* Action Group: WhatsApp -> Edit -> Hide -> Delete */}
-               <div className="flex items-center gap-2 sm:gap-3.5">
+               <div className="flex items-center bg-zinc-50/50 dark:bg-zinc-800/30 p-1 rounded-[14px] border border-zinc-100 dark:border-zinc-800/50 gap-0.5 sm:gap-1">
                  {/* WhatsApp Config Trigger */}
                  <button
                    onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
-                   className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-all duration-200 flex items-center justify-center border ${isHabitWhatsAppReady
-                       ? 'text-green-600 bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/30 hover:bg-green-100 dark:hover:bg-green-500/25 shadow-sm shadow-green-500/10'
-                       : 'text-green-500 bg-green-50/60 dark:bg-green-500/10 border-green-200/60 dark:border-green-500/20 hover:bg-green-100 dark:hover:bg-green-500/20 animate-pulse'
+                   className={`p-1.5 sm:p-2 rounded-lg sm:rounded-[10px] transition-all duration-200 flex items-center justify-center ${isHabitWhatsAppReady
+                       ? 'text-green-600 bg-green-500/10'
+                       : 'text-zinc-400 hover:text-green-500 hover:bg-green-500/5'
                      }`}
                    title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
                  >
-                   <MessageCircle size={14} className="sm:w-4 sm:h-4" />
+                   <MessageCircle size={15} className="sm:w-[18px] sm:h-[18px]" />
                  </button>
  
                  {onEdit && (
                    <button
                      onClick={(e) => { e.stopPropagation(); onEdit(habit); }}
-                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 transition-colors rounded-lg sm:rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 touch-button"
+                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all rounded-lg sm:rounded-[10px]"
                      title="Edit Ritual"
                    >
-                     <Edit2 size={14} className="sm:w-4 sm:h-4" />
+                     <Edit2 size={15} className="sm:w-[18px] sm:h-[18px]" />
                    </button>
                  )}
 
                  {onToggleVisibility && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleVisibility(habit.id, !habit.hidden); }}
-                      className={`p-1.5 sm:p-2 transition-colors rounded-lg sm:rounded-xl touch-button ${habit.hidden ? 'text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'text-zinc-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}`}
+                      className={`p-1.5 sm:p-2 transition-all rounded-lg sm:rounded-[10px] ${habit.hidden ? 'text-indigo-500 bg-indigo-500/10' : 'text-zinc-400 hover:text-indigo-500 hover:bg-indigo-500/5'}`}
                       title={habit.hidden ? "Show Ritual" : "Hide Ritual"}
                     >
-                      {habit.hidden ? <Eye size={14} className="sm:w-4 sm:h-4" /> : <EyeOff size={14} className="sm:w-4 sm:h-4" />}
+                      {habit.hidden ? <Eye size={15} className="sm:w-[18px] sm:h-[18px]" /> : <EyeOff size={15} className="sm:w-[18px] sm:h-[18px]" />}
                     </button>
                   )}
  
                  {onDelete && (
                    <button
                      onClick={(e) => { e.stopPropagation(); onDelete(habit.id); }}
-                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 transition-colors rounded-lg sm:rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 touch-button"
+                     className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-500 hover:bg-red-500/5 transition-all rounded-lg sm:rounded-[10px]"
                      title="Delete Ritual"
                    >
-                     <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                     <Trash2 size={15} className="sm:w-[18px] sm:h-[18px]" />
                    </button>
                  )}
                </div>

@@ -67,66 +67,68 @@ const ThemeToggle = () => {
       {/* Knob */}
       <motion.div
         animate={{ x: isDarkMode ? 28 : 0 }}
-        transition={{ type: "spring", stiffness: 350, damping: 25 }}
-        className="relative z-10 w-[22px] h-[22px] rounded-full flex items-center justify-center"
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        className="relative z-10 w-[22px] h-[22px] rounded-full flex items-center justify-center p-[1px]"
       >
-        <AnimatePresence mode="wait">
-          {!isDarkMode ? (
-            <motion.div
-              key="sun"
-              initial={{ scale: 0.4, rotate: -90, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 1 }}
-              exit={{ scale: 0.4, rotate: 90, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="w-full h-full rounded-full"
-              style={{
-                background: "radial-gradient(circle at 35% 35%, #fef08a, #f59e0b)",
-                boxShadow: "0 0 8px 2px rgba(251,191,36,0.5), 0 1px 3px rgba(0,0,0,0.15)",
-              }}
+        <div className="relative w-full h-full">
+          {/* Sun */}
+          <motion.div
+            animate={{ 
+              opacity: isDarkMode ? 0 : 1,
+              scale: isDarkMode ? 0.3 : 1,
+              rotate: isDarkMode ? 90 : 0
+            }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: "radial-gradient(circle at 35% 35%, #fef08a, #f59e0b)",
+              boxShadow: "0 0 8px 2px rgba(251,191,36,0.5), 0 1px 3px rgba(0,0,0,0.15)",
+            }}
+          >
+            <motion.svg
+              animate={{ rotate: 360 }}
+              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+              viewBox="0 0 22 22"
+              className="w-full h-full"
             >
-              <motion.svg
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                viewBox="0 0 22 22"
-                className="w-full h-full"
-              >
-                {[0, 60, 120, 180, 240, 300].map((deg) => (
-                  <line
-                    key={deg}
-                    x1="11" y1="1.5" x2="11" y2="4"
-                    stroke="rgba(245,158,11,0.45)"
-                    strokeWidth="1.2"
-                    strokeLinecap="round"
-                    transform={`rotate(${deg} 11 11)`}
-                  />
-                ))}
-              </motion.svg>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="moon"
-              initial={{ scale: 0.4, rotate: 90, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 1 }}
-              exit={{ scale: 0.4, rotate: -90, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="w-full h-full rounded-full relative overflow-hidden"
+              {[0, 60, 120, 180, 240, 300].map((deg) => (
+                <line
+                  key={deg}
+                  x1="11" y1="1.5" x2="11" y2="4"
+                  stroke="rgba(245,158,11,0.45)"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  transform={`rotate(${deg} 11 11)`}
+                />
+              ))}
+            </motion.svg>
+          </motion.div>
+
+          {/* Moon */}
+          <motion.div
+            animate={{ 
+              opacity: isDarkMode ? 1 : 0,
+              scale: isDarkMode ? 1 : 0.3,
+              rotate: isDarkMode ? 0 : -90
+            }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-full overflow-hidden"
+            style={{
+              background: "radial-gradient(circle at 40% 40%, #f1f5f9, #94a3b8)",
+              boxShadow: "0 0 8px 2px rgba(226,232,240,0.3), 0 1px 3px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div
+              className="absolute rounded-full"
               style={{
-                background: "radial-gradient(circle at 40% 40%, #f1f5f9, #94a3b8)",
-                boxShadow: "0 0 8px 2px rgba(226,232,240,0.3), 0 1px 3px rgba(0,0,0,0.2)",
+                top: "15%", right: "5%", width: "55%", height: "55%",
+                background: "radial-gradient(circle, rgba(30,27,75,0.3), transparent)",
               }}
-            >
-              <div
-                className="absolute rounded-full"
-                style={{
-                  top: "15%", right: "5%", width: "55%", height: "55%",
-                  background: "radial-gradient(circle, rgba(30,27,75,0.3), transparent)",
-                }}
-              />
-              <div className="absolute rounded-full" style={{ top: "30%", left: "22%", width: 3, height: 3, background: "rgba(148,163,184,0.4)" }} />
-              <div className="absolute rounded-full" style={{ top: "55%", left: "52%", width: 2, height: 2, background: "rgba(148,163,184,0.3)" }} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+            />
+            <div className="absolute rounded-full" style={{ top: "30%", left: "22%", width: 3, height: 3, background: "rgba(148,163,184,0.4)" }} />
+            <div className="absolute rounded-full" style={{ top: "55%", left: "52%", width: 2, height: 2, background: "rgba(148,163,184,0.3)" }} />
+          </motion.div>
+        </div>
       </motion.div>
     </motion.button>
   );
