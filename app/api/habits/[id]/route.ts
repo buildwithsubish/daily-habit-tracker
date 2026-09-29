@@ -3,7 +3,6 @@ import connectDB from '@/lib/mongodb';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
 import { requireAuth } from '@/lib/middleware';
-import { scheduleHabitReminder, unscheduleHabitReminder } from '@/lib/reminder-scheduler';
 import mongoose from 'mongoose';
 
 export async function GET(
@@ -123,18 +122,10 @@ export async function PUT(
 
     if (reminderEnabled !== undefined) {
       updateData.reminderEnabled = reminderEnabled;
-      if (reminderEnabled) {
-        await scheduleHabitReminder(habitId);
-      } else {
-        await unscheduleHabitReminder(habitId);
-      }
     }
 
     if (reminderTime !== undefined) {
       updateData.reminderTime = reminderTime;
-      if (existing.reminderEnabled) {
-        await scheduleHabitReminder(habitId);
-      }
     }
 
     if (reminderInterval !== undefined) updateData.reminderInterval = reminderInterval;

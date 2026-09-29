@@ -29,6 +29,9 @@ const DailyLogSchema = new Schema({
   completedAt: {
     type: Date,
   },
+  value: { type: Number, min: 0 },
+  workoutData: { type: Schema.Types.Mixed, default: null },
+  customFields: { type: Schema.Types.Mixed, default: null },
   dynamicSteps: [{
     name: { type: String, required: true },
     completed: { type: Boolean, default: false },
@@ -48,4 +51,3 @@ DailyLogSchema.index({ userId: 1, date: 1 });
 DailyLogSchema.index({ userId: 1, habitId: 1, date: 1, stepIndex: 1 }, { unique: true });
 
 export default mongoose.models.DailyLog || mongoose.model<DailyLog>('DailyLog', DailyLogSchema);
-

@@ -3,18 +3,25 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import { verifyPassword, generateToken } from '@/lib/auth';
 import { sanitizeInput } from '@/lib/security';
+import rateLimiter from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = await rateLimiter(request, 10, 60);
+    if (!rate.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Try again later.' }, { status: 429 });
     await connectDB();
-    
-    let { identifier, password } = await request.json();
+    let body: unknown;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
+    if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    const { identifier, password } = body as { identifier?: unknown; password?: unknown };
     
     // Sanitize inputs
-    identifier = sanitizeInput(identifier || '');
-    password = sanitizeInput(password || '');
+    if (typeof identifier !== 'string' || typeof password !== 'string' || identifier.length > 254 || password.length > 256) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 400 });
+    }
+    const cleanIdentifier = sanitizeInput(identifier);
     
-    if (!identifier || !password) {
+    if (!cleanIdentifier || !password) {
       return NextResponse.json(
         { error: 'Identifier and password are required' },
         { status: 400 }
@@ -23,8 +30,8 @@ export async function POST(request: NextRequest) {
     
     const user = await User.findOne({
       $or: [
-        { email: identifier.toLowerCase() },
-        { username: identifier.toLowerCase() }
+        { email: cleanIdentifier.toLowerCase() },
+        { username: cleanIdentifier.toLowerCase() }
       ]
     });
     
@@ -56,8 +63,9 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/',
     });
-    
+    response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error: any) {
     console.error('Login error:', error);

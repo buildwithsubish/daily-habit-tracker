@@ -1,10 +1,22 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 const IV_LENGTH = 16;
 
+function getEncryptionKey(): string {
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key || key.length < 32) {
+    if (process.env.NODE_ENV === 'test') {
+      return 'test-encryption-key-32-chars-long!!';
+    }
+    throw new Error(
+      'ENCRYPTION_KEY must be set in environment (minimum 32 characters). Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+    );
+  }
+  return key;
+}
+
 function getKey(): Buffer {
-  return crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
+  return crypto.createHash('sha256').update(getEncryptionKey()).digest();
 }
 
 export function encrypt(text: string): string {

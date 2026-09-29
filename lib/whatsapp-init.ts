@@ -1,7 +1,6 @@
 import WhatsAppSession from '@/lib/models/WhatsAppSession';
 import whatsappClientManager from '@/lib/whatsapp-web';
 import { Types } from 'mongoose';
-import { startScheduler, stopScheduler, getSchedulerStatus } from './whatsapp-manager';
 
 // Track initialization state per session instead of globally
 const initializationState: Map<string, { isInitialized: boolean; initializationPromise: Promise<void> | null }> = new Map();
@@ -21,6 +20,7 @@ export interface WhatsAppStatus {
   failureReason?: string;
   hasSavedSession?: boolean;
   sessionExists?: boolean;
+  appLocked?: boolean;
 }
 
 // Event handlers for real-time status updates
@@ -101,27 +101,6 @@ function setupStatusListener(adminId: string) {
         updatedAt: new Date(),
       });
 
-      // Auto-start scheduler when WhatsApp connects
-      if (status === 'connected') {
-        console.log('[WhatsApp] Connected - auto-starting scheduler...');
-        const currentStatus = getSchedulerStatus();
-        if (!currentStatus.running) {
-          startScheduler();
-          console.log('[WhatsApp] Scheduler auto-started');
-        } else {
-          console.log('[WhatsApp] Scheduler already running');
-        }
-      }
-
-      // Auto-stop scheduler when WhatsApp disconnects
-      if (status === 'disconnected') {
-        console.log('[WhatsApp] Disconnected - auto-stopping scheduler...');
-        const currentStatus = getSchedulerStatus();
-        if (currentStatus.running) {
-          stopScheduler();
-          console.log('[WhatsApp] Scheduler auto-stopped');
-        }
-      }
 
       // Save session when connected
       if (status === 'connected') {
@@ -163,13 +142,13 @@ export async function initializeWhatsApp(adminId: string): Promise<WhatsAppStatu
   
   // Prevent multiple simultaneous initializations for the same adminId
   if (state.initializationPromise) {
-    return state.initializationPromise.then(() => getWhatsAppStatus(adminId));
+    return state.initializationPromise.then(() => getWhatsAppStatus(adminId, true));
   }
 
   // CRITICAL FIX: First check if client is already connected before attempting initialization
-  // This prevents unnecessary reconnection attempts
+  // This prevents unnecessary reconnection attempts. Use force to get fresh (but throttle will still protect)
   try {
-    const currentStatus = await whatsappClientManager.getStatus(adminId);
+    const currentStatus = await whatsappClientManager.getStatus(adminId, true);
     if (currentStatus.status === 'connected') {
       console.log('[WhatsApp] Client already connected, skipping initialization for:', adminId);
       state.isInitialized = true;
@@ -198,14 +177,14 @@ export async function initializeWhatsApp(adminId: string): Promise<WhatsAppStatu
       
       console.log('[WhatsApp] Found session in DB:', !!session, 'Status:', session?.status, 'Has sessionData:', !!session?.sessionData);
 
-      // If there's existing session data, try to load it
+      // If there's existing session data, set it in the DB store on Python server first
       if (session?.sessionData) {
-        console.log('[WhatsApp] Loading existing session...');
+        console.log('[WhatsApp] Setting existing session cookies...');
         try {
-          await whatsappClientManager.loadSession(adminId, session.sessionData);
-          console.log('[WhatsApp] Session loaded successfully');
+          await whatsappClientManager.setDbSession(adminId, session.sessionData);
+          console.log('[WhatsApp] Session cookies set successfully');
         } catch (loadError) {
-          console.error('[WhatsApp] Failed to load session:', loadError);
+          console.error('[WhatsApp] Failed to set session cookies:', loadError);
         }
       }
 
@@ -216,8 +195,8 @@ export async function initializeWhatsApp(adminId: string): Promise<WhatsAppStatu
       // Wait a bit for initial connection attempt
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Check connection status - scheduler will be auto-started by status listener when connected
-      const clientStatus = await whatsappClientManager.getStatus(adminId);
+      // Return the status produced by this explicitly requested initialization.
+      const clientStatus = await whatsappClientManager.getStatus(adminId, true);
       console.log('[WhatsApp] Initialization complete - status:', clientStatus.status);
       
       state.isInitialized = true;
@@ -232,16 +211,20 @@ export async function initializeWhatsApp(adminId: string): Promise<WhatsAppStatu
     }
   })();
 
-  return state.initializationPromise.then(() => getWhatsAppStatus(adminId));
+  return state.initializationPromise.then(() => getWhatsAppStatus(adminId, true));
 }
 
-// Get current status
-export async function getWhatsAppStatus(adminId: string): Promise<WhatsAppStatus> {
+// Get current status (force=true bypasses the 30s global throttle for fresh check on critical paths; used for real-time after manual admin actions)
+export async function getWhatsAppStatus(adminId: string, force: boolean = false): Promise<WhatsAppStatus> {
   try {
-    // Get status from WhatsApp client
-    const clientStatus = await whatsappClientManager.getStatus(adminId);
+    // Get status from WhatsApp client (respect global 30s throttle unless force)
+    const clientStatus = await whatsappClientManager.getStatus(adminId, force);
     
-    console.log('[WhatsApp] Client status:', clientStatus.status);
+    // Throttled log to reduce spam (status changes or rare)
+    // The real sync log is now in the web layer with its own 60s guard
+    if (force || clientStatus.status !== 'connected') {
+      console.log('[WhatsApp] Client status:', clientStatus.status);
+    }
 
     // If client has valid status, return it
     if (clientStatus.status && clientStatus.status !== 'disconnected') {
@@ -249,6 +232,7 @@ export async function getWhatsAppStatus(adminId: string): Promise<WhatsAppStatus
         status: clientStatus.status as WhatsAppConnectionStatus,
         phoneNumber: clientStatus.phoneNumber,
         qrCode: clientStatus.qrCode,
+        appLocked: clientStatus.appLocked,
       };
     }
 
@@ -303,9 +287,25 @@ export async function getWhatsAppStatus(adminId: string): Promise<WhatsAppStatus
   }
 }
 
-// Force reconnection
+// Force reconnection (reuses existing Python browser when already connected)
 export async function reconnectWhatsApp(adminId: string): Promise<WhatsAppStatus> {
   console.log('[WhatsApp] Reconnecting for:', adminId);
+
+  try {
+    const current = await whatsappClientManager.getStatus(adminId, true);
+    if (current.status === 'connected') {
+      console.log('[WhatsApp] Already connected on Python server, skipping re-init for:', adminId);
+      const state = getInitState(adminId);
+      state.isInitialized = true;
+      return {
+        status: 'connected',
+        phoneNumber: current.phoneNumber,
+      };
+    }
+  } catch {
+    // proceed with full init
+  }
+
   const state = getInitState(adminId);
   state.isInitialized = false;
   return initializeWhatsApp(adminId);

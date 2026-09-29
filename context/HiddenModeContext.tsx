@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 
 interface HiddenModeContextType {
@@ -36,11 +36,12 @@ export function HiddenModeProvider({ children }: { children: React.ReactNode }) 
     };
   }, [isHiddenMode]);
 
-  const toggleHiddenMode = () => {
-    setIsHiddenMode((prev) => {
-      const next = !prev;
-      if (next) {
-        toast.success('Hidden Mode Activated', {
+  const toggleHiddenMode = useCallback(() => {
+    const next = !isHiddenMode;
+    setIsHiddenMode(next);
+
+    if (next) {
+      toast.success('Hidden Mode Activated', {
           icon: '🕵️',
           style: {
             borderRadius: '16px',
@@ -50,20 +51,18 @@ export function HiddenModeProvider({ children }: { children: React.ReactNode }) 
             fontSize: '13px',
             border: '1px solid #27272a'
           },
-        });
-      } else {
-        toast('Hidden Mode Deactivated', {
+      });
+    } else {
+      toast('Hidden Mode Deactivated', {
           icon: '👁️',
           style: {
             borderRadius: '16px',
             fontSize: '13px',
             fontWeight: 'bold',
           },
-        });
-      }
-      return next;
-    });
-  };
+      });
+    }
+  }, [isHiddenMode]);
 
   return (
     <HiddenModeContext.Provider value={{ isHiddenMode, toggleHiddenMode }}>

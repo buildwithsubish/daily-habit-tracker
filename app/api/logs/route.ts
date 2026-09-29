@@ -3,9 +3,50 @@ import connectDB from '@/lib/mongodb';
 import DailyLog from '@/lib/models/DailyLog';
 import Habit from '@/lib/models/Habit';
 import { requireAuth } from '@/lib/middleware';
-import { getToday, getDaysAgo, isHabitScheduled } from '@/lib/utils';
-import { SubActivity } from '@/types';
+import { getToday, isHabitScheduled } from '@/lib/utils';
+import { SubActivity, WorkoutData, DynamicStep } from '@/types';
 import mongoose from 'mongoose';
+
+function dateInTimeZone(timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function shiftDate(date: string, days: number): string {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function isValidDateString(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function getScheduledStreakDates(habit: any, completeDates: Set<string>, today: string) {
+  let cursor = completeDates.has(today) ? today : shiftDate(today, -1);
+  let streak = 0;
+  let latestCompletedDate: string | null = null;
+
+  // Bound the calendar walk to 100 years; normal histories stop at the first missed scheduled day.
+  for (let checked = 0; checked < 36_600; checked += 1) {
+    if (isHabitScheduled(habit, cursor)) {
+      if (!completeDates.has(cursor)) break;
+      streak += 1;
+      latestCompletedDate ??= cursor;
+    }
+    cursor = shiftDate(cursor, -1);
+  }
+
+  return { streak, latestCompletedDate };
+}
 
 
 export async function GET(request: NextRequest) {
@@ -23,14 +64,23 @@ export async function GET(request: NextRequest) {
     };
 
     if (startDate && endDate) {
+      if (!isValidDateString(startDate) || !isValidDateString(endDate) || startDate > endDate) {
+        return NextResponse.json({ error: 'Invalid date range' }, { status: 400 });
+      }
+      const rangeLength = Math.round((new Date(`${endDate}T12:00:00Z`).getTime() - new Date(`${startDate}T12:00:00Z`).getTime()) / 86_400_000) + 1;
+      if (rangeLength > 31) return NextResponse.json({ error: 'Date range cannot exceed 31 days' }, { status: 400 });
       query.date = { $gte: startDate, $lte: endDate };
     } else if (date) {
+      if (!isValidDateString(date)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
       query.date = date;
     } else {
       query.date = getToday();
     }
     
     if (habitId) {
+      if (!mongoose.isValidObjectId(habitId)) {
+        return NextResponse.json({ error: 'Invalid habit ID' }, { status: 400 });
+      }
       query.habitId = new mongoose.Types.ObjectId(habitId);
     }
     
@@ -46,6 +96,10 @@ export async function GET(request: NextRequest) {
       completedAt: Date | null;
       activityNote?: string | null;
       subActivities?: SubActivity[];
+      dynamicSteps?: DynamicStep[];
+      value?: number;
+      workoutData?: WorkoutData | null;
+      customFields?: Record<string, string | number | boolean>;
     };
     const typedLogs = logs as unknown as LogLean[];
     
@@ -59,6 +113,10 @@ export async function GET(request: NextRequest) {
       completedAt: log.completedAt?.toISOString(),
       activityNote: log.activityNote || null,
       subActivities: log.subActivities || [],
+      dynamicSteps: log.dynamicSteps || [],
+      value: log.value,
+      workoutData: log.workoutData || undefined,
+      customFields: log.customFields || undefined,
     }));
     
     return NextResponse.json({ logs: formattedLogs });
@@ -76,20 +134,79 @@ export async function POST(request: NextRequest) {
     const userId = requireAuth(request);
     const data = await request.json();
     
-    const { habitId, date, stepIndex, completed, activityNote, subActivities } = data;
+    const { habitId, date, stepIndex, completed, activityNote, subActivities, value, workoutData, customFields } = data;
     
     if (habitId === undefined || date === undefined || completed === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    let timeZone = typeof data.timeZone === 'string' ? data.timeZone : 'UTC';
+    try {
+      dateInTimeZone(timeZone);
+    } catch {
+      timeZone = 'UTC';
+    }
+    if (typeof date !== 'string' || !isValidDateString(date)) {
+      return NextResponse.json({ error: 'Date must be a valid YYYY-MM-DD date' }, { status: 400 });
+    }
+    const todayForUser = dateInTimeZone(timeZone);
+    if (date > todayForUser || date < shiftDate(todayForUser, -7)) {
+      return NextResponse.json({ error: 'Progress can only be edited for today or the previous 7 days' }, { status: 400 });
+    }
+    if (!mongoose.isValidObjectId(habitId) || typeof completed !== 'boolean') {
+      return NextResponse.json({ error: 'Invalid habit or completion value' }, { status: 400 });
+    }
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1_000_000)) {
+      return NextResponse.json({ error: 'Value must be a non-negative number' }, { status: 400 });
+    }
+    if (workoutData !== undefined && workoutData !== null) {
+      if (typeof workoutData !== 'object' || Array.isArray(workoutData) || !Array.isArray(workoutData.exercises) || workoutData.exercises.length > 100) {
+        return NextResponse.json({ error: 'Invalid workout details' }, { status: 400 });
+      }
+      if (!['low', 'medium', 'high'].includes(workoutData.intensity) ||
+        (workoutData.totalDuration !== undefined && (!Number.isFinite(workoutData.totalDuration) || workoutData.totalDuration < 0 || workoutData.totalDuration > 1440)) ||
+        (workoutData.caloriesBurned !== undefined && (!Number.isFinite(workoutData.caloriesBurned) || workoutData.caloriesBurned < 0 || workoutData.caloriesBurned > 20_000)) ||
+        workoutData.exercises.some((exercise: any) => !exercise || typeof exercise.name !== 'string' || exercise.name.length > 120 || !Array.isArray(exercise.sets) || exercise.sets.length > 100)) {
+        return NextResponse.json({ error: 'Invalid workout details' }, { status: 400 });
+      }
+      if (JSON.stringify(workoutData).length > 50_000) return NextResponse.json({ error: 'Workout details are too large' }, { status: 413 });
+    }
+    if (activityNote !== undefined && (typeof activityNote !== 'string' || activityNote.length > 2_000)) {
+      return NextResponse.json({ error: 'Activity note must be 2,000 characters or fewer' }, { status: 400 });
+    }
+    if (subActivities !== undefined && (!Array.isArray(subActivities) || subActivities.length > 100 || subActivities.some(item =>
+      !item || typeof item.name !== 'string' || item.name.length > 120 || !['text', 'number', 'reps', 'duration', 'kg'].includes(item.type) ||
+      (typeof item.value !== 'string' && typeof item.value !== 'number') || String(item.value).length > 500
+    ))) {
+      return NextResponse.json({ error: 'Invalid activity details' }, { status: 400 });
+    }
+    if (customFields !== undefined && (typeof customFields !== 'object' || customFields === null || Array.isArray(customFields) || Object.keys(customFields).length > 30)) {
+      return NextResponse.json({ error: 'Invalid custom fields' }, { status: 400 });
+    }
+
     const userIdObj = new mongoose.Types.ObjectId(userId);
     const habitIdObj = new mongoose.Types.ObjectId(habitId);
+
+    // Verify ownership before writing so a foreign or missing habit can never
+    // create an orphaned daily log.
+    const habitResult = await Habit.findOne({ _id: habitIdObj, userId: userIdObj }).lean().exec();
+    const habit = Array.isArray(habitResult) ? habitResult[0] : habitResult;
+    if (!habit) return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
+    if (habit.type === 'single-step' && stepIndex != null) {
+      return NextResponse.json({ error: 'Single-step habits do not accept a step index' }, { status: 400 });
+    }
+    if (habit.type !== 'single-step' && (!Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex >= (habit.steps?.length || 0))) {
+      return NextResponse.json({ error: 'Invalid habit step' }, { status: 400 });
+    }
     
     // Upsert log
     const updateData: any = {
       completed,
       completedAt: completed ? new Date() : null,
     };
+    if (value !== undefined) updateData.value = completed ? value : null;
+    if (workoutData !== undefined) updateData.workoutData = completed ? workoutData : null;
+    if (customFields !== undefined) updateData.customFields = completed ? customFields : null;
     
     // Only set activityNote if provided
     if (activityNote !== undefined) {
@@ -99,6 +216,14 @@ export async function POST(request: NextRequest) {
     // Only set subActivities if provided
     if (subActivities !== undefined) {
       updateData.subActivities = subActivities || [];
+    }
+    if (!completed) {
+      updateData.activityNote = null;
+      updateData.subActivities = [];
+      updateData.dynamicSteps = [];
+      updateData.value = null;
+      updateData.workoutData = null;
+      updateData.customFields = null;
     }
     
     await DailyLog.findOneAndUpdate(
@@ -112,86 +237,58 @@ export async function POST(request: NextRequest) {
       { upsert: true, new: true }
     );
 
-    // Update habit streak logic (race-safe, avoids double updates)
-    const habitResult = await Habit.findOne({ _id: habitIdObj, userId: userIdObj }).lean().exec();
-    const habit = Array.isArray(habitResult) ? habitResult[0] : habitResult;
-    if (!habit) {
-      return NextResponse.json({ error: 'Habit not found' }, { status: 404 });
-    }
+    // Recalculate scheduled-day streaks after edits, including history corrections.
+    const today = todayForUser;
 
-    const today = getToday();
-    const yesterday = getDaysAgo(1);
-
-    // Determine if the habit is fully completed for the given date
-    const completedCount = await DailyLog.countDocuments({
-      userId: userIdObj,
-      habitId: habitIdObj,
-      date,
-      completed: true,
-    });
-
-    const isFullyCompleted =
-      habit.type === 'single-step'
-        ? completedCount > 0
-        : completedCount === (habit.steps?.length || 0);
-
+    let isFullyCompleted = false;
     let updatedHabit: any = null;
 
-    // Only streak today is tracked/stored in the habit doc.
-    if (date === today) {
-      if (isFullyCompleted) {
-        // Case 1: If last completed was yesterday, increment streak atomically.
-        updatedHabit = await Habit.findOneAndUpdate(
-          { _id: habitIdObj, userId: userIdObj, lastCompletedDate: yesterday },
-          { $inc: { streak: 1 }, $set: { lastCompletedDate: today } },
-          { new: true }
-        ).lean();
+    const currentDayLogs = await DailyLog.find({ userId: userIdObj, habitId: habitIdObj, date: today, completed: true })
+      .select('stepIndex').lean();
+    isFullyCompleted = habit.type === 'single-step'
+      ? currentDayLogs.some(log => log.stepIndex == null)
+      : new Set(currentDayLogs.map(log => log.stepIndex)).size === (habit.steps?.length || 0);
 
-        // Case 2: Otherwise, if we haven't already recorded today, set streak to 1 atomically.
-        if (!updatedHabit) {
-          updatedHabit = await Habit.findOneAndUpdate(
-            { _id: habitIdObj, userId: userIdObj, lastCompletedDate: { $ne: today } },
-            { $set: { streak: 1, lastCompletedDate: today } },
-            { new: true }
-          ).lean();
-        }
-      } else {
-        // If it was marked completed today and now isn't, revert streak based on whether yesterday was fully completed.
-        const yesterdayCount = await DailyLog.countDocuments({
-          userId: userIdObj,
-          habitId: habitIdObj,
-          date: yesterday,
-          completed: true,
-        });
-
-        const completedYesterday =
-          habit.type === 'single-step'
-            ? yesterdayCount > 0
-            : yesterdayCount === (habit.steps?.length || 0);
-
-        updatedHabit = await Habit.findOneAndUpdate(
-          { _id: habitIdObj, userId: userIdObj, lastCompletedDate: today },
-          { $set: { streak: completedYesterday ? 1 : 0, lastCompletedDate: completedYesterday ? yesterday : null } },
-          { new: true }
-        ).lean();
-      }
-    }
+    const completedDayGroups = await DailyLog.aggregate<{ _id: string; stepIndexes: Array<number | null> }>([
+      { $match: { userId: userIdObj, habitId: habitIdObj, completed: true, date: { $lte: today } } },
+      { $group: { _id: '$date', stepIndexes: { $addToSet: '$stepIndex' } } },
+    ]);
+    const completeDates = new Set(
+      completedDayGroups
+        .filter(group => habit.type === 'single-step'
+          ? group.stepIndexes.includes(null)
+          : (habit.steps || []).every((_: unknown, index: number) => group.stepIndexes.includes(index)))
+        .map(group => group._id)
+    );
+    const streakState = getScheduledStreakDates(habit, completeDates, today);
+    updatedHabit = await Habit.findOneAndUpdate(
+      { _id: habitIdObj, userId: userIdObj },
+      { $set: { streak: streakState.streak, lastCompletedDate: streakState.latestCompletedDate } },
+      { new: true }
+    ).lean();
 
     // Check if ALL scheduled habits for today are done (for celebration)
-    const allHabits = await Habit.find({ userId: userIdObj, active: { $ne: false } }).lean().exec();
-    const scheduledToday = allHabits.filter(h => isHabitScheduled(h, today));
-    
     let dailyAllDone = false;
-    if (scheduledToday.length > 0) {
-      const todayLogs = await DailyLog.find({ userId: userIdObj, date: today, completed: true }).lean().exec();
-      dailyAllDone = scheduledToday.every((h: any) => {
-        const hLogs = todayLogs.filter(l => l.habitId.toString() === h._id.toString());
-        if (h.type === 'single-step') {
-          return hLogs.length > 0;
-        } else {
-          return hLogs.length === (h.steps?.length || 0);
+    if (date === today && isFullyCompleted) {
+      const allHabits = await Habit.find({ userId: userIdObj, active: { $ne: false } }).lean().exec();
+      const scheduledToday = allHabits.filter(h => isHabitScheduled(h, today));
+      if (scheduledToday.length > 0) {
+        const todayLogs = await DailyLog.find({ userId: userIdObj, date: today, completed: true }).select('habitId stepIndex').lean().exec();
+        const completedByHabit = new Map<string, Set<number | null>>();
+        for (const log of todayLogs) {
+          const key = log.habitId.toString();
+          if (!completedByHabit.has(key)) completedByHabit.set(key, new Set());
+          completedByHabit.get(key)!.add(log.stepIndex ?? null);
         }
-      });
+        dailyAllDone = scheduledToday.every((h: any) => {
+          const hLogs = completedByHabit.get(h._id.toString()) || new Set<number | null>();
+          if (h.type === 'single-step') {
+            return hLogs.has(null);
+          } else {
+            return h.steps.every((_: unknown, index: number) => hLogs.has(index));
+          }
+        });
+      }
     }
 
 

@@ -5,13 +5,14 @@ import Habit from '@/lib/models/Habit';
 import MessageLog from '@/lib/models/MessageLog';
 import { sendWhatsAppMessage, getAppreciativeMessage } from '@/lib/whatsapp';
 import { getToday } from '@/lib/utils';
+import { resolveUserPhone } from '@/lib/pii';
 
-// Secured by API secret — called by external cron service
+// Manual API operation. Nothing invokes this route automatically.
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
 export async function POST(request: NextRequest) {
     try {
-        // Verify cron secret
+        // Verify the shared API secret.
         const authHeader = request.headers.get('authorization');
         const body = await request.json().catch(() => ({}));
         const secret = authHeader?.replace('Bearer ', '') || body.secret;
@@ -36,7 +37,8 @@ export async function POST(request: NextRequest) {
         for (const log of pendingMessages as any[]) {
             try {
                 const user = await User.findById(log.userId).lean() as any;
-                if (!user || !user.whatsappAutomation || !user.whatsappNumber) {
+                const phoneNumber = resolveUserPhone(user);
+                if (!user || !user.whatsappAutomation || !phoneNumber) {
                     results.push({ userId: log.userId.toString(), action: 'skipped_no_user' });
                     continue;
                 }
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 const contactName = user.whatsappContactName || user.username;
-                const result = await sendWhatsAppMessage(user.whatsappNumber, reminderMsg, contactName);
+                const result = await sendWhatsAppMessage(phoneNumber, reminderMsg, contactName);
 
                 if (result.ok) {
                     // Update the original summary log
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
             details: results,
         });
     } catch (error: any) {
-        console.error('Reminder cron error:', error);
+        console.error('WhatsApp reminders API error:', error);
         return NextResponse.json(
             { error: error.message || 'Reminders failed' },
             { status: 500 }

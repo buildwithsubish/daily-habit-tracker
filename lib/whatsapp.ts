@@ -1,5 +1,4 @@
-import WhatsAppSession from './models/WhatsAppSession';
-import connectDB from './mongodb';
+// Direct HTTP client for WhatsApp Python server — no DB lookups, no initialization
 
 export type WhatsAppProvider = 'whatsapp-web' | 'twilio' | 'meta';
 
@@ -21,43 +20,13 @@ async function getWhatsAppWebClient() {
 
 async function sendViaWhatsAppWeb(to: string, body: string, contactName?: string): Promise<WhatsAppSendResult> {
   try {
-    await connectDB();
-    
-    // First try to find by ADMIN_SESSION_ID directly
-    let activeSession = await WhatsAppSession.findOne({ 
-      ADMIN_SESSION_ID: { $exists: true, $ne: null },
-      status: 'connected' 
-    }).sort({ lastConnectedAt: -1 });
-    
-    // If not found, try by adminId
-    if (!activeSession) {
-      activeSession = await WhatsAppSession.findOne({ status: 'connected' }).sort({ lastConnectedAt: -1});
-    }
-    
-    // If still not found, try any session regardless of status
-    if (!activeSession) {
-      activeSession = await WhatsAppSession.findOne().sort({ lastConnectedAt: -1 });
-    }
-    
-    if (!activeSession) {
-      const error = 'No WhatsApp Web session found. Please ask admin to connect WhatsApp at /admin/whatsapp';
-      console.error(`[WhatsApp/Web] ${error}`);
-      return { ok: false, provider: 'whatsapp-web', error };
-    }
-
-    // Check if session is connected
-    if (activeSession.status !== 'connected') {
-      const error = `WhatsApp session is ${activeSession.status}. Please reconnect at /admin/whatsapp`;
-      console.error(`[WhatsApp/Web] ${error}`);
-      return { ok: false, provider: 'whatsapp-web', error };
-    }
-
-    // Use ADMIN_SESSION_ID if available, otherwise fall back to adminId
-    const adminId = activeSession.ADMIN_SESSION_ID || activeSession.adminIdString || activeSession.adminId?.toString();
+    // Use the admin session ID from env or default — the Python server already has Chrome running
+    const { getAdminSessionIdSync } = await import('./admin-session');
+    const adminId = getAdminSessionIdSync();
     const clientManager = await getWhatsAppWebClient();
     
-    console.log(`[WhatsApp/Web] Sending message to ${to} using session ${adminId}`);
-    const result = await clientManager.sendMessage(adminId!, to, body, contactName);
+    console.log(`[WhatsApp/Web] Sending message to ${contactName || to}`);
+    const result = await clientManager.sendMessage(adminId, to, body, contactName);
     
     if (result.success) {
       console.log(`[WhatsApp/Web] Message sent successfully to ${contactName || to}`);

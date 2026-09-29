@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import { getAdminIdFromRequest } from '@/lib/admin-middleware';
 
 interface PhoneLoginStatus {
   currentSession: {
@@ -21,13 +23,17 @@ interface PhoneLoginStatus {
 
 export async function GET(request: NextRequest): Promise<NextResponse<PhoneLoginStatus | { error: string }>> {
   try {
-    const sessionId = request.nextUrl.searchParams.get('session_id') || 'default';
+    const authenticatedAdminId = getAdminIdFromRequest(request);
+    if (!authenticatedAdminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await connectDB();
+    const finalSessionId = authenticatedAdminId;
 
     let status: 'connected' | 'disconnected' | 'connecting' = 'disconnected';
     let lastLoginTime: string | undefined;
 
     try {
-      const response = await fetch('http://127.0.0.1:8765/session/status?session_id=' + sessionId, {
+      const pythonServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${pythonServerUrl}/session/status?session_id=${finalSessionId}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

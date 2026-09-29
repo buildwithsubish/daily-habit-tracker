@@ -30,6 +30,8 @@ export interface User {
     sms: boolean;
     quietHours: { start: string; end: string };
   };
+  reminderEnabled?: boolean;
+  reminderTime?: string;
   celebratedAchievements: string[];
   createdAt: string;
 }

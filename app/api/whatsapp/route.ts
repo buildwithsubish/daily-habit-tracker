@@ -5,6 +5,8 @@ import Habit from '@/lib/models/Habit';
 import MessageLog from '@/lib/models/MessageLog';
 import { requireAuth } from '@/lib/middleware';
 import { formatHabitListMessage, sendWhatsAppMessage } from '@/lib/whatsapp';
+import { buildUserPhoneStorage, resolveUserPhone } from '@/lib/pii';
+import { maskPhoneNumber } from '@/lib/security';
 import mongoose from 'mongoose';
 
 // GET - Check WhatsApp automation status
@@ -13,13 +15,13 @@ export async function GET(request: NextRequest) {
         await connectDB();
         const userId = requireAuth(request);
 
-        const user = await User.findById(userId).select('whatsappNumber whatsappVerified whatsappAutomation');
+        const user = await User.findById(userId).select('whatsappNumber whatsappNumberEncrypted whatsappVerified whatsappAutomation');
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
         return NextResponse.json({
-            whatsappNumber: user.whatsappNumber || '',
+            whatsappNumber: resolveUserPhone(user) ? maskPhoneNumber(resolveUserPhone(user)!) : '',
             whatsappVerified: user.whatsappVerified || false,
             whatsappAutomation: user.whatsappAutomation || false,
         });
@@ -41,6 +43,9 @@ export async function POST(request: NextRequest) {
         const { whatsappNumber, whatsappAutomation, sendNow } = data;
 
         // Validate number if being set
+        if (whatsappNumber !== undefined && typeof whatsappNumber !== 'string') {
+            return NextResponse.json({ error: 'WhatsApp number must be text' }, { status: 400 });
+        }
         if (whatsappNumber && whatsappNumber.trim()) {
             const cleanNumber = whatsappNumber.replace(/\D/g, '');
             if (cleanNumber.length < 10 || cleanNumber.length > 15) {
@@ -52,14 +57,33 @@ export async function POST(request: NextRequest) {
         }
 
         // Update user WhatsApp settings
+        const currentUser = await User.findById(userId).select('whatsappNumber whatsappNumberEncrypted whatsappVerified');
+        const currentPhone = resolveUserPhone(currentUser);
+        const incomingPhone = typeof whatsappNumber === 'string' ? whatsappNumber.replace(/\D/g, '') : undefined;
         const updateData: any = {};
-        if (whatsappNumber !== undefined) updateData.whatsappNumber = whatsappNumber;
-        if (whatsappAutomation !== undefined) updateData.whatsappAutomation = whatsappAutomation;
+        if (whatsappNumber !== undefined) {
+            if (incomingPhone) {
+                Object.assign(updateData, buildUserPhoneStorage(incomingPhone));
+                if (incomingPhone !== currentPhone) {
+                    updateData.whatsappVerified = false;
+                    updateData.whatsappAutomation = false;
+                }
+            } else {
+                Object.assign(updateData, { whatsappNumber: '', whatsappNumberEncrypted: '', whatsappNumberHash: '', whatsappVerified: false, whatsappAutomation: false });
+            }
+        }
+        if (whatsappAutomation !== undefined) {
+            if (typeof whatsappAutomation !== 'boolean') return NextResponse.json({ error: 'WhatsApp automation must be a boolean' }, { status: 400 });
+            if (whatsappAutomation && !currentUser?.whatsappVerified) return NextResponse.json({ error: 'Verify the WhatsApp number before enabling automation' }, { status: 400 });
+            updateData.whatsappAutomation = whatsappAutomation;
+        }
 
         const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+        if (!updatedUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
         // If sendNow is true, number is set, and automation is enabled, fetch habits and prepare message
-        if (sendNow && whatsappNumber && updatedUser.whatsappVerified) {
+        const phoneForDelivery = resolveUserPhone(updatedUser);
+        if (sendNow && phoneForDelivery && updatedUser.whatsappVerified && updatedUser.whatsappAutomation) {
             const habits = await Habit.find({
                 userId: new mongoose.Types.ObjectId(userId)
             }).sort({ order: 1 }).lean();
@@ -88,7 +112,7 @@ export async function POST(request: NextRequest) {
             const user = await User.findById(userId).select('whatsappContactName username');
             const contactName = user?.whatsappContactName || user?.username || undefined;
             
-            const result = await sendWhatsAppMessage(whatsappNumber, messageBody, contactName);
+            const result = await sendWhatsAppMessage(phoneForDelivery, messageBody, contactName);
 
             if (result.ok) {
                 // Update message log with success
@@ -131,4 +155,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

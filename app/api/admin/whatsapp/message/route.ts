@@ -5,6 +5,7 @@ import AuditLog from '@/lib/models/AuditLog';
 import connectDB from '@/lib/mongodb';
 import { getAdminIdFromRequest } from '@/lib/admin-middleware';
 import whatsappClientManager from '@/lib/whatsapp-web';
+import { resolveUserPhone } from '@/lib/pii';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!user.whatsappVerified || !user.whatsappNumber) {
+    const phoneNumber = resolveUserPhone(user);
+    if (!user.whatsappVerified || !phoneNumber) {
       return NextResponse.json(
         { error: 'User has not verified WhatsApp number' },
         { status: 400 }
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const result = await whatsappClientManager.sendMessage(
       adminId,
-      user.whatsappNumber,
+      phoneNumber,
       message
     );
 

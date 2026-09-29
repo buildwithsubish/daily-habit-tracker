@@ -20,7 +20,7 @@ const mockRandomBytes = jest.spyOn(crypto, 'randomBytes');
 const originalEnv = process.env;
 
 beforeAll(() => {
-  process.env = { ...originalEnv, ENCRYPTION_KEY: 'test-encryption-key-32-chars-long' };
+  process.env = { ...originalEnv, NODE_ENV: 'test', ENCRYPTION_KEY: 'test-encryption-key-32-chars-long!!' };
   // Don't mock randomBytes for encryption tests as it needs proper IV
 });
 

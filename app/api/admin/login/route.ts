@@ -1,256 +1,216 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Admin from '@/lib/models/Admin';
-import WhatsAppSession from '@/lib/models/WhatsAppSession';
-import AuditLog from '@/lib/models/AuditLog';
-import { verifyAdminPassword, generateAdminToken, generateAdminRefreshToken, verify2FACode, generateResetToken, hashResetToken } from '@/lib/admin-auth';
+import { verifyAdminPassword, generateAdminToken, generateAdminRefreshToken, verify2FACode } from '@/lib/admin-auth';
 import { sanitizeInput } from '@/lib/security';
-import { initAdmin } from '@/lib/init-admin';
-import { autoConnectWhatsApp } from '@/lib/whatsapp-auto-connect';
+import { adminAccountExists } from '@/lib/admin-bootstrap';
+import { writeAuditLogFromRequest, getClientIp } from '@/lib/audit-log';
+import { AUDIT_ACTIONS, AUDIT_CATEGORY } from '@/lib/audit-log-constants';
+import { apiError } from '@/lib/api-response';
+import { adminRateLimiter } from '@/lib/admin-middleware';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = await adminRateLimiter.check(request, 10);
+    if (!rate.success) return apiError('Too many sign-in attempts. Try again later.', 'RATE_LIMITED', 429);
+    let body: unknown;
+    try { body = await request.json(); } catch { return apiError('Invalid request body', 'INVALID_JSON', 400); }
+    if (!body || typeof body !== 'object') return apiError('Invalid request body', 'INVALID_JSON', 400);
+    const input = body as Record<string, unknown>;
+    const rawEmail = input.email;
+    const password = input.password;
+    const twoFactorCode = input.twoFactorCode;
+    if (typeof rawEmail !== 'string' || typeof password !== 'string' || rawEmail.length > 254 || password.length > 256 ||
+      (twoFactorCode !== undefined && (typeof twoFactorCode !== 'string' || !/^\d{6}$/.test(twoFactorCode)))) {
+      return apiError('Enter valid sign-in details.', 'INVALID_INPUT', 400);
+    }
     await connectDB();
-    
-    // Initialize admin if not exists
-    await initAdmin();
-    
-    const clientIP = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-                     request.headers.get('x-real-ip') || 
-                     'unknown';
-    
-    let { email, password, twoFactorCode } = await request.json();
-    
-    // Sanitize inputs
-    const originalPassword = password;
-    email = sanitizeInput(email || '').toLowerCase();
-    password = password || '';
-    
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
+
+    if (!(await adminAccountExists())) {
+      return apiError(
+        'Admin not configured. Complete setup at /admin/setup',
+        'NEEDS_SETUP',
+        503
       );
     }
-    
+
+
+    const clientIP = getClientIp(request);
+
+    const email = sanitizeInput(rawEmail).toLowerCase();
+
+    if (!email || !password) {
+      return apiError('Email and password are required', 'MISSING_CREDENTIALS', 400);
+    }
+
     const admin = await Admin.findOne({ email });
-    
+
     if (!admin) {
-      // Log failed attempt
-      await AuditLog.create({
-        adminId: null,
-        action: 'login_failed',
-        category: 'admin_auth',
-        details: `Failed login attempt for non-existent email: ${email}`,
-        metadata: { email, ip: clientIP, reason: 'User not found' },
+      void writeAuditLogFromRequest(request, {
+        action: AUDIT_ACTIONS.LOGIN_FAILED,
+        category: AUDIT_CATEGORY.ADMIN_AUTH,
+        details: 'Failed login attempt for non-existent email',
+        metadata: { email, reason: 'User not found' },
         success: false,
         errorMessage: 'Invalid credentials',
       });
-      
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+
+      return apiError('Invalid credentials', 'INVALID_CREDENTIALS', 401);
     }
-    
-    // Check if account is locked
+
     if (admin.lockUntil && admin.lockUntil > new Date()) {
       const lockTime = Math.ceil((admin.lockUntil.getTime() - Date.now()) / 1000 / 60);
-      
-      await AuditLog.create({
+
+      void writeAuditLogFromRequest(request, {
         adminId: admin._id.toString(),
-        action: 'login_blocked',
-        category: 'admin_auth',
-        details: `Login blocked - account locked`,
-        metadata: { email, ip: clientIP, lockTimeRemaining: lockTime },
+        action: AUDIT_ACTIONS.LOGIN_BLOCKED,
+        category: AUDIT_CATEGORY.ADMIN_AUTH,
+        details: 'Login blocked — account locked',
+        metadata: { email, lockTimeRemaining: lockTime },
         success: false,
       });
-      
-      return NextResponse.json(
-        { error: `Account locked. Try again in ${lockTime} minutes.`, code: 'ACCOUNT_LOCKED' },
-        { status: 423 }
+
+      return apiError(
+        `Account locked. Try again in ${lockTime} minutes.`,
+        'ACCOUNT_LOCKED',
+        423
       );
     }
-    
-    // Check IP restrictions
+
     if (!admin.isIPAllowed(clientIP)) {
-      await AuditLog.create({
+      void writeAuditLogFromRequest(request, {
         adminId: admin._id.toString(),
-        action: 'login_blocked_ip',
-        category: 'admin_auth',
-        details: `Login blocked - IP not allowed: ${clientIP}`,
-        metadata: { email, ip: clientIP, allowedIPs: admin.allowedIPs },
+        action: AUDIT_ACTIONS.LOGIN_BLOCKED_IP,
+        category: AUDIT_CATEGORY.ADMIN_AUTH,
+        details: `Login blocked — IP not allowed: ${clientIP}`,
+        metadata: { email, allowedIPs: admin.allowedIPs },
         success: false,
         errorMessage: 'IP address not allowed',
       });
-      
-      return NextResponse.json(
-        { error: 'Access denied from this IP address', code: 'IP_NOT_ALLOWED' },
-        { status: 403 }
-      );
+
+      return apiError('Access denied from this IP address', 'IP_NOT_ALLOWED', 403);
     }
-    
+
     const isValid = await verifyAdminPassword(password, admin.passwordHash);
-    
+
     if (!isValid) {
-      // Increment login attempts
       admin.loginAttempts += 1;
-      
-      // Lock account after 5 failed attempts for 30 minutes
+
       if (admin.loginAttempts >= 5) {
         admin.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
         admin.loginAttempts = 0;
       }
-      
+
       await admin.save();
-      
-      await AuditLog.create({
+
+      void writeAuditLogFromRequest(request, {
         adminId: admin._id.toString(),
-        action: 'login_failed',
-        category: 'admin_auth',
-        details: `Failed login attempt - invalid password`,
-        metadata: { email, ip: clientIP, attempts: admin.loginAttempts },
+        action: AUDIT_ACTIONS.LOGIN_FAILED,
+        category: AUDIT_CATEGORY.ADMIN_AUTH,
+        details: 'Failed login attempt — invalid password',
+        metadata: { email, attempts: admin.loginAttempts },
         success: false,
         errorMessage: 'Invalid password',
       });
-      
-      return NextResponse.json(
-        { error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' },
-        { status: 401 }
-      );
+
+      return apiError('Invalid credentials', 'INVALID_CREDENTIALS', 401);
     }
-    
-    // Check if 2FA is enabled
+
     if (admin.twoFactorEnabled) {
-      // If no 2FA code provided, request it
       if (!twoFactorCode) {
         return NextResponse.json(
-          { requiresTwoFactor: true, message: 'Please enter your 2FA code' },
+          { success: true, requiresTwoFactor: true, message: 'Please enter your 2FA code' },
           { status: 200 }
         );
       }
-      
-      // Verify 2FA code
-      const is2FAValid = verify2FACode(admin.twoFactorSecret!, twoFactorCode);
-      
+
+      const is2FAValid = Boolean(admin.twoFactorSecret) && verify2FACode(admin.twoFactorSecret || '', twoFactorCode as string);
+
       if (!is2FAValid) {
-        await AuditLog.create({
+        admin.loginAttempts += 1;
+        if (admin.loginAttempts >= 5) {
+          admin.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+          admin.loginAttempts = 0;
+        }
+        await admin.save();
+        void writeAuditLogFromRequest(request, {
           adminId: admin._id.toString(),
-          action: 'login_failed_2fa',
-          category: 'admin_auth',
-          details: `Failed login attempt - invalid 2FA code`,
-          metadata: { email, ip: clientIP },
+          action: AUDIT_ACTIONS.LOGIN_FAILED_2FA,
+          category: AUDIT_CATEGORY.ADMIN_AUTH,
+          details: 'Failed login attempt — invalid 2FA code',
+          metadata: { email },
           success: false,
           errorMessage: 'Invalid 2FA code',
         });
-        
-        return NextResponse.json(
-          { error: 'Invalid 2FA code', code: 'INVALID_2FA' },
-          { status: 401 }
-        );
+
+        return apiError('Invalid 2FA code', 'INVALID_2FA', 401);
       }
     }
-    
-    // Check if password needs reset (older than 90 days)
-    if (admin.needsPasswordReset()) {
-      // Allow login but warn about password expiration
-      const response = NextResponse.json(
-        { 
-          success: true, 
-          adminId: admin._id.toString(),
-          passwordExpired: true,
-          message: 'Login successful but please update your password' 
-        },
-        { status: 200 }
-      );
-      
-      // Set token
-      const token = generateAdminToken(admin._id.toString(), {
-        email: admin.email,
-        role: admin.role,
-        twoFactorVerified: true,
-      });
-      
-      const refreshToken = generateAdminRefreshToken(admin._id.toString());
-      
-      response.cookies.set('admin_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60,
-        path: '/',
-      });
-      
-      response.cookies.set('admin_refresh_token', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60,
-        path: '/',
-      });
-      
-      return response;
-    }
-    
-    // Reset login attempts on successful login
-    admin.loginAttempts = 0;
-    admin.lockUntil = undefined;
-    admin.lastLogin = new Date();
-    admin.lastLoginIP = clientIP;
-    await admin.save();
-    
-    // Generate tokens
-    const token = generateAdminToken(admin._id.toString(), {
+
+    const tokenOptions = {
       email: admin.email,
-      role: admin.role,
-      twoFactorVerified: true,
-    });
-    
+      role: admin.role as 'admin' | 'super_admin',
+      twoFactorVerified: Boolean(admin.twoFactorEnabled && admin.twoFactorSecret),
+      passwordResetRequired: admin.needsPasswordReset(),
+    };
+
+    const token = generateAdminToken(admin._id.toString(), tokenOptions);
     const refreshToken = generateAdminRefreshToken(admin._id.toString());
-    
-    // Log successful login
-    await AuditLog.create({
+
+    const passwordExpired = admin.needsPasswordReset();
+
+    if (!passwordExpired) {
+      admin.loginAttempts = 0;
+      admin.lockUntil = undefined;
+      admin.lastLogin = new Date();
+      admin.lastLoginIP = clientIP;
+      await admin.save();
+    }
+
+    void writeAuditLogFromRequest(request, {
       adminId: admin._id.toString(),
-      action: 'login_success',
+      action: AUDIT_ACTIONS.LOGIN_SUCCESS,
       category: 'admin_auth',
-      details: `Successful login`,
-      metadata: { email, ip: clientIP, role: admin.role },
+      details: 'Successful login',
+      metadata: { email, role: admin.role, passwordExpired },
       success: true,
     });
-    
+
     const response = NextResponse.json(
-      { success: true, adminId: admin._id.toString(), role: admin.role },
+      {
+        success: true,
+        adminId: admin._id.toString(),
+        role: admin.role,
+        ...(passwordExpired
+          ? { passwordExpired: true, message: 'Login successful but please update your password' }
+          : {}),
+      },
       { status: 200 }
     );
-    
-    // Set cookies
+
     response.cookies.set('admin_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60, // 24 hours
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60,
       path: '/',
     });
 
     response.cookies.set('admin_refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60,
       path: '/',
     });
-    
-    // Auto-connect WhatsApp in background
-    autoConnectWhatsApp(admin._id.toString());
-    
+
+
+    response.headers.set('Cache-Control', 'no-store');
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admin login error:', error);
-    return NextResponse.json(
-      { error: 'An error occurred during login' },
-      { status: 500 }
-    );
+    return apiError('An error occurred during login', 'LOGIN_INTERNAL_ERROR', 500);
   }
 }

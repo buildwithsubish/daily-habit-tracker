@@ -1,200 +1,146 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  BarChart3, 
-  Calendar, 
-  Zap, 
-  Target, 
-  TrendingUp, 
-  ArrowLeft,
-  Filter,
-  Download,
-  Share2
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, Download, FileText, Sparkles } from 'lucide-react';
+import { addDays, format, startOfMonth, subDays } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { Habit, DailyLog } from '@/types';
+import { useHiddenMode } from '@/context/HiddenModeContext';
+import { getCompletedHabitIdsByDate } from '@/lib/utils';
 import AnalyticsSummary from '@/components/AnalyticsSummary';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
-import { useApp } from '@/context/AppContext';
-import { toast } from 'react-hot-toast';
-import { useHiddenMode } from '@/context/HiddenModeContext';
+
+type Period = 'week' | 'month';
+
+function dateKey(date: Date) { return format(date, 'yyyy-MM-dd'); }
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const { advancedMode } = useApp();
+  const { isHiddenMode } = useHiddenMode();
+  const [period, setPeriod] = useState<Period>('week');
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<DailyLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
-  const [activeTab, setActiveTab] = useState<'summary' | 'detailed'>(advancedMode ? 'detailed' : 'summary');
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState<'overview' | 'details'>('overview');
 
-  const { isHiddenMode } = useHiddenMode();
+  const today = useMemo(() => new Date(), []);
+  const endDate = dateKey(today);
+  const startDate = dateKey(period === 'week' ? subDays(today, 6) : startOfMonth(today));
+  const dateRange = useMemo(() => {
+    const days: string[] = [];
+    for (let cursor = new Date(`${startDate}T12:00:00`); dateKey(cursor) <= endDate; cursor = addDays(cursor, 1)) days.push(dateKey(cursor));
+    return days;
+  }, [startDate, endDate]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const [habitsRes, logsRes] = await Promise.all([
-          fetch('/api/habits'),
-          fetch('/api/logs?limit=100') // Fetch more logs for analytics
-        ]);
-        
-        const habitsData = await habitsRes.json();
-        const logsData = await logsRes.json();
-        
-        const allHabits = habitsData.habits || [];
-        const filtered = allHabits.filter((h: Habit) => !h.hidden || isHiddenMode);
-        
-        setHabits(filtered);
-        setLogs(logsData.logs || []);
-      } catch (error) {
-        console.error('Failed to load analytics data:', error);
-        toast.error('Failed to load analytics');
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [isHiddenMode]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const query = new URLSearchParams({ startDate, endDate });
+      const [habitsResponse, logsResponse] = await Promise.all([fetch('/api/habits'), fetch(`/api/logs?${query}`)]);
+      if (!habitsResponse.ok || !logsResponse.ok) throw new Error('Your analytics could not be loaded. Please try again.');
+      const [habitsData, logsData] = await Promise.all([habitsResponse.json(), logsResponse.json()]);
+      setHabits((habitsData.habits || []).filter((habit: Habit) => !habit.hidden || isHiddenMode));
+      setLogs(logsData.logs || []);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Your analytics could not be loaded.');
+      toast.error('Unable to load analytics');
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate, isHiddenMode]);
 
+  useEffect(() => { void load(); }, [load]);
+
+  const report = useMemo(() => {
+    const activeHabits = habits.filter(habit => habit.active !== false);
+    const completedByDate = getCompletedHabitIdsByDate(activeHabits, logs);
+    const rows = activeHabits.map(habit => {
+      let scheduled = 0;
+      let done = 0;
+      dateRange.forEach(day => {
+        const weekday = new Date(`${day}T12:00:00`).getDay();
+        const schedule = habit.schedule || {};
+        const shouldDo = schedule.custom?.length
+          ? schedule.custom.includes(weekday)
+          : weekday === 0 || weekday === 6 ? schedule.weekends !== false : schedule.weekdays !== false;
+        if (!shouldDo) return;
+        scheduled += 1;
+        if (completedByDate.get(day)?.has(habit.id)) done += 1;
+      });
+      return { habit, scheduled, done, rate: scheduled ? Math.round(done / scheduled * 100) : 0 };
+    }).filter(row => row.scheduled > 0);
+    const scheduledTotal = rows.reduce((sum, row) => sum + row.scheduled, 0);
+    const completedTotal = rows.reduce((sum, row) => sum + row.done, 0);
+    const activeDays = dateRange.filter(day => (completedByDate.get(day)?.size || 0) > 0).length;
+    const sorted = [...rows].sort((a, b) => b.rate - a.rate || b.done - a.done);
+    const strongest = sorted[0];
+    const opportunity = sorted.length > 1 ? sorted[sorted.length - 1] : undefined;
+    const trend = dateRange.map(day => {
+      const due = rows.reduce((sum, row) => {
+        const weekday = new Date(`${day}T12:00:00`).getDay();
+        const schedule = row.habit.schedule || {};
+        const active = schedule.custom?.length ? schedule.custom.includes(weekday) : weekday === 0 || weekday === 6 ? schedule.weekends !== false : schedule.weekdays !== false;
+        return sum + Number(active);
+      }, 0);
+      const done = rows.reduce((sum, row) => sum + Number(Boolean(completedByDate.get(day)?.has(row.habit.id))), 0);
+      return { date: day, label: format(new Date(`${day}T12:00:00`), period === 'week' ? 'EEE' : 'd'), rate: due ? Math.round(done / due * 100) : 0, completed: done, scheduled: due };
+    });
+    return { rows, scheduledTotal, completedTotal, rate: scheduledTotal ? Math.round(completedTotal / scheduledTotal * 100) : 0, activeDays, strongest, opportunity, trend };
+  }, [habits, logs, dateRange, period]);
+
+  const printReport = () => {
+    if (!report.rows.length) { toast('Add a habit to create a report.'); return; }
+    window.print();
+  };
+
+  const label = period === 'week' ? 'Weekly' : 'Monthly';
   return (
-    <div className="pb-32">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+    <main className="analytics-page mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6 lg:px-8">
+      <style>{`@media print { @page { size: A4; margin: 16mm; } body { background: white !important; } body * { visibility: hidden !important; } .analytics-report, .analytics-report * { visibility: visible !important; color: #172033 !important; } .analytics-report { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; padding: 0 !important; background: white !important; box-shadow: none !important; border: 0 !important; } .analytics-report section, .analytics-report aside, .analytics-report .bg-slate-50, .analytics-report .bg-indigo-50\\/70, .analytics-report .bg-emerald-50\\/70, .analytics-report .bg-amber-50\\/70 { background: white !important; border-color: #dbe3ec !important; box-shadow: none !important; } .analytics-report svg { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .no-print { display: none !important; } .report-chart { break-inside: avoid; } }`}</style>
+      <header className="no-print mb-8 flex flex-col gap-6 border-b border-slate-200 pb-6 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <button 
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 mb-4 transition-colors font-bold uppercase tracking-widest text-[10px]"
-          >
-            <ArrowLeft size={14} /> Back to Dashboard
-          </button>
-          <h1 className="responsive-text-xl font-black text-slate-900 dark:text-white tracking-tightest flex items-center gap-2 sm:gap-3 leading-none">
-            Habit Intelligence
-            <SparkleIcon className="text-indigo-500 animate-pulse w-5 h-5 sm:w-8 sm:h-8" />
-          </h1>
-          <p className="responsive-text-xs sm:responsive-text-base text-slate-500 font-medium mt-1 sm:mt-2 max-w-lg tracking-tight">
-            Deep insights into your performance and consistency.
-          </p>
+          <button onClick={() => router.back()} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"><ChevronLeft size={17} /> Dashboard</button>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-indigo-600"><Sparkles size={15} /> Your rhythm, in focus</div>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-4xl">Habit report</h1>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">A clear look at what’s working and where a small adjustment can help.</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
-            {(['7d', '30d', '90d'] as const).map((range) => (
-              <button
-                key={range}
-                onClick={() => setTimeRange(range)}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                  timeRange === range 
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                {range}
-              </button>
-            ))}
+        <div className="flex flex-col gap-3 sm:items-end">
+          <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900" aria-label="Report period">
+            {(['week', 'month'] as const).map(value => <button key={value} onClick={() => setPeriod(value)} aria-pressed={period === value} className={`min-h-10 rounded-lg px-4 text-sm font-bold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${period === value ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>{value}</button>)}
           </div>
-          <button className="p-3 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm">
-            <Filter size={18} />
-          </button>
+          <button onClick={printReport} disabled={loading || !report.rows.length} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-slate-950"><Download size={16} /> Save {label} PDF</button>
         </div>
-      </div>
+      </header>
 
-      {/* Mode Switcher Tabs */}
-      <div className="flex border-b border-slate-100 dark:border-slate-800 mb-10 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('summary')}
-          className={`px-8 py-4 text-sm font-black uppercase tracking-widest transition-all relative shrink-0 ${
-            activeTab === 'summary' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          Summary
-          {activeTab === 'summary' && (
-            <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('detailed')}
-          className={`px-8 py-4 text-sm font-black uppercase tracking-widest transition-all relative shrink-0 flex items-center gap-2 ${
-            activeTab === 'detailed' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          Detailed Breakdown
-          <Sparkles size={14} />
-          {activeTab === 'detailed' && (
-            <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full" />
-          )}
-        </button>
-      </div>
+      {loading ? <div className="space-y-5" aria-label="Loading report"><div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"/><div className="h-72 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800"/></div> : error ? <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"><h2 className="font-bold">We couldn’t load your report</h2><p className="mt-1 text-sm">{error}</p><button onClick={() => void load()} className="mt-4 rounded-lg bg-white px-4 py-2 text-sm font-bold shadow-sm dark:bg-slate-900">Try again</button></section> : !report.rows.length ? <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900"><CalendarDays className="mx-auto text-indigo-500" size={30}/><h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">Your first report starts with a habit</h2><p className="mx-auto mt-2 max-w-md text-sm text-slate-500">Once you add a habit and log a few days, this space will show your real progress.</p></section> : (
+        <div className="analytics-report space-y-7">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+              <div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-indigo-600"><FileText size={15}/>{label} consistency snapshot</div><h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">{format(new Date(`${startDate}T12:00:00`), 'MMM d')} – {format(new Date(`${endDate}T12:00:00`), 'MMM d, yyyy')}</h2><p className="mt-1 text-sm text-slate-500">Based on {report.scheduledTotal} scheduled habit-days across {report.rows.length} {report.rows.length === 1 ? 'habit' : 'habits'}.</p></div>
+              <div className="flex items-end gap-3"><span className="text-5xl font-black tracking-tight text-indigo-600">{report.rate}%</span><span className="pb-1 text-sm font-semibold text-slate-500">completed</span></div>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:grid-cols-3">
+              <Metric label="Completed" value={`${report.completedTotal} / ${report.scheduledTotal}`} detail="scheduled check-ins" />
+              <Metric label="Days in rhythm" value={`${report.activeDays} / ${dateRange.length}`} detail="days with progress" />
+              <Metric label="Habits in view" value={`${report.rows.length}`} detail="scheduled this period" />
+            </div>
+          </section>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-40 bg-slate-50 dark:bg-slate-800/50 animate-pulse rounded-3xl" />
-          ))}
-          <div className="md:col-span-2 lg:col-span-3 h-[400px] bg-slate-50 dark:bg-slate-800/50 animate-pulse rounded-3xl" />
+          <AnalyticsSummary habits={habits} logs={logs} startDate={startDate} endDate={endDate} period={period} />
+          <div className="no-print">
+            <div className="mb-4 flex items-center justify-between"><div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">More detail</h2><p className="text-sm text-slate-500">Explore measurable habits and activity data.</p></div><button onClick={() => setTab(tab === 'details' ? 'overview' : 'details')} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700 hover:border-indigo-300 dark:border-slate-700 dark:text-slate-200">{tab === 'details' ? 'Hide details' : 'Show details'}</button></div>
+            {tab === 'details' && <AdvancedAnalytics habits={habits} logs={logs} startDate={startDate} endDate={endDate} />}
+          </div>
+          <footer className="border-t border-slate-200 pt-4 text-xs leading-5 text-slate-500 dark:border-slate-800">This report summarizes habit check-ins recorded in the selected period. It describes logged behavior and does not infer health outcomes.</footer>
         </div>
-      ) : (
-        <AnimatePresence mode="wait">
-          {activeTab === 'summary' ? (
-            <motion.div
-              key="summary"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <AnalyticsSummary habits={habits} logs={logs} />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="detailed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              <AdvancedAnalytics habits={habits} logs={logs} />
-            </motion.div>
-          )}
-        </AnimatePresence>
       )}
-
-      {/* Quick Actions Float */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50">
-        <button className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-xs font-black text-slate-500 uppercase tracking-widest">
-          <Download size={14} /> Export Report
-        </button>
-        <div className="w-px h-4 bg-slate-200 dark:bg-slate-800" />
-        <button className="flex items-center gap-2 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-all text-xs font-black text-slate-500 uppercase tracking-widest">
-          <Share2 size={14} /> Share
-        </button>
-      </div>
-    </div>
+    </main>
   );
 }
 
-const SparkleIcon = ({ className }: { className?: string }) => (
-  <svg 
-    width="24" 
-    height="24" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" />
-  </svg>
-);
-
-const Sparkles = ({ size }: { size: number }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M12 3L14.5 9L21 11.5L14.5 14L12 21L9.5 14L3 11.5L9.5 9L12 3Z" fill="currentColor" />
-    <path d="M5 2L6 4L8 5L6 6L5 8L4 6L2 5L4 4L5 2Z" fill="currentColor" />
-  </svg>
-);
+function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/60 sm:bg-transparent sm:p-0 sm:dark:bg-transparent"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 text-xl font-extrabold text-slate-900 dark:text-white">{value}</p><p className="text-xs text-slate-500">{detail}</p></div>;
+}

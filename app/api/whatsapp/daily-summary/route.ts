@@ -6,13 +6,14 @@ import DailyLog from '@/lib/models/DailyLog';
 import MessageLog from '@/lib/models/MessageLog';
 import { sendWhatsAppMessage, formatDashboardSummary, DashboardSummaryData } from '@/lib/whatsapp';
 import { getToday, getDaysAgo } from '@/lib/utils';
+import { resolveUserPhone } from '@/lib/pii';
 
-// Secured by API secret — called by external cron service
+// Manual API operation. Nothing invokes this route automatically.
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
 export async function POST(request: NextRequest) {
     try {
-        // Verify cron secret
+        // Verify the shared API secret.
         const authHeader = request.headers.get('authorization');
         const body = await request.json().catch(() => ({}));
         const secret = authHeader?.replace('Bearer ', '') || body.secret;
@@ -36,6 +37,11 @@ export async function POST(request: NextRequest) {
 
         for (const user of users as any[]) {
             try {
+                const phoneNumber = resolveUserPhone(user);
+                if (!phoneNumber) {
+                    results.push({ userId: user._id.toString(), status: 'skipped_no_phone' });
+                    continue;
+                }
                 // Check if already sent today
                 const existingLog = await MessageLog.findOne({
                     userId: user._id,
@@ -144,7 +150,7 @@ export async function POST(request: NextRequest) {
                 // Format and send
                 const message = formatDashboardSummary(summaryData);
                 const contactName = user.whatsappContactName || user.username;
-                const result = await sendWhatsAppMessage(user.whatsappNumber, message, contactName);
+                const result = await sendWhatsAppMessage(phoneNumber, message, contactName);
 
                 // Log the message
                 await MessageLog.create({
@@ -183,7 +189,7 @@ export async function POST(request: NextRequest) {
             details: results,
         });
     } catch (error: any) {
-        console.error('Daily summary cron error:', error);
+        console.error('WhatsApp daily summary API error:', error);
         return NextResponse.json(
             { error: error.message || 'Daily summary failed' },
             { status: 500 }

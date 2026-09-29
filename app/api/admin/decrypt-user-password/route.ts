@@ -4,11 +4,12 @@ import Admin from '@/lib/models/Admin';
 import User from '@/lib/models/User';
 import { verifyAdminPassword } from '@/lib/admin-auth';
 import { requireAdmin } from '@/lib/admin-middleware';
+import { maskEmail, maskUsername } from '@/lib/pii';
 
 export async function POST(request: NextRequest) {
   try {
     // Verify admin is logged in
-    const adminId = requireAdmin(request);
+    const admin = requireAdmin(request);
     await connectDB();
 
     const { adminPassword, userId } = await request.json();
@@ -21,8 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get admin from database
-    const admin = await Admin.findById(adminId);
-    if (!admin) {
+    const adminDoc = await Admin.findById(admin.adminId);
+    if (!adminDoc) {
       return NextResponse.json(
         { error: 'Admin not found' },
         { status: 401 }
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify admin password
-    const isValidPassword = await verifyAdminPassword(adminPassword, admin.passwordHash);
+    const isValidPassword = await verifyAdminPassword(adminPassword, adminDoc.passwordHash);
     if (!isValidPassword) {
       return NextResponse.json(
         { error: 'Invalid admin password' },
@@ -53,13 +54,16 @@ export async function POST(request: NextRequest) {
       message: 'Passwords are securely hashed and cannot be decrypted. This is for security purposes.',
       user: {
         _id: user._id,
-        email: user.email,
-        username: user.username,
+        email: maskEmail(user.email),
+        username: maskUsername(user.username),
         createdAt: user.createdAt,
         note: 'Password hashes cannot be decrypted. If user forgot password, use reset functionality instead.'
       }
     });
   } catch (error: any) {
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     console.error('Decrypt password error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to process request' },

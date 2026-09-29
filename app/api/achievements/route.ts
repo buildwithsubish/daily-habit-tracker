@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { requireAuth } from '@/lib/middleware';
+import { getUserIdFromRequest } from '@/lib/middleware';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
 import { calculateAchievements } from '@/lib/achievementService';
@@ -8,9 +8,13 @@ import mongoose from 'mongoose';
 import User from '@/lib/models/User';
 
 export async function GET(request: NextRequest) {
+  const userId = getUserIdFromRequest(request);
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await connectDB();
-    const userId = requireAuth(request);
     
     // Fetch user for celebrated achievements
     const user: any = await User.findById(userId).lean();
@@ -59,7 +63,7 @@ export async function GET(request: NextRequest) {
     console.error('Achievements API Error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch achievements' },
-      { status: error.message === 'Unauthorized' ? 401 : 500 }
+      { status: 500 }
     );
   }
 }

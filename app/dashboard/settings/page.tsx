@@ -1,423 +1,93 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Settings, Clock, MessageSquare, BarChart3, Bell, Loader2, Check, AlertTriangle, BellRing } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bell, BellOff, Check, Clock3, Smartphone } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-interface PollSchedule {
-  enabled: boolean;
-  time: string;
-  frequency: string;
-  customDays: number[];
-  reminderEnabled: boolean;
-  reminderIntervals: number[];
-}
-
-interface WeeklyReportSchedule {
-  enabled: boolean;
-  day: number;
-  time: string;
-}
+const STORAGE_KEY = 'habit-reminder';
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [time, setTime] = useState('09:00');
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [timeZone, setTimeZone] = useState('your device’s local time');
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  // Initialize with default values - these will be overwritten by fetchSettings
-  const [pollSchedule, setPollSchedule] = useState<PollSchedule | null>(null);
-  const [weeklyReportSchedule, setWeeklyReportSchedule] = useState<WeeklyReportSchedule | null>(null);
-  const [whatsappAutomation, setWhatsappAutomation] = useState(false);
-  const [whatsappVerified, setWhatsappVerified] = useState(false);
-  const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    fetchSettings();
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const value = JSON.parse(stored);
+        setEnabled(Boolean(value.enabled));
+        if (typeof value.time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value.time)) setTime(value.time);
+      }
+      setPermission('Notification' in window ? Notification.permission : 'unsupported');
+      setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'your device’s local time');
+    } catch { /* retain defaults */ }
+    fetch('/api/user/profile', { cache: 'no-store' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Could not load your preferences');
+        return response.json();
+      })
+      .then(data => {
+        if (data && typeof data.reminderEnabled === 'boolean') setEnabled(data.reminderEnabled);
+        if (data && typeof data.reminderTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(data.reminderTime)) setTime(data.reminderTime);
+        setSaved(true);
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setReady(true));
   }, []);
 
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch('/api/whatsapp/settings?userId=me', {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      
-      // Set all values from the API response, or use defaults if not set
-      setPollSchedule(data.pollSchedule || {
-        enabled: true,
-        time: '20:00',
-        frequency: 'daily',
-        customDays: [],
-        reminderEnabled: true,
-        reminderIntervals: [5, 10, 20, 30],
-      });
-      
-      setWeeklyReportSchedule(data.weeklyReportSchedule || {
-        enabled: true,
-        day: 0,
-        time: '09:00',
-      });
-      
-      if (data.whatsappAutomation !== undefined) {
-        setWhatsappAutomation(data.whatsappAutomation);
-      } else {
-        setWhatsappAutomation(true);
-      }
-      
-      if (data.whatsappVerified !== undefined) {
-        setWhatsappVerified(data.whatsappVerified);
-      }
-      
-      setHasLoadedSettings(true);
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-      // Set default values on error
-      setPollSchedule({
-        enabled: true,
-        time: '20:00',
-        frequency: 'daily',
-        customDays: [],
-        reminderEnabled: true,
-        reminderIntervals: [5, 10, 20, 30],
-      });
-      setWeeklyReportSchedule({
-        enabled: true,
-        day: 0,
-        time: '09:00',
-      });
-      setWhatsappAutomation(true);
-      setHasLoadedSettings(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveSettings = async () => {
+  const save = async () => {
+    if (saving) return;
     setSaving(true);
-    setMessage(null);
-
+    setSaved(false);
     try {
-      const res = await fetch('/api/whatsapp/settings', {
+      if (enabled && 'Notification' in window && permission === 'default') {
+        try {
+          const nextPermission = await Notification.requestPermission();
+          setPermission(nextPermission);
+        } catch {
+          setPermission('denied');
+        }
+      }
+      const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          userId: 'me',
-          settings: {
-            pollSchedule,
-            weeklyReportSchedule,
-            whatsappAutomation,
-          },
-        }),
+        body: JSON.stringify({ reminderEnabled: enabled, reminderTime: time }),
       });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setMessage({ type: 'success', text: 'Settings saved successfully!' });
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Failed to save settings' });
-      }
+      if (!response.ok) throw new Error('Could not save reminder preferences');
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ enabled, time })); } catch { /* account preferences are already saved */ }
+      setSaved(true);
     } catch (error) {
-      setMessage({ type: 'error', text: 'An error occurred while saving' });
+      toast.error(error instanceof Error ? error.message : 'Could not save reminder preferences');
     } finally {
       setSaving(false);
     }
   };
 
-  const daysOfWeek = [
-    { value: 0, label: 'Sun' },
-    { value: 1, label: 'Mon' },
-    { value: 2, label: 'Tue' },
-    { value: 3, label: 'Wed' },
-    { value: 4, label: 'Thu' },
-    { value: 5, label: 'Fri' },
-    { value: 6, label: 'Sat' },
-  ];
+  if (!ready) return <div className="mx-auto max-w-2xl px-4 py-12 text-sm text-slate-500">Loading preferences…</div>;
 
-  if (loading || !hasLoadedSettings || !pollSchedule || !weeklyReportSchedule) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
+  return <main className="mx-auto max-w-3xl px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-10">
+    <header className="mb-6 sm:mb-8"><p className="text-xs font-semibold uppercase tracking-[.16em] text-indigo-700 dark:text-indigo-300">Preferences</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">A reminder that fits your day</h1><p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">Choose one calm check-in time. Your schedule and local time zone stay in your control.</p></header>
+    {loadError && <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-100" role="alert">Your saved settings could not be loaded. You can still update them below.</div>}
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="p-4 sm:p-6">
+      <div className="flex items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-200"><Bell size={20}/></div><div className="min-w-0 flex-1"><h2 className="text-base font-semibold text-slate-950 dark:text-slate-100">Daily habit check-in</h2><p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-400">One reminder to help you record your progress, without repeated alerts.</p></div></div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Reminder time <span className="font-normal text-slate-500">({timeZone})</span><input aria-label="Reminder time" type="time" value={time} onChange={event => { setTime(event.target.value); setSaved(false); }} className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-indigo-900"/></label>
+        <button type="button" onClick={() => { setEnabled(!enabled); setSaved(false); }} aria-pressed={enabled} className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:w-auto ${enabled ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800' : 'bg-indigo-700 text-white hover:bg-indigo-800'}`}>{enabled ? <><BellOff size={16}/>Turn off</> : <><Bell size={16}/>Enable reminder</>}</button>
       </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8 w-full">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-          <Settings className="text-blue-600" size={28} />
-          Settings
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
-          Customize your habit tracking and notification preferences
-        </p>
+      <div className="mt-5 flex items-start gap-3 rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/70"><Clock3 size={17} className="mt-0.5 shrink-0 text-slate-500"/><p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">The reminder checks at this local time while the app is open. If your browser allows notifications and permission is granted, it can show a system alert; otherwise it uses an in-app message. Background alerts while the app is closed are not configured.</p></div>
+      <div className="mt-4 flex items-start gap-3 rounded-xl border border-slate-200 px-3.5 py-3 dark:border-slate-700"><Smartphone size={17} className="mt-0.5 shrink-0 text-slate-500"/><div className="min-w-0"><p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Notification permission</p><p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-400">{permission === 'unsupported' ? 'This browser does not support system notifications.' : permission === 'granted' ? 'Allowed by your browser.' : permission === 'denied' ? 'Blocked by your browser. Change this in browser or device settings to receive system alerts.' : 'Not requested. You can allow notifications when saving an enabled reminder.'}</p></div></div>
       </div>
-
-      {message && (
-        <div className={`p-4 rounded-xl flex items-center gap-2 ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-700 border border-green-200' 
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {message.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
-          {message.text}
-        </div>
-      )}
-
-      <div className="space-y-6">
-        {/* WhatsApp Automation */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="text-green-600" size={20} />
-                <CardTitle className="text-lg font-bold">WhatsApp Automation</CardTitle>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={whatsappAutomation}
-                  onChange={(e) => setWhatsappAutomation(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-green-500"></div>
-                <span className="ms-3 text-sm font-medium text-slate-900 dark:text-slate-300">
-                  {whatsappAutomation ? 'Enabled' : 'Disabled'}
-                </span>
-              </label>
-            </div>
-          </CardHeader>
-          {!whatsappVerified && whatsappAutomation && (
-            <CardContent>
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                Please verify your WhatsApp number to enable automation.
-              </div>
-            </CardContent>
-          )}
-        </Card>
-
-        {/* Poll Schedule */}
-        <Card className={!whatsappAutomation ? 'opacity-50' : ''}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="text-purple-600" size={20} />
-                <CardTitle className="text-lg font-bold">Daily Poll</CardTitle>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={pollSchedule.enabled}
-                  onChange={(e) => setPollSchedule({ ...pollSchedule, enabled: e.target.checked })}
-                  disabled={!whatsappAutomation}
-                  className="sr-only peer"
-                />
-                <div className={`w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 ${!whatsappAutomation ? 'cursor-not-allowed' : ''}`}></div>
-              </label>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Receive a daily poll to track your habit completion
-            </p>
-            
-            {pollSchedule.enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Frequency</label>
-                  <select
-                    value={pollSchedule.frequency}
-                    onChange={(e) => setPollSchedule({ ...pollSchedule, frequency: e.target.value })}
-                    disabled={!whatsappAutomation}
-                    className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800"
-                  >
-                    <option value="daily">Daily</option>
-                    <option value="weekdays">Weekdays</option>
-                    <option value="weekends">Weekends</option>
-                    <option value="custom">Custom Days</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                    <Clock size={12} /> Poll Time
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="time"
-                      value={pollSchedule.time}
-                      onChange={(e) => setPollSchedule({ ...pollSchedule, time: e.target.value })}
-                      disabled={!whatsappAutomation}
-                      className="w-full pl-10"
-                    />
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    You'll receive your daily poll at this time
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {pollSchedule.frequency === 'custom' && pollSchedule.enabled && (
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Select Days</label>
-                <div className="flex gap-2 flex-wrap">
-                  {daysOfWeek.map((day) => (
-                    <button
-                      key={day.value}
-                      onClick={() => {
-                        const newDays = pollSchedule.customDays.includes(day.value)
-                          ? pollSchedule.customDays.filter(d => d !== day.value)
-                          : [...pollSchedule.customDays, day.value];
-                        setPollSchedule({ ...pollSchedule, customDays: newDays });
-                      }}
-                      disabled={!whatsappAutomation}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        pollSchedule.customDays.includes(day.value)
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                      }`}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Poll Reminder Settings */}
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <BellRing className="text-orange-500" size={18} />
-                  <span className="text-sm font-bold text-slate-900 dark:text-white">Poll Reminders</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pollSchedule.reminderEnabled}
-                    onChange={(e) => setPollSchedule({ ...pollSchedule, reminderEnabled: e.target.checked })}
-                    disabled={!whatsappAutomation || !pollSchedule.enabled}
-                    className="sr-only peer"
-                  />
-                  <div className={`w-9 h-5 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500 ${!whatsappAutomation || !pollSchedule.enabled ? 'cursor-not-allowed' : ''}`}></div>
-                </label>
-              </div>
-              
-              {pollSchedule.reminderEnabled && pollSchedule.enabled && (
-                <div className="ml-6 space-y-3">
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    If you don't vote on the poll, we'll send friendly reminders at:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {[5, 10, 15, 20, 30, 60].map((mins) => (
-                      <button
-                        key={mins}
-                        onClick={() => {
-                          const current = pollSchedule.reminderIntervals;
-                          const newIntervals = current.includes(mins)
-                            ? current.filter(i => i !== mins)
-                            : [...current, mins].sort((a, b) => a - b);
-                          setPollSchedule({ ...pollSchedule, reminderIntervals: newIntervals });
-                        }}
-                        disabled={!whatsappAutomation}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          pollSchedule.reminderIntervals.includes(mins)
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                        }`}
-                      >
-                        {mins} min{mins > 1 ? 's' : ''}
-                      </button>
-                    ))}
-                  </div>
-                  {pollSchedule.reminderIntervals.length === 0 && (
-                    <p className="text-xs text-red-500">Select at least one reminder interval</p>
-                  )}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Weekly Report */}
-        <Card className={!whatsappAutomation ? 'opacity-50' : ''}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="text-indigo-600" size={20} />
-                <CardTitle className="text-lg font-bold">Weekly Report</CardTitle>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={weeklyReportSchedule.enabled}
-                  onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, enabled: e.target.checked })}
-                  disabled={!whatsappAutomation}
-                  className="sr-only peer"
-                />
-                <div className={`w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 ${!whatsappAutomation ? 'cursor-not-allowed' : ''}`}></div>
-              </label>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Receive a weekly summary of your habit progress
-            </p>
-            
-            {weeklyReportSchedule.enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Day</label>
-                  <select
-                    value={weeklyReportSchedule.day}
-                    onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, day: parseInt(e.target.value) })}
-                    disabled={!whatsappAutomation}
-                    className="w-full px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800"
-                  >
-                    {daysOfWeek.map((day) => (
-                      <option key={day.value} value={day.value}>{day.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                    <Clock size={12} /> Time
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="time"
-                      value={weeklyReportSchedule.time}
-                      onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, time: e.target.value })}
-                      disabled={!whatsappAutomation}
-                      className="w-full pl-10"
-                    />
-                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Button
-          onClick={saveSettings}
-          disabled={saving || !whatsappAutomation}
-          className="w-full sm:w-auto font-bold"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="animate-spin mr-2" size={16} />
-              Saving...
-            </>
-          ) : (
-            'Save Settings'
-          )}
-        </Button>
-      </div>
-    </div>
-  );
+      <footer className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/40 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="min-h-5 text-sm text-slate-600 dark:text-slate-400" aria-live="polite">{saved ? 'Your preferences are saved.' : 'Unsaved changes.'}</p>
+        <button type="button" onClick={save} disabled={saving} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 sm:w-auto">{saving ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"/>Saving…</> : <><Check size={16}/>{saved ? 'Saved' : 'Save preferences'}</>}</button>
+      </footer>
+    </section>
+  </main>;
 }

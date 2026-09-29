@@ -1,238 +1,60 @@
-"use client";
+'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, LineChart, Line,
-  AreaChart, Area, Cell, PieChart, Pie
-} from 'recharts';
-import { 
-  TrendingUp, Users, CheckCircle, Clock, 
-  Filter, Calendar, Download, Share2
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { cn } from '@/lib/utils';
+import { Activity, CheckCircle2, RefreshCw, Users } from 'lucide-react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 
-// Mock data for cohort analysis
-const cohortData = [
-  { month: 'Oct 2025', size: 1200, d0: 100, d1: 45, d7: 32, d30: 24 },
-  { month: 'Nov 2025', size: 1500, d0: 100, d1: 48, d7: 35, d30: 28 },
-  { month: 'Dec 2025', size: 1800, d0: 100, d1: 52, d7: 38, d30: 31 },
-  { month: 'Jan 2026', size: 2100, d0: 100, d1: 55, d7: 42, d30: null },
-];
-
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
+interface AdminAnalytics {
+  totalUsers: number;
+  activeUsers: number;
+  recentUsers: number;
+  totalLogs: number;
+  completedLogs: number;
+  completionRate: number;
+  dailyActivity: Array<{ date: string; total: number; completed: number }>;
+  habitsByCategory: Array<{ category: string; count: number }>;
+}
 
 export default function AdminAnalyticsPage() {
-  const { data: stats } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<AdminAnalytics>({
     queryKey: ['admin-stats'],
     queryFn: async () => {
-      const res = await fetch('/api/admin/stats');
-      return res.json();
-    }
+      const response = await fetch('/api/admin/stats', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load admin analytics');
+      return response.json();
+    },
   });
 
-  const getHeatmapColor = (value: number | null) => {
-    if (value === null) return 'bg-slate-50 text-slate-300';
-    if (value === 100) return 'bg-indigo-600 text-white';
-    if (value > 50) return 'bg-indigo-500 text-white';
-    if (value > 40) return 'bg-indigo-400 text-white';
-    if (value > 30) return 'bg-indigo-300 text-indigo-900';
-    if (value > 20) return 'bg-indigo-200 text-indigo-900';
-    return 'bg-indigo-100 text-indigo-800';
-  };
+  if (isLoading) return <main className="space-y-5" aria-label="Loading admin analytics"><div className="h-20 animate-pulse rounded-2xl bg-slate-200"/><div className="grid gap-4 sm:grid-cols-3">{[1, 2, 3].map(item => <div key={item} className="h-28 animate-pulse rounded-2xl bg-slate-200"/>)}</div><div className="grid gap-4 xl:grid-cols-2"><div className="h-80 animate-pulse rounded-2xl bg-slate-200"/><div className="h-80 animate-pulse rounded-2xl bg-slate-200"/></div></main>;
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Advanced Analytics</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Deep dive into user retention and habit completion funnels</p>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="font-bold border-slate-200">
-             <Filter size={14} className="mr-2" /> Filters
-          </Button>
-          <Button variant="outline" size="sm" className="font-bold border-slate-200">
-             <Calendar size={14} className="mr-2" /> Last 90 Days
-          </Button>
-          <Button size="sm" className="font-bold shadow-lg shadow-indigo-600/20">
-             <Download size={14} className="mr-2" /> Export Report
-          </Button>
-        </div>
-      </div>
+  if (isError || !data) return <main className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-white p-6 sm:p-8" role="alert"><h1 className="text-xl font-semibold text-slate-950">Analytics couldn’t load</h1><p className="mt-2 text-sm leading-relaxed text-slate-600">Check your connection or admin session, then try again.</p><button onClick={() => void refetch()} disabled={isFetching} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-700 px-4 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"><RefreshCw size={16} className={isFetching ? 'animate-spin' : ''}/>{isFetching ? 'Retrying…' : 'Try again'}</button></main>;
 
-      {/* Main Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg font-bold">Daily Active Users (DAU)</CardTitle>
-            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none">+12.5%</Badge>
-          </CardHeader>
-          <CardContent>
-             <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                   <AreaChart data={stats?.dailyActivity}>
-                      <defs>
-                        <linearGradient id="colorDau" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="date" hide />
-                      <YAxis hide />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="total" 
-                        stroke="#6366f1" 
-                        strokeWidth={3}
-                        fill="url(#colorDau)" 
-                      />
-                   </AreaChart>
-                </ResponsiveContainer>
-             </div>
-          </CardContent>
-        </Card>
+  const activity = (data.dailyActivity || []).map(day => ({
+    date: new Date(`${day.date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    completed: day.completed,
+    entries: day.total,
+  }));
+  const categories = data.habitsByCategory || [];
+  const metrics = [
+    { label: 'Enabled accounts', value: data.activeUsers, icon: Users, description: `of ${data.totalUsers.toLocaleString()} total accounts`, tone: 'indigo' },
+    { label: 'New accounts', value: data.recentUsers, icon: Activity, description: 'Created in the last 7 days', tone: 'teal' },
+    { label: 'Completion rate', value: `${Math.round(data.completionRate)}%`, icon: CheckCircle2, description: `${data.completedLogs.toLocaleString()} of ${data.totalLogs.toLocaleString()} records completed`, tone: 'amber' },
+  ] as const;
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-bold">Completion Rate by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                   <BarChart data={stats?.habitsByCategory}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="category" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <YAxis hide />
-                      <Tooltip 
-                        cursor={{fill: '#f8fafc'}}
-                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                         {stats?.habitsByCategory.map((entry: any, index: number) => (
-                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                         ))}
-                      </Bar>
-                   </BarChart>
-                </ResponsiveContainer>
-             </div>
-          </CardContent>
-        </Card>
-      </div>
+  return <main className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-indigo-700">Administration</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Platform analytics</h1><p className="mt-2 text-sm text-slate-600">Historical account and habit activity from saved records.</p></div><button onClick={() => void refetch()} disabled={isFetching} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-800 disabled:opacity-60 sm:w-auto"><RefreshCw size={16} className={isFetching ? 'animate-spin' : ''}/>{isFetching ? 'Updating…' : 'Refresh data'}</button></header>
 
-      {/* Cohort Analysis Table */}
-      <Card>
-        <CardHeader>
-           <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-bold">Retention Cohorts</CardTitle>
-                <p className="text-xs text-slate-500 mt-1">Percentage of users who returned after their first day</p>
-              </div>
-              <Badge variant="outline" className="font-bold">Monthly Basis</Badge>
-           </div>
-        </CardHeader>
-        <CardContent>
-           <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                 <thead>
-                    <tr>
-                       <th className="p-3 text-left bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">Cohort</th>
-                       <th className="p-3 text-left bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">New Users</th>
-                       <th className="p-3 text-center bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">Day 0</th>
-                       <th className="p-3 text-center bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">Day 1</th>
-                       <th className="p-3 text-center bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">Day 7</th>
-                       <th className="p-3 text-center bg-slate-50 border border-slate-100 font-bold text-slate-500 uppercase text-[10px]">Day 30</th>
-                    </tr>
-                 </thead>
-                 <tbody>
-                    {cohortData.map((row, i) => (
-                       <tr key={i}>
-                          <td className="p-3 border border-slate-100 font-bold text-slate-900">{row.month}</td>
-                          <td className="p-3 border border-slate-100 font-medium text-slate-600">{row.size.toLocaleString()}</td>
-                          <td className={cn("p-3 border border-white text-center font-bold text-xs transition-colors", getHeatmapColor(row.d0))}>
-                             {row.d0}%
-                          </td>
-                          <td className={cn("p-3 border border-white text-center font-bold text-xs transition-colors", getHeatmapColor(row.d1))}>
-                             {row.d1}%
-                          </td>
-                          <td className={cn("p-3 border border-white text-center font-bold text-xs transition-colors", getHeatmapColor(row.d7))}>
-                             {row.d7}%
-                          </td>
-                          <td className={cn("p-3 border border-white text-center font-bold text-xs transition-colors", getHeatmapColor(row.d30))}>
-                             {row.d30 ? `${row.d30}%` : '-'}
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
-           </div>
-        </CardContent>
-      </Card>
+    <section aria-label="Platform metrics" className="grid gap-3 sm:grid-cols-3">{metrics.map(({ label, value, icon: Icon, description, tone }) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium text-slate-600">{label}</p><p className="mt-2 text-3xl font-semibold tabular-nums text-slate-950">{typeof value === 'number' ? value.toLocaleString() : value}</p></div><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone === 'indigo' ? 'bg-indigo-50 text-indigo-700' : tone === 'teal' ? 'bg-teal-50 text-teal-800' : 'bg-amber-50 text-amber-800'}`}><Icon size={19}/></span></div><p className="mt-3 text-xs text-slate-500">{description}</p></article>)}</section>
 
-      {/* Habits Funnel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-         <Card className="lg:col-span-1">
-            <CardHeader>
-               <CardTitle className="text-lg font-bold">Onboarding Funnel</CardTitle>
-            </CardHeader>
-            <CardContent>
-               <div className="space-y-6">
-                  {[
-                    { label: 'Registered', count: '100%', color: 'bg-indigo-600' },
-                    { label: 'Created Habit', count: '82%', color: 'bg-indigo-500' },
-                    { label: 'First Log', count: '64%', color: 'bg-indigo-400' },
-                    { label: '7-Day Streak', count: '28%', color: 'bg-indigo-300' },
-                  ].map((step, i) => (
-                    <div key={i} className="relative">
-                       <div className="flex justify-between items-center mb-1.5">
-                          <span className="text-xs font-bold text-slate-700">{step.label}</span>
-                          <span className="text-xs font-black text-slate-900">{step.count}</span>
-                       </div>
-                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: step.count }}
-                            transition={{ duration: 1, delay: i * 0.1 }}
-                            className={cn("h-full rounded-full", step.color)}
-                          />
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </CardContent>
-         </Card>
+    <section className="grid min-w-0 gap-4 xl:grid-cols-2">
+      <Card className="min-w-0"><CardHeader><CardTitle className="text-base font-semibold text-slate-950">Daily habit records</CardTitle><p className="mt-1 text-xs text-slate-500">Completed logs and total log entries over the last 30 days</p></CardHeader><CardContent>{activity.length ? <div className="h-64 min-w-0 sm:h-72" role="img" aria-label="Historical daily completed habit logs and total entries"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><AreaChart data={activity} margin={{ top: 8, right: 4, bottom: 0, left: -18 }}><defs><linearGradient id="adminAnalyticsFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4f46e5" stopOpacity={0.2}/><stop offset="100%" stopColor="#4f46e5" stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#e2e8f0" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={22}/><YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} width={36}/><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}/><Area type="monotone" dataKey="entries" name="Log entries" stroke="#94a3b8" strokeWidth={1.5} fill="transparent"/><Area type="monotone" dataKey="completed" name="Completed logs" stroke="#4338ca" strokeWidth={2.5} fill="url(#adminAnalyticsFill)"/></AreaChart></ResponsiveContainer></div> : <EmptyState title="No daily activity yet" detail="Habit records will be charted after users begin logging."/>}</CardContent></Card>
 
-         <Card className="lg:col-span-2">
-            <CardHeader>
-               <CardTitle className="text-lg font-bold">Peak Engagement Times</CardTitle>
-            </CardHeader>
-            <CardContent>
-               <div className="h-[250px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                     <LineChart data={stats?.dailyActivity}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="date" hide />
-                        <YAxis hide />
-                        <Tooltip 
-                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Line type="step" dataKey="completed" stroke="#10b981" strokeWidth={3} dot={false} />
-                     </LineChart>
-                  </ResponsiveContainer>
-               </div>
-            </CardContent>
-         </Card>
-      </div>
-    </div>
-  );
+      <Card className="min-w-0"><CardHeader><CardTitle className="text-base font-semibold text-slate-950">Saved habits by category</CardTitle><p className="mt-1 text-xs text-slate-500">Number of habits in each category</p></CardHeader><CardContent>{categories.length ? <div className="h-64 min-w-0 sm:h-72" role="img" aria-label="Saved habits grouped by category"><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}><BarChart data={categories} margin={{ top: 8, right: 4, bottom: 0, left: -18 }}><CartesianGrid stroke="#e2e8f0" strokeDasharray="3 5" vertical={false}/><XAxis dataKey="category" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} interval={0} angle={-20} textAnchor="end" height={52}/><YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} width={36}/><Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}/><Bar dataKey="count" name="Habits" fill="#4f46e5" radius={[6, 6, 0, 0]} maxBarSize={44}/></BarChart></ResponsiveContainer></div> : <EmptyState title="No habits to group" detail="Category totals will appear when habits are created."/>}</CardContent></Card>
+    </section>
+  </main>;
+}
+
+function EmptyState({ title, detail }: { title: string; detail: string }) {
+  return <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-5 text-center"><p className="text-sm font-semibold text-slate-800">{title}</p><p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">{detail}</p></div>;
 }

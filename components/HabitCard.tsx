@@ -1,11 +1,10 @@
 'use client';
 
 import { Habit } from '@/types';
-import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame, Zap, Sparkles, Star, MessageCircle, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, Heart, Brain, Dumbbell, Utensils, Briefcase, ChevronDown, ChevronUp, Target, Flame, Zap, Sparkles, Star, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import WhatsAppSettingsModal from './WhatsAppSettingsModal';
 import { useHiddenMode } from '@/context/HiddenModeContext';
 
 interface HabitCardProps {
@@ -13,22 +12,15 @@ interface HabitCardProps {
   completed: boolean;
   stepCompleted?: number[];
   onToggle: (habitId: string, stepIndex?: number) => void;
-  userWhatsAppNumber?: string;
-  userWhatsAppAutomation?: boolean;
   onEdit?: (habit: Habit) => void;
   onDelete?: (habitId: string) => void;
   onToggleVisibility?: (habitId: string, hidden: boolean) => void;
 }
 
-export default function HabitCard({ habit, completed, stepCompleted = [], onToggle, onSettingsSave, userWhatsAppNumber, userWhatsAppAutomation, onEdit, onDelete, onToggleVisibility }: HabitCardProps & { onSettingsSave?: (id: string, settings: Partial<Habit>) => void }) {
+export default function HabitCard({ habit, completed, stepCompleted = [], onToggle, onEdit, onDelete, onToggleVisibility }: HabitCardProps) {
   const { isHiddenMode } = useHiddenMode();
   const [expanded, setExpanded] = useState(false);
   const [wasCompleted, setWasCompleted] = useState(completed);
-  const [showWhatsAppSettings, setShowWhatsAppSettings] = useState(false);
-  const [dispatchingMsg, setDispatchingMsg] = useState(false);
-
-  const isWhatsAppGloballyReady = !!userWhatsAppNumber && !!userWhatsAppAutomation;
-  const isHabitWhatsAppReady = habit.whatsappEnabled && isWhatsAppGloballyReady;
 
   const allStepsCompleted = habit.type === 'multi-step' &&
     habit.steps.every((_, idx) => stepCompleted.includes(idx));
@@ -73,43 +65,8 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
     onToggle(habit.id, stepIndex);
   };
 
-  const handleWhatsAppClick = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    // If they haven't configured their number yet, open the modal
-    if (!isWhatsAppGloballyReady) {
-      setShowWhatsAppSettings(true);
-      return;
-    }
-
-    // Otherwise, dispatch a live message!
-    setDispatchingMsg(true);
-    try {
-      const res = await fetch('/api/send-whatsapp-message', { method: 'POST' });
-      const result = await res.json();
-
-      if (res.ok && result.sent) {
-        toast.success('Live WhatsApp dispatched!', { icon: '📲' });
-      } else {
-        toast.error(result.preview || 'Automation saved, but dispatch failed.');
-      }
-    } catch {
-      toast.error('Network Error during WhatsApp send');
-    } finally {
-      setDispatchingMsg(false);
-    }
-  };
-
   return (
     <>
-      {showWhatsAppSettings && (
-        <WhatsAppSettingsModal
-          isOpen={showWhatsAppSettings}
-          onClose={() => setShowWhatsAppSettings(false)}
-          habit={habit}
-          onSave={onSettingsSave || (async () => { toast.error("Not implemented on this page"); })}
-        />
-      )}
       <motion.div
         layout
         className={`group relative overflow-hidden rounded-xl sm:rounded-2xl transition-all duration-300 ${isFullyDone
@@ -160,15 +117,6 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                        <EyeOff size={10} className="text-indigo-600" />
                      </span>
                    )}
-                   {isHabitWhatsAppReady && (
-                     <span
-                       className={`flex items-center justify-center w-5 h-5 bg-green-500/10 rounded-full cursor-pointer hover:bg-green-500/20 transition-colors ${dispatchingMsg ? 'animate-pulse opacity-50' : ''}`}
-                       title="WhatsApp linked - automation enabled. Click to dispatch."
-                       onClick={handleWhatsAppClick}
-                     >
-                       <MessageCircle size={10} className="text-green-600" />
-                     </span>
-                   )}
                  </div>
                  <h3 className={`responsive-text-base sm:text-[17px] font-semibold tracking-tight transition-all duration-300 ${isFullyDone
                    ? 'text-zinc-500 dark:text-zinc-500 line-through decoration-1'
@@ -187,20 +135,8 @@ export default function HabitCard({ habit, completed, stepCompleted = [], onTogg
                  </div>
                )}
 
-               {/* Action Group: WhatsApp -> Edit -> Hide -> Delete */}
+               {/* Habit actions */}
                <div className="flex items-center bg-zinc-50/50 dark:bg-zinc-800/30 p-1 rounded-[14px] border border-zinc-100 dark:border-zinc-800/50 gap-0.5 sm:gap-1">
-                 {/* WhatsApp Config Trigger */}
-                 <button
-                   onClick={(e) => { e.stopPropagation(); setShowWhatsAppSettings(true); }}
-                   className={`p-1.5 sm:p-2 rounded-lg sm:rounded-[10px] transition-all duration-200 flex items-center justify-center ${isHabitWhatsAppReady
-                       ? 'text-green-600 bg-green-500/10'
-                       : 'text-zinc-400 hover:text-green-500 hover:bg-green-500/5'
-                     }`}
-                   title={!isWhatsAppGloballyReady ? "Link WhatsApp to enable automation" : isHabitWhatsAppReady ? "WhatsApp linked - automation enabled." : "Configure WhatsApp Automation"}
-                 >
-                   <MessageCircle size={15} className="sm:w-[18px] sm:h-[18px]" />
-                 </button>
- 
                  {onEdit && (
                    <button
                      onClick={(e) => { e.stopPropagation(); onEdit(habit); }}

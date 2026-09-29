@@ -71,11 +71,15 @@ const UserSchema = new Schema({
   },
   whatsappAutomation: {
     type: Boolean,
-    default: true, // Changed to true - always run by default
+    default: false,
   },
   whatsappSendTime: {
     type: String,
     default: '20:00',
+  },
+  whatsappTypingDelay: {
+    type: Number,
+    default: 15,
   },
   whatsappFrequency: {
     type: String,
@@ -107,6 +111,15 @@ const UserSchema = new Schema({
     day: { type: Number, default: 0 }, // 0 = Sunday
     time: { type: String, default: '09:00' },
   },
+  // Shared contacts — phones stored encrypted; never plaintext in DB
+  sharedContacts: [{
+    name: { type: String, required: true, trim: true },
+    phoneEncrypted: { type: String, default: '' },
+    phoneHash: { type: String, default: '' },
+    relation: { type: String, default: '' },
+    enabledForReports: { type: Boolean, default: true },
+    _id: false
+  }],
   notificationPreferences: {
     email: { type: Boolean, default: true },
     push: { type: Boolean, default: true },
@@ -115,6 +128,12 @@ const UserSchema = new Schema({
       start: { type: String, default: '22:00' },
       end: { type: String, default: '07:00' },
     },
+  },
+  reminderEnabled: { type: Boolean, default: false },
+  reminderTime: {
+    type: String,
+    default: '09:00',
+    validate: { validator: (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value), message: 'Reminder time must use HH:MM' },
   },
   age: { type: Number },
   height: { type: Number }, // in cm
@@ -138,4 +157,3 @@ UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ username: 1 }, { unique: true, sparse: true });
 
 export default mongoose.models.User || mongoose.model<User>('User', UserSchema);
-

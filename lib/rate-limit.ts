@@ -37,11 +37,12 @@ export function rateLimit(config: RateLimitConfig): RateLimitResult {
   return {
     check: async (request: NextRequest, limit: number = 10): Promise<{ success: boolean; remaining: number; resetTime: number }> => {
       // Get client IP
-      const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-                  request.headers.get('x-real-ip') || 
+      const ip = request.headers.get('x-real-ip') ||
+                  request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ||
                   'unknown';
       
-      const key = `rate_limit:${ip}`;
+      const route = request.nextUrl?.pathname || 'unknown';
+      const key = `rate_limit:${route}:${ip}`;
       const now = Date.now();
       
       // Initialize or reset if interval has passed
@@ -82,8 +83,8 @@ export default async function rateLimiter(
   maxRequests: number = 100,
   windowSeconds: number = 60
 ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 
-             request.headers.get('x-real-ip') || 
+  const ip = request.headers.get('x-real-ip') ||
+             request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim() ||
              'unknown';
   
   const key = `rl:${ip}:${Math.floor(Date.now() / (windowSeconds * 1000))}`;

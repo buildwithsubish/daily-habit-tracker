@@ -3,16 +3,17 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
-import AuditLog from '@/lib/models/AuditLog';
-import { requireAdmin, getAdminIdFromRequest } from '@/lib/admin-middleware';
-import { initAdmin } from '@/lib/init-admin';
+import { requireAdmin } from '@/lib/admin-middleware';
+import { writeAuditLogFromRequest } from '@/lib/audit-log';
+import { AUDIT_ACTIONS } from '@/lib/audit-log-constants';
+import { resolveUserPhone } from '@/lib/pii';
+import { maskPhoneNumber } from '@/lib/security';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    await initAdmin();
-    const adminId = requireAdmin(request);
+    requireAdmin(request);
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const [users, total, activeCount, inactiveCount] = await Promise.all([
       User.find(query)
-        .select('email username createdAt timeZone whatsappNumber whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule isActive lastLogin')
+        .select('email username createdAt timeZone whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule isActive lastLogin')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit)
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
           .select('date')
           .lean() as unknown as { date?: string } | null;
 
+        const phone = resolveUserPhone(user as any);
         return {
           id: user._id.toString(),
           email: user.email,
@@ -103,7 +105,7 @@ export async function GET(request: NextRequest) {
           lastLogin: user.lastLogin,
           isActive: user.isActive,
           timeZone: user.timeZone,
-          whatsappNumber: user.whatsappNumber,
+          whatsappNumber: phone ? maskPhoneNumber(phone) : null,
           whatsappAutomation: user.whatsappAutomation,
           whatsappVerified: user.whatsappVerified,
           pollSchedule: user.pollSchedule || { enabled: true, time: '08:00', frequency: 'daily', customDays: [] },
@@ -147,8 +149,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     await connectDB();
-    await initAdmin();
-    const adminId = requireAdmin(request);
+    const admin = requireAdmin(request);
 
     const body = await request.json();
     const { userIds, action } = body;
@@ -177,9 +178,9 @@ export async function PATCH(request: NextRequest) {
         ]);
       }
       
-      await AuditLog.create({
-        adminId,
-        action: 'bulk_delete_users',
+      void writeAuditLogFromRequest(request, {
+        adminId: admin.adminId,
+        action: AUDIT_ACTIONS.BULK_DELETE_USERS,
         category: 'user_management',
         details: `Deleted ${userIds.length} users`,
         success: true,
@@ -198,9 +199,9 @@ export async function PATCH(request: NextRequest) {
       { $set: updateData }
     );
 
-    await AuditLog.create({
-      adminId,
-      action: `bulk_${action}_users`,
+    void writeAuditLogFromRequest(request, {
+      adminId: admin.adminId,
+      action: action === 'activate' ? AUDIT_ACTIONS.BULK_ACTIVATE_USERS : AUDIT_ACTIONS.BULK_DEACTIVATE_USERS,
       category: 'user_management',
       details: `${actionDescription} ${result.modifiedCount} users`,
       success: true,

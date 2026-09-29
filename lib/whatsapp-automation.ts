@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import connectDB from './mongodb';
 import User from './models/User';
 import Habit from './models/Habit';
@@ -6,14 +5,11 @@ import DailyLog from './models/DailyLog';
 import MessageLog from './models/MessageLog';
 import ReminderLog from './models/ReminderLog';
 import WeeklyAnalytics from './models/WeeklyAnalytics';
-import ScheduledJob from './models/ScheduledJob';
 import AuditLog from './models/AuditLog';
 import { sendWhatsAppMessage, formatHabitListMessage, formatDashboardSummary, getAppreciativeMessage } from './whatsapp';
 import whatsappClientManager from './whatsapp-web';
 import mongoose from 'mongoose';
 
-const CRON_SECRET = process.env.CRON_SECRET || '';
-let schedulerInitialized = false;
 
 function getDayOfWeek(date: Date = new Date()): number {
   return date.getDay();
@@ -83,6 +79,18 @@ async function sendDailyHabitMessages() {
 
       eligibleUsers++;
       console.log(`[Scheduler] Sending message to ${userDoc.username} with ${habits.length} habits`);
+
+      // Dedup/claim-first even in legacy path: if another procedure stored the record already, skip to avoid dup sends.
+      const alreadyLegacy = await MessageLog.findOne({
+        userId: userDoc._id,
+        type: 'summary',
+        date: now.toISOString().split('T')[0],
+        status: { $in: ['pending', 'scheduled', 'sent', 'delivered'] }
+      });
+      if (alreadyLegacy) {
+        console.log(`[Legacy Scheduler] Skip dup for ${userDoc.username} (record already claimed)`);
+        continue;
+      }
 
       const message = formatHabitListMessage(
         habits.map((h: any) => ({ 
@@ -287,16 +295,32 @@ async function generateWeeklyReport(userId: string, adminId: string, format: 'te
       { upsert: true, new: true }
     );
 
-    let reportMessage = `📊 *Weekly Habit Report*\n\n`;
-    reportMessage += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    // Descriptive per-habit (same logic as manager for platform consistency). Uses userId data only.
+    const dayAbbrMap: { [key: number]: string } = {0:'sun',1:'mon',2:'tue',3:'wed',4:'thu',5:'fri',6:'sat'};
+    const habitDetails: string[] = [];
+    for (const h of habits) {
+      const hIdStr = (h._id as any).toString();
+      const hLogs = dailyLogs.filter((l: any) => l.habitId && l.habitId.toString() === hIdStr);
+      const count = hLogs.length;
+      const days = Array.from(new Set(hLogs.map((l: any) => {
+        const dt = new Date(l.date + 'T00:00:00Z');
+        return dayAbbrMap[dt.getUTCDay()] || '';
+      }).filter(Boolean))).sort((a,b)=>['sun','mon','tue','wed','thu','fri','sat'].indexOf(a)-['sun','mon','tue','wed','thu','fri','sat'].indexOf(b));
+      const daysStr = days.length ? ` (${days.join('|')})` : '';
+      habitDetails.push(`${h.name} - followed ${count}/7 days${daysStr}`);
+    }
+    const perHabitBlock = habitDetails.length > 0 ? habitDetails.join('\n') : 'No habits tracked this week.';
+
+    let reportMessage = `📊 *Weekly Habit Report*\n\n━━━━━━━━━━━━━━━━━━━━\n\n`;
     reportMessage += `✅ *Total Habits Completed:* ${completedHabits}\n`;
     reportMessage += `📈 *Completion Rate:* ${completionRate}%\n`;
     reportMessage += `💬 *Response Rate:* ${responseRate}%\n`;
     reportMessage += `🔥 *Improvement:* ${improvement >= 0 ? '+' : ''}${improvement}%\n\n`;
-    reportMessage += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    reportMessage += `_Keep up the great work! ${getAppreciativeMessage()}_`;
+    reportMessage += `Habits:\n${perHabitBlock}\n\n`;
+    reportMessage += `━━━━━━━━━━━━━━━━━━━━\n\n_Keep up the great work! ${getAppreciativeMessage()}_`;
 
     const contactName = user.whatsappContactName || user.username;
+    // Best effort contact ensure (if manager helper available via platform). Send uses user-specific contact.
     const result = await sendWhatsAppMessage(user.whatsappNumber, reportMessage, contactName);
 
     if (result.ok) {
@@ -328,7 +352,8 @@ async function sendWeeklyReports() {
   try {
     await connectDB();
 
-    const adminId = process.env.ADMIN_ID || 'default';
+    const { getAdminSessionIdSync } = await import('./admin-session');
+    const adminId = getAdminSessionIdSync();
 
     const users = await User.find({
       whatsappVerified: true,
@@ -349,105 +374,6 @@ async function sendWeeklyReports() {
   } catch (error) {
     console.error('[Scheduler] Weekly reports error:', error);
     return { reportsSent: 0 };
-  }
-}
-
-async function processScheduledJobs() {
-  try {
-    await connectDB();
-
-    const now = new Date();
-    
-    const pendingJobs = await ScheduledJob.find({
-      status: 'pending',
-      scheduledFor: { $lte: now },
-    }).lean();
-
-    for (const job of pendingJobs) {
-      await ScheduledJob.findByIdAndUpdate(job._id, {
-        status: 'running',
-        startedAt: now,
-      });
-
-      try {
-        if (job.jobType === 'custom_broadcast') {
-          const users = await User.find({
-            _id: { $in: job.targetUsers },
-            whatsappVerified: true,
-            whatsappNumber: { $exists: true, $ne: '' },
-          }).select('whatsappNumber');
-
-          let sent = 0;
-          let failed = 0;
-
-          for (const user of users) {
-            const result = await whatsappClientManager.sendMessage(
-              job.adminId?.toString() || '',
-              (user as any).whatsappNumber,
-              job.messageTemplate || ''
-            );
-            if (result.success) sent++;
-            else failed++;
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-
-          await ScheduledJob.findByIdAndUpdate(job._id, {
-            status: 'completed',
-            completedAt: new Date(),
-            result: { totalUsers: users.length, messagesSent: sent, messagesFailed: failed },
-          });
-        }
-      } catch (error: any) {
-        await ScheduledJob.findByIdAndUpdate(job._id, {
-          status: 'failed',
-          completedAt: new Date(),
-          result: { errors: error.message },
-        });
-      }
-    }
-  } catch (error) {
-    console.error('[Scheduler] Process scheduled jobs error:', error);
-  }
-}
-
-export function initializeWhatsAppScheduler() {
-  if (schedulerInitialized) {
-    console.log('⚠️ WhatsApp Scheduler already initialized');
-    return;
-  }
-
-  try {
-    cron.schedule('0 * * * *', async () => {
-      await sendDailyHabitMessages();
-    });
-
-    cron.schedule('*/10 * * * *', async () => {
-      await processReminders();
-    });
-
-    cron.schedule('0 9 * * 0', async () => {
-      await sendWeeklyReports();
-    });
-
-    cron.schedule('*/5 * * * *', async () => {
-      await processScheduledJobs();
-    });
-
-    schedulerInitialized = true;
-    console.log('✅ WhatsApp Scheduler initialized');
-    console.log('   📤 Daily Habit Messages: Every hour');
-    console.log('   ⏰ Reminders: Every 10 minutes');
-    console.log('   📊 Weekly Reports: Every Sunday at 9 AM');
-    console.log('   🔄 Scheduled Jobs: Every 5 minutes');
-
-    return {
-      stop: () => {
-        schedulerInitialized = false;
-        console.log('WhatsApp Scheduler stopped');
-      },
-    };
-  } catch (error) {
-    console.error('Failed to initialize WhatsApp Scheduler:', error);
   }
 }
 

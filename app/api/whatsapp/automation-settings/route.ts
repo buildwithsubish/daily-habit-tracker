@@ -3,6 +3,7 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import WhatsAppSession from '@/lib/models/WhatsAppSession';
 import { requireAuth } from '@/lib/middleware';
+import { buildSharedContactStorage, maskSharedContactsForApi } from '@/lib/pii';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const userId = requireAuth(request);
 
     const user = await User.findById(userId).select(
-      'whatsappAutomation whatsappNumber whatsappVerified whatsappSendTime whatsappFrequency pollSchedule weeklyReportSchedule'
+      'whatsappAutomation whatsappNumber whatsappVerified whatsappSendTime whatsappFrequency pollSchedule weeklyReportSchedule sharedContacts whatsappReminderCount'
     );
 
     if (!user) {
@@ -18,18 +19,21 @@ export async function GET(request: NextRequest) {
     }
 
     const activeSession = await WhatsAppSession.findOne({ status: 'connected' });
+    const pollSchedule = user.pollSchedule || { enabled: true, time: '20:00', frequency: 'daily', customDays: [] };
+    const weeklyReportSchedule = user.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' };
 
     return NextResponse.json({
       settings: {
         enabled: user.whatsappAutomation || false,
-        dailyReminder: true,
-        weeklySummary: true,
-        pollCreation: true,
-        streakAlerts: true,
+        dailyReminder: (user.whatsappReminderCount ?? 0) > 0,
+        weeklySummary: weeklyReportSchedule.enabled !== false,
+        pollCreation: pollSchedule.enabled !== false,
+        streakAlerts: pollSchedule.reminderEnabled !== false,
         reminderTime: user.whatsappSendTime || '20:00',
-        summaryDay: 0,
-        pollSchedule: user.pollSchedule || { enabled: true, time: '20:00', frequency: 'daily', customDays: [] },
-        weeklyReportSchedule: user.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' },
+        summaryDay: weeklyReportSchedule.day ?? 0,
+        pollSchedule,
+        weeklyReportSchedule,
+        sharedContacts: maskSharedContactsForApi(user.sharedContacts || []),
       },
       status: activeSession ? 'connected' : 'disconnected',
       phoneNumber: user.whatsappNumber,
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const { enabled, dailyReminder, weeklySummary, pollCreation, streakAlerts, reminderTime, summaryDay } = body;
 
-    const updateFields: any = {};
+    const updateFields: Record<string, unknown> = {};
 
     if (typeof enabled === 'boolean') {
       const user = await User.findById(userId);
@@ -65,20 +69,30 @@ export async function POST(request: NextRequest) {
       updateFields.whatsappAutomation = enabled;
     }
 
+    const user = await User.findById(userId).select('pollSchedule weeklyReportSchedule whatsappReminderCount');
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     if (typeof dailyReminder === 'boolean') {
-      updateFields.whatsappDailyReminder = dailyReminder;
+      updateFields.whatsappReminderCount = dailyReminder ? Math.max(user.whatsappReminderCount || 3, 1) : 0;
     }
 
-    if (typeof weeklySummary === 'boolean') {
-      updateFields.whatsappWeeklySummary = weeklySummary;
+    if (typeof weeklySummary === 'boolean' || typeof summaryDay === 'number') {
+      updateFields.weeklyReportSchedule = {
+        ...(user.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' }),
+        ...(typeof weeklySummary === 'boolean' ? { enabled: weeklySummary } : {}),
+        ...(typeof summaryDay === 'number' && summaryDay >= 0 && summaryDay <= 6 ? { day: summaryDay } : {}),
+      };
     }
 
-    if (typeof pollCreation === 'boolean') {
-      updateFields.whatsappPollCreation = pollCreation;
-    }
-
-    if (typeof streakAlerts === 'boolean') {
-      updateFields.whatsappStreakAlerts = streakAlerts;
+    if (typeof pollCreation === 'boolean' || typeof streakAlerts === 'boolean') {
+      const poll = user.pollSchedule || { enabled: true, time: '20:00', frequency: 'daily', customDays: [], reminderEnabled: true, reminderIntervals: [5, 10, 20, 30] };
+      updateFields.pollSchedule = {
+        ...poll,
+        ...(typeof pollCreation === 'boolean' ? { enabled: pollCreation } : {}),
+        ...(typeof streakAlerts === 'boolean' ? { reminderEnabled: streakAlerts } : {}),
+      };
     }
 
     if (reminderTime) {
@@ -92,8 +106,13 @@ export async function POST(request: NextRequest) {
       updateFields.whatsappSendTime = reminderTime;
     }
 
-    if (typeof summaryDay === 'number') {
-      updateFields.whatsappSummaryDay = summaryDay;
+    if (body.sharedContacts && Array.isArray(body.sharedContacts)) {
+      const existing = user.sharedContacts || [];
+      updateFields.sharedContacts = body.sharedContacts
+        .filter((c: { name?: string }) => c && c.name)
+        .map((c: { name: string; phone?: string; relation?: string; enabledForReports?: boolean }, idx: number) =>
+          buildSharedContactStorage(c, existing[idx])
+        );
     }
 
     await User.findByIdAndUpdate(userId, updateFields);

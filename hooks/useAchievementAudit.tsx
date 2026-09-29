@@ -19,7 +19,24 @@ export function useAchievementAudit() {
   const fetchAchievements = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
-      const res = await fetch('/api/achievements');
+      const res = await fetch('/api/achievements', { credentials: 'include' });
+      if (!res.ok) {
+        // An expired or missing login is expected on public routes and should
+        // not flood the browser console with a failed audit request.
+        if (res.status === 401) {
+          setAchievements([]);
+          setUnlockedIds(new Set());
+          isFirstMount.current = true;
+        } else if (!silent) {
+          console.warn('[Achievements] fetch failed:', res.status);
+        }
+        return;
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        if (!silent) console.warn('[Achievements] non-JSON response');
+        return;
+      }
       const data = await res.json();
       const newAchievements: Achievement[] = data.achievements || [];
       
@@ -68,7 +85,7 @@ export function useAchievementAudit() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [unlockedIds, celebrateAchievement]);
+  }, [celebrateAchievement]);
 
   useEffect(() => {
     fetchAchievements();

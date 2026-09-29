@@ -1,4 +1,26 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
+
+export interface IWhatsAppSession extends Document {
+  adminId?: mongoose.Types.ObjectId;
+  adminIdString?: string;
+  ADMIN_SESSION_ID?: string;
+  sessionData: string;
+  sessionPath?: string;
+  qrCode?: string;
+  qrCodeGeneratedAt?: Date;
+  status: 'disconnected' | 'connecting' | 'connected' | 'failed';
+  lastConnectedAt?: Date;
+  lastDisconnectedAt?: Date;
+  phoneNumber?: string;
+  phoneNumberEncrypted?: string;
+  phoneNumberHash?: string;
+  deviceName?: string;
+  failureReason?: string;
+  in_use: boolean;
+  in_use_since?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const WhatsAppSessionSchema = new Schema({
   adminId: {
@@ -53,6 +75,15 @@ const WhatsAppSessionSchema = new Schema({
     type: String,
     default: null,
   },
+  phoneNumberEncrypted: {
+    type: String,
+    default: null,
+  },
+  phoneNumberHash: {
+    type: String,
+    default: null,
+    index: true,
+  },
   deviceName: {
     type: String,
     default: null,
@@ -85,5 +116,6 @@ const WhatsAppSessionSchema = new Schema({
 WhatsAppSessionSchema.index({ adminId: 1, status: 1 });
 WhatsAppSessionSchema.index({ createdAt: -1 });
 
-export default mongoose.models.WhatsAppSession || mongoose.model('WhatsAppSession', WhatsAppSessionSchema);
+const WhatsAppSession: Model<IWhatsAppSession> = mongoose.models.WhatsAppSession || mongoose.model<IWhatsAppSession>('WhatsAppSession', WhatsAppSessionSchema);
+export default WhatsAppSession;
 

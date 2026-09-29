@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, X, Sparkles, Zap, Target, Calendar, MessageCircle, FileText, Dumbbell, ListChecks, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Sparkles, Zap, Target, Calendar, FileText, Dumbbell, ListChecks, ChevronDown, ChevronUp, Trash2, Heart, Brain, Sprout, Salad, Wallet, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -40,15 +40,15 @@ export default function NewHabitPage() {
   const [selectedWorkout, setSelectedWorkout] = useState<string>('');
 
   const categories = [
-    { value: 'Health', label: 'Health', icon: '💚' },
-    { value: 'Fitness', label: 'Fitness', icon: '💪' },
-    { value: 'Productivity', label: 'Productivity', icon: '⚡' },
-    { value: 'Mindfulness', label: 'Mindfulness', icon: '🧘' },
-    { value: 'Growth', label: 'Growth', icon: '🌱' },
-    { value: 'Diet', label: 'Diet', icon: '🥗' },
-    { value: 'Finance', label: 'Finance', icon: '💰' },
-    { value: 'Social', label: 'Social', icon: '🤝' },
-    { value: 'Other', label: 'Other', icon: '✨' },
+    { value: 'Health', label: 'Health', icon: Heart, color: 'text-rose-600', selected: 'border-rose-400 bg-rose-50 dark:border-rose-500 dark:bg-rose-950/30' },
+    { value: 'Fitness', label: 'Fitness', icon: Dumbbell, color: 'text-orange-600', selected: 'border-orange-400 bg-orange-50 dark:border-orange-500 dark:bg-orange-950/30' },
+    { value: 'Productivity', label: 'Productivity', icon: Zap, color: 'text-blue-600', selected: 'border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30' },
+    { value: 'Mindfulness', label: 'Mindfulness', icon: Brain, color: 'text-violet-600', selected: 'border-violet-400 bg-violet-50 dark:border-violet-500 dark:bg-violet-950/30' },
+    { value: 'Growth', label: 'Growth', icon: Sprout, color: 'text-emerald-600', selected: 'border-emerald-400 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-950/30' },
+    { value: 'Diet', label: 'Diet', icon: Salad, color: 'text-lime-700', selected: 'border-lime-500 bg-lime-50 dark:border-lime-500 dark:bg-lime-950/30' },
+    { value: 'Finance', label: 'Finance', icon: Wallet, color: 'text-teal-700', selected: 'border-teal-400 bg-teal-50 dark:border-teal-500 dark:bg-teal-950/30' },
+    { value: 'Social', label: 'Social', icon: Users, color: 'text-cyan-700', selected: 'border-cyan-400 bg-cyan-50 dark:border-cyan-500 dark:bg-cyan-950/30' },
+    { value: 'Other', label: 'Other', icon: Sparkles, color: 'text-slate-600', selected: 'border-slate-400 bg-slate-50 dark:border-slate-500 dark:bg-slate-800' },
   ];
 
   const weekDays = [
@@ -230,22 +230,20 @@ export default function NewHabitPage() {
           {/* Category */}
           <div className="glass-card p-6">
             <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3">Category</label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-3">
               {categories.map((cat) => (
                 <motion.button
                   key={cat.value}
                   type="button"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  aria-pressed={formData.category === cat.value}
                   onClick={() => setFormData({ ...formData, category: cat.value })}
-                  className={`p-3 rounded-xl border-2 transition-all text-center ${formData.category === cat.value
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 shadow-lg shadow-indigo-500/10'
-                      : 'border-zinc-200/60 dark:border-zinc-700/60 hover:border-zinc-300'
+                  className={`flex min-h-[76px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border-2 p-2 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 active:scale-[0.98] ${formData.category === cat.value
+                      ? `${cat.selected} shadow-sm`
+                      : 'border-zinc-200/60 bg-white/50 hover:border-zinc-300 dark:border-zinc-700/60 dark:bg-zinc-900/30 dark:hover:border-zinc-500'
                     }`}
                 >
-                  <div className="text-xl mb-1">{cat.icon}</div>
-                  <div className={`text-[10px] font-bold uppercase tracking-wide ${formData.category === cat.value ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-500'
-                    }`}>{cat.label}</div>
+                  <cat.icon aria-hidden="true" size={20} strokeWidth={1.9} className={cat.color} />
+                  <span className={`break-words text-[10px] font-bold leading-tight tracking-wide sm:text-[11px] ${formData.category === cat.value ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>{cat.label}</span>
                 </motion.button>
               ))}
             </div>

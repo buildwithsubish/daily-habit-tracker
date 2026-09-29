@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { getAdminIdFromRequest } from '@/lib/admin-middleware';
-import { createPollForUser, getPollResults, sendPollConfirmation, processAllUserPolls, checkAndCompletePolls } from '@/lib/whatsapp-poll';
+import {
+  getPollResults,
+  sendPollConfirmation,
+  checkPendingPolls as checkAndCompletePolls,
+  queueWAOperation,
+  createPollForUser,
+  processAllUserPolls,
+} from '@/lib/whatsapp-manager';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,33 +20,30 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, userId, pollId, adminId: bodyAdminId = adminId } = body;
+    const { action, userId, pollId } = body;
 
     if (action === 'create_for_user' && userId) {
-      const result = await createPollForUser(userId, bodyAdminId);
-      return NextResponse.json(result);
+      const result = await createPollForUser(userId, undefined, adminId);
+      return NextResponse.json(result, { status: result.success ? 200 : 502 });
     }
 
     if (action === 'get_results' && pollId) {
-      const result = await getPollResults(pollId, bodyAdminId, true);
+      const result = await getPollResults(pollId);
       return NextResponse.json(result);
     }
 
     if (action === 'send_confirmation' && userId && pollId) {
-      const result = await sendPollConfirmation(userId, pollId, bodyAdminId);
+      const result = await sendPollConfirmation(userId, pollId);
       return NextResponse.json(result);
     }
 
     if (action === 'process_all') {
-      const result = await processAllUserPolls(bodyAdminId);
-      return NextResponse.json({
-        success: true,
-        ...result,
-      });
+      const result = await processAllUserPolls({ manual: true });
+      return NextResponse.json({ success: true, result });
     }
 
     if (action === 'check_pending') {
-      const result = await checkAndCompletePolls(bodyAdminId);
+      const result = await queueWAOperation(() => checkAndCompletePolls(), 'admin-check-pending-polls');
       return NextResponse.json({
         success: true,
         ...result,

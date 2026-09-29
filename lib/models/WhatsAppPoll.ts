@@ -12,17 +12,22 @@ export interface IWhatsAppPoll extends Document {
   }>;
   totalVotes: number;
   allowMultiple: boolean;
-  status: 'pending' | 'sent' | 'voted' | 'completed' | 'failed';
+  status: 'pending' | 'scheduled' | 'sent' | 'voted' | 'completed' | 'failed';
   messageId?: string;
   sentAt?: Date;
   votedAt?: Date;
   completedAt?: Date;
+  scheduledFor?: Date;
   results?: {
     completionRate: number;
     completedHabits: number;
     totalHabits: number;
   };
   date: string;
+  // For advanced status-based reminders and result fetching
+  statusCheckCount?: number;
+  lastStatusCheckAt?: Date;
+  lastMessageStatus?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,7 +68,7 @@ const WhatsAppPollSchema = new Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'sent', 'voted', 'completed', 'failed'],
+    enum: ['pending', 'scheduled', 'sent', 'voted', 'completed', 'failed'],
     default: 'pending',
   },
   messageId: {
@@ -82,6 +87,10 @@ const WhatsAppPollSchema = new Schema({
     type: Date,
     default: null,
   },
+  scheduledFor: {
+    type: Date,
+    default: null,
+  },
   results: {
     completionRate: { type: Number, default: 0 },
     completedHabits: { type: Number, default: 0 },
@@ -91,6 +100,18 @@ const WhatsAppPollSchema = new Schema({
     type: String,
     required: true,
     index: true,
+  },
+  statusCheckCount: {
+    type: Number,
+    default: 0,
+  },
+  lastStatusCheckAt: {
+    type: Date,
+    default: null,
+  },
+  lastMessageStatus: {
+    type: String,
+    default: null,
   },
 }, {
   timestamps: true,

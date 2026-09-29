@@ -3,13 +3,13 @@ import {
   verifyAdminToken, 
   generateAdminToken, 
   generateAdminRefreshToken, 
-  AdminTokenPayload 
+  AdminTokenPayload,
+  getAdminJwtSecret,
 } from './admin-auth';
 import { rateLimit } from './rate-limit';
 
 export const runtime = 'nodejs';
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET + '-admin';
 
 export interface AdminAuthResult {
   adminId: string;
@@ -20,8 +20,16 @@ export interface AdminAuthResult {
   userAgent: string;
 }
 
+function getAdminTokenFromRequest(request: NextRequest): string | null {
+  return (
+    request.cookies.get('admin_token')?.value ||
+    request.headers.get('Authorization')?.replace('Bearer ', '') ||
+    null
+  );
+}
+
 export function getAdminIdFromRequest(request: NextRequest): string | null {
-  const token = request.cookies.get('admin_token')?.value;
+  const token = getAdminTokenFromRequest(request);
   if (!token) return null;
   
   const decoded = verifyAdminToken(token);
@@ -29,7 +37,7 @@ export function getAdminIdFromRequest(request: NextRequest): string | null {
 }
 
 export function getAdminFromRequest(request: NextRequest): AdminAuthResult | null {
-  const token = request.cookies.get('admin_token')?.value;
+  const token = getAdminTokenFromRequest(request);
   
   if (!token) return null;
   
@@ -73,7 +81,7 @@ export async function validateAdminSession(request: NextRequest): Promise<{
   
   try {
     if (token) {
-      const decoded = jwt.verify(token, ADMIN_JWT_SECRET) as AdminTokenPayload;
+    const decoded = jwt.verify(token, getAdminJwtSecret()) as AdminTokenPayload;
       
       const exp = decoded.exp! * 1000;
       const shouldRefresh = exp - Date.now() < 60 * 60 * 1000;

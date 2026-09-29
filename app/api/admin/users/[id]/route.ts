@@ -4,7 +4,8 @@ import User from '@/lib/models/User';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { initAdmin } from '@/lib/init-admin';
+import { resolveUserPhone } from '@/lib/pii';
+import { maskPhoneNumber } from '@/lib/security';
 import mongoose from 'mongoose';
 
 export async function GET(
@@ -13,7 +14,6 @@ export async function GET(
 ) {
   try {
     await connectDB();
-    await initAdmin();
     requireAdmin(request);
 
     const { id: userId } = await params;
@@ -21,7 +21,7 @@ export async function GET(
 
     // Get user details
     const user = await User.findById(userIdObj)
-      .select('email username passwordHash createdAt timeZone notificationPreferences whatsappNumber whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule')
+      .select('email username createdAt timeZone notificationPreferences whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule')
       .lean();
 
     if (!user) {
@@ -32,7 +32,7 @@ export async function GET(
       _id: mongoose.Types.ObjectId;
       email: string;
       username?: string;
-      passwordHash: string;
+
       createdAt: Date;
       timeZone: string;
       notificationPreferences: any;
@@ -138,6 +138,7 @@ export async function GET(
       { $limit: 30 },
     ]);
 
+    const phone = resolveUserPhone(typedUser as any);
     return NextResponse.json({
       user: {
         id: typedUser._id.toString(),
@@ -145,12 +146,11 @@ export async function GET(
         username: typedUser.username || 'N/A',
         createdAt: typedUser.createdAt,
         timeZone: typedUser.timeZone,
-        whatsappNumber: typedUser.whatsappNumber,
+        whatsappNumber: phone ? maskPhoneNumber(phone) : null,
         whatsappAutomation: typedUser.whatsappAutomation,
         whatsappVerified: typedUser.whatsappVerified,
         pollSchedule: typedUser.pollSchedule || { enabled: true, time: '20:00', frequency: 'daily', customDays: [] },
         weeklyReportSchedule: typedUser.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' },
-        passwordHash: typedUser.passwordHash, // Secured - this is hashed, not plain text
         notificationPreferences: typedUser.notificationPreferences,
       },
       habits: typedHabits.map(h => ({
@@ -201,7 +201,6 @@ export async function PUT(
 ) {
   try {
     await connectDB();
-    await initAdmin();
     requireAdmin(request);
 
     const { id: userId } = await params;

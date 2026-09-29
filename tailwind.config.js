@@ -70,8 +70,8 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        heading: ['var(--font-space-grotesk)', 'Space Grotesk', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        heading: ['Space Grotesk', 'Inter', 'system-ui', 'sans-serif'],
       },
       screens: {
         'xs': '475px',
@@ -135,4 +135,3 @@ module.exports = {
   },
   plugins: [],
 }
-

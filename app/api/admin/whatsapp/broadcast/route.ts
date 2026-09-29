@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import User from '@/lib/models/User';
 import MessageLog from '@/lib/models/MessageLog';
 import AuditLog from '@/lib/models/AuditLog';
-import ScheduledJob from '@/lib/models/ScheduledJob';
-import WhatsAppSession from '@/lib/models/WhatsAppSession';
 import connectDB from '@/lib/mongodb';
 import { getAdminIdFromRequest } from '@/lib/admin-middleware';
-import whatsappClientManager from '@/lib/whatsapp-web';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
+import { resolveUserPhone } from '@/lib/pii';
 
 interface RateLimitStore {
   [key: string]: { count: number; resetTime: number };
@@ -52,10 +52,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { userIds, message, scheduleFor, filter } = body;
 
-    if (!message?.trim()) {
+    if (typeof message !== 'string' || !message.trim()) {
       return NextResponse.json(
         { error: 'Message content is required' },
         { status: 400 }
+      );
+    }
+    if (message.length > 4096) {
+      return NextResponse.json({ error: 'Message cannot exceed 4096 characters' }, { status: 400 });
+    }
+    if (userIds !== undefined && (!Array.isArray(userIds) || userIds.some((id: unknown) => !mongoose.isValidObjectId(id)))) {
+      return NextResponse.json({ error: 'User IDs must be a list of valid IDs' }, { status: 400 });
+    }
+    if (userIds?.length > MAX_MESSAGES_PER_MINUTE) {
+      return NextResponse.json({ error: `A single API request can target at most ${MAX_MESSAGES_PER_MINUTE} users.` }, { status: 413 });
+    }
+    if (filter !== undefined && (!filter || typeof filter !== 'object' || Array.isArray(filter))) {
+      return NextResponse.json({ error: 'Filter must be an object' }, { status: 400 });
+    }
+    if (filter?.category) {
+      return NextResponse.json({ error: 'Category-based broadcasts are not supported by this API' }, { status: 400 });
+    }
+
+    if (scheduleFor) {
+      return NextResponse.json(
+        { success: false, error: 'Scheduled WhatsApp sends are disabled. Call this API when you are ready to send.' },
+        { status: 410 }
       );
     }
 
@@ -65,190 +87,124 @@ export async function POST(request: NextRequest) {
       targetUsers = await User.find({
         _id: { $in: userIds },
         whatsappVerified: true,
-        whatsappAutomation: true,
         whatsappNumber: { $exists: true, $ne: '' },
-      }).select('_id whatsappNumber username whatsappContactName');
+        // Note: do not require whatsappAutomation here - manual broadcasts can target any verified user
+      }).select('_id whatsappNumber whatsappNumberEncrypted username whatsappContactName').limit(MAX_MESSAGES_PER_MINUTE + 1);
     } else if (filter) {
       const query: any = {
         whatsappVerified: true,
-        whatsappAutomation: true,
         whatsappNumber: { $exists: true, $ne: '' },
       };
+
+      // Only require automation if explicitly filtering for automation-enabled users
+      if (filter.whatsappAutomation === true) {
+        query.whatsappAutomation = true;
+      }
 
       if (filter.activeOnly) {
         query.lastActive = { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
       }
 
-      if (filter.category) {
-        // Would need to join with habits to filter by category
-      }
-
-      targetUsers = await User.find(query).select('_id whatsappNumber username whatsappContactName');
+      targetUsers = await User.find(query).select('_id whatsappNumber whatsappNumberEncrypted username whatsappContactName').limit(MAX_MESSAGES_PER_MINUTE + 1);
     }
+
+    // De-duplicate target users by whatsappNumber (do this before the eligibility check)
+    const seenNumbers = new Set<string>();
+    targetUsers = targetUsers.map((user: any) => ({ ...user, deliveryPhone: resolveUserPhone(user) })).filter((user: any) => {
+      const number = user.deliveryPhone;
+      if (!number || seenNumbers.has(number)) {
+        return false;
+      }
+      seenNumbers.add(number);
+      return true;
+    });
 
     if (targetUsers.length === 0) {
       return NextResponse.json(
-        { error: 'No eligible users found' },
+        { 
+          success: false,
+          error: 'No eligible users found for broadcast',
+          details: 'No users matched the criteria. Users must have whatsappVerified=true and a valid whatsappNumber. When using the "Automation" recipient filter, they must also have whatsappAutomation enabled. Check user profiles or try "Verified" / "Selected" options.'
+        },
         { status: 400 }
       );
     }
-
-    if (scheduleFor) {
-      const scheduledJob = await ScheduledJob.create({
-        adminId: adminId,
-        jobType: 'custom_broadcast',
-        status: 'pending',
-        scheduledFor: new Date(scheduleFor),
-        targetUsers: targetUsers.map((u: any) => u._id),
-        messageTemplate: message,
-        filterCriteria: filter || {},
-        recurrence: 'once',
-      });
-
-      await AuditLog.create({
-        adminId: adminId,
-        action: 'broadcast_scheduled',
-        category: 'whatsapp_broadcast',
-        details: `Broadcast scheduled for ${targetUsers.length} users`,
-        metadata: { scheduleFor, userCount: targetUsers.length },
-        success: true,
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'Broadcast scheduled successfully',
-        scheduledJobId: scheduledJob._id,
-        targetUserCount: targetUsers.length,
-      });
-    }
-
-    // ✅ VERIFY WhatsApp Connection BEFORE Starting Broadcast
-    console.log('[Broadcast] Verifying WhatsApp connection for adminId:', adminId);
-    
-    const whatsappSession = await WhatsAppSession.findOne({ 
-      $or: [
-        { ADMIN_SESSION_ID: adminId },
-        { adminIdString: adminId },
-        { adminId: adminId }
-      ]
-    });
-
-    if (!whatsappSession) {
-      console.error('[Broadcast] No WhatsApp session found in database');
+    if (targetUsers.length > MAX_MESSAGES_PER_MINUTE) {
       return NextResponse.json(
-        { 
-          error: 'WhatsApp not connected. Please connect WhatsApp first at /admin/whatsapp',
-          details: 'No session found in database'
-        },
-        { status: 503 }
+        { success: false, error: `A single API request can send to at most ${MAX_MESSAGES_PER_MINUTE} users.` },
+        { status: 413 }
       );
     }
 
-    if (whatsappSession.status !== 'connected') {
-      console.error('[Broadcast] WhatsApp session status is:', whatsappSession.status);
-      return NextResponse.json(
-        { 
-          error: `WhatsApp is currently ${whatsappSession.status}. Please reconnect at /admin/whatsapp`,
-          details: `Session status: ${whatsappSession.status}, Last connected: ${whatsappSession.lastConnectedAt || 'Never'}`
-        },
-        { status: 503 }
-      );
-    }
-
-    console.log('[Broadcast] WhatsApp session verified as connected');
-
+    // Process each recipient sequentially so the API response reports actual delivery results.
     let messagesSent = 0;
     let messagesFailed = 0;
     const results: any[] = [];
-    const failedDetails: string[] = [];
+    const today = new Date().toISOString().split('T')[0];
 
     for (const user of targetUsers) {
+      let messageLog: any = null;
       try {
-        // Use whatsappContactName if available, otherwise fall back to username
-        const contactName = user.whatsappContactName || user.username;
-        
-        console.log(`[Broadcast] Sending message to ${contactName} (${user.whatsappNumber})`);
-        
-        const result = await whatsappClientManager.sendMessage(
-          adminId,
-          user.whatsappNumber,
-          message,
-          contactName
-        );
+        const contactName = user.whatsappContactName || user.username || '';
+        messageLog = await MessageLog.create({
+          userId: user._id,
+          type: 'broadcast',
+          status: 'pending',
+          content: message,
+          date: today,
+        });
 
-        if (result.success) {
-          console.log(`[Broadcast] ✅ Message sent to ${contactName}`);
-          messagesSent++;
-          
-          await MessageLog.create({
-            userId: user._id,
-            type: 'broadcast',
-            status: 'sent',
-            content: message,
-            sentAt: new Date(),
-            messageId: result.messageId,
-            date: new Date().toISOString().split('T')[0],
-          });
-        } else {
-          console.error(`[Broadcast] ❌ Failed to send to ${contactName}: ${result.error}`);
-          messagesFailed++;
-          failedDetails.push(`${contactName}: ${result.error}`);
-          
-          await MessageLog.create({
-            userId: user._id,
-            type: 'broadcast',
-            status: 'failed',
-            content: message,
-            failureReason: result.error,
-            date: new Date().toISOString().split('T')[0],
-          });
+        const sendResult = await sendWhatsAppMessage(user.deliveryPhone, message, contactName);
+        await MessageLog.findByIdAndUpdate(messageLog._id, {
+          $set: sendResult.ok
+            ? { status: 'sent', sentAt: new Date(), messageId: sendResult.messageId }
+            : { status: 'failed', error: sendResult.error },
+        });
+        if (sendResult.ok) messagesSent++;
+        else messagesFailed++;
+        results.push({
+          userId: user._id,
+          success: sendResult.ok,
+          ...(sendResult.ok ? { messageId: sendResult.messageId } : { error: sendResult.error }),
+        });
+      } catch (error: any) {
+        console.error(`[Broadcast] Send failed for ${user.username || user._id}:`, error);
+        messagesFailed++;
+        if (messageLog && messageLog._id) {
+          try {
+            await MessageLog.findByIdAndUpdate(messageLog._id, {
+              status: 'failed',
+              error: error.message || 'Send failed',
+            });
+          } catch { /* A failed log update must not stop other recipients. */ }
         }
 
         results.push({
           userId: user._id,
-          phoneNumber: user.whatsappNumber,
-          success: result.success,
-          messageId: result.messageId,
-          error: result.error,
-        });
-
-        // Add delay between messages to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 800));
-      } catch (error: any) {
-        console.error(`[Broadcast] Exception sending to ${user.whatsappNumber}:`, error);
-        messagesFailed++;
-        failedDetails.push(`${user.username}: ${error.message}`);
-        
-        results.push({
-          userId: user._id,
-          phoneNumber: user.whatsappNumber,
           success: false,
-          error: error.message,
+          error: error.message || 'Send failed',
         });
-
-        await new Promise((resolve) => setTimeout(resolve, 800));
       }
     }
 
-    console.log(`[Broadcast] Complete: ${messagesSent} sent, ${messagesFailed} failed`);
+    console.log(`[Broadcast] Sent: ${messagesSent}, failed: ${messagesFailed}`);
 
     await AuditLog.create({
       adminId: adminId,
-      action: 'broadcast_completed',
+      action: 'broadcast_sent',
       category: 'whatsapp_broadcast',
       details: `Broadcast sent to ${messagesSent}/${targetUsers.length} users`,
-      metadata: { messagesSent, messagesFailed, totalUsers: targetUsers.length, failedDetails },
+      metadata: { sent: messagesSent, failed: messagesFailed, totalUsers: targetUsers.length },
       success: messagesSent > 0,
     });
 
     return NextResponse.json({
       success: messagesSent > 0,
-      message: `Broadcast ${messagesSent === targetUsers.length ? 'completed successfully' : 'partially completed'}`,
+      message: `Broadcast finished: ${messagesSent} sent, ${messagesFailed} failed.`,
       results: {
         totalUsers: targetUsers.length,
-        messagesSent,
-        messagesFailed,
-        failedDetails: failedDetails.slice(0, 10), // Return first 10 failures
+        messagesSent: messagesSent,
+        messagesFailed: messagesFailed,
         detailedResults: results,
       },
     });

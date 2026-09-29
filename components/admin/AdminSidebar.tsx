@@ -2,37 +2,52 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Users, Layers, BarChart3, 
-  CreditCard, Settings, Users2, ChevronLeft, 
-  Shield, LogOut, Menu, MessageCircle, X
+  Settings, ChevronLeft,
+  Shield, LogOut, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminStore } from '@/lib/store/admin-store';
-import { Button } from '@/components/ui/Button';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ResponsiveDrawer, DrawerToggle, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/ResponsiveDrawer';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
   { icon: Users, label: 'Users', href: '/admin/users' },
-  { icon: MessageCircle, label: 'WhatsApp', href: '/admin/whatsapp' },
   { icon: Layers, label: 'Presets', href: '/admin/presets' },
   { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
-  { icon: CreditCard, label: 'Billing', href: '/admin/billing' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
-  { icon: Users2, label: 'Team', href: '/admin/team' },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isSidebarCollapsed, toggleSidebar } = useAdminStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
 
   const handleMenuItemClick = () => {
     // Close mobile menu after navigation
     setIsMobileMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    setSignOutError(false);
+    try {
+      const response = await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' });
+      if (!response.ok) throw new Error('Sign out failed');
+      router.replace('/admin/login');
+      router.refresh();
+    } catch {
+      setSignOutError(true);
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -49,11 +64,9 @@ export function AdminSidebar() {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         position="left"
-        size={isSidebarCollapsed ? 'sm' : 'md'}
+        size="md"
         overlay={true}
-        className={cn(
-          "border-r border-slate-800"
-        )}
+        className={cn('border-r border-slate-800', isSidebarCollapsed && 'lg:!w-20')}
       >
         <DrawerContent>
           {/* Logo Section */}
@@ -134,15 +147,17 @@ export function AdminSidebar() {
 
           {/* Footer */}
           <DrawerFooter>
+            {signOutError && <p role="alert" className="mb-2 text-xs leading-relaxed text-rose-300">Could not sign out. Check your connection and try again.</p>}
             <button
-              onClick={() => {/* handle logout */}}
+              onClick={handleSignOut}
+              disabled={signingOut}
+              aria-label={signingOut ? 'Signing out' : 'Sign out'}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-3 sm:py-2 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-colors group relative touch-button"
+                "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-300 transition-colors hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60 group relative touch-button"
               )}
             >
               <LogOut size={20} className="min-w-[20px] text-slate-400" />
-              {!isSidebarCollapsed && <span className="hidden lg:block text-slate-300">Sign Out</span>}
-              <span className="lg:hidden text-white">Sign Out</span>
+              <span className={cn('text-white', isSidebarCollapsed && 'lg:hidden')}>{signingOut ? 'Signing out…' : 'Sign out'}</span>
               {isSidebarCollapsed && (
                  <div className="absolute left-14 invisible group-hover:visible bg-red-500 text-white text-xs py-1 px-2 rounded-md whitespace-nowrap z-50 hidden lg:block">
                   Sign Out

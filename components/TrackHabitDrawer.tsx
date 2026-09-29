@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Plus, Trash2, Calculator, Info, Sparkles, Heart, Brain, Dumbbell, Utensils, Briefcase, Target, TrendingUp, Users, Wallet } from 'lucide-react';
+import { X, Save, Plus, Trash2, Heart, Brain, Dumbbell, Utensils, Briefcase, Target, TrendingUp, Users, Wallet } from 'lucide-react';
 import { Habit, SubActivity, WorkoutData } from '@/types';
 import { useIsMobile } from '@/hooks/use-responsive';
 import WorkoutLogger from './WorkoutLogger';
-import KcalCalculator from './KcalCalculator';
-import { toast } from 'react-hot-toast';
 
 const CATEGORIES = {
   Health: { icon: Heart, color: 'rose' },
@@ -25,21 +23,22 @@ type CategoryKey = keyof typeof CATEGORIES;
 
 interface TrackHabitDrawerProps {
   habit: Habit;
+  initialAdvancedMode?: boolean;
   onConfirm: (note: string, subActivities?: SubActivity[], workoutData?: WorkoutData) => void;
   onCancel: () => void;
 }
 
 export default function TrackHabitDrawer({
   habit,
+  initialAdvancedMode = false,
   onConfirm,
   onCancel,
 }: TrackHabitDrawerProps) {
   const isMobile = useIsMobile();
-  const [advancedMode, setAdvancedMode] = useState(habit.advancedMode || false);
+  const [advancedMode, setAdvancedMode] = useState(habit.advancedMode || initialAdvancedMode);
   const [note, setNote] = useState('');
   const [subActivities, setSubActivities] = useState<SubActivity[]>(habit.subActivities || []);
   const [workoutData, setWorkoutData] = useState<WorkoutData | undefined>(undefined);
-  const [goal, setGoal] = useState<'weight-loss' | 'maintain' | 'weight-gain'>('maintain');
   
   const categoryConfig = CATEGORIES[habit.category as CategoryKey] || CATEGORIES.Other;
   const isWorkout = habit.category === 'Fitness' || habit.name.toLowerCase().includes('gym') || habit.name.toLowerCase().includes('workout');
@@ -116,9 +115,13 @@ export default function TrackHabitDrawer({
           <div className="flex items-center justify-between p-4 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/10">
             <div>
               <p className="text-sm font-black text-slate-900 dark:text-slate-100">Deep Logging</p>
-              <p className="text-xs text-slate-600 font-medium">Add measurements and activities</p>
+                  <p className="text-xs text-slate-600 font-medium">Add a note, activity details, or workout sets</p>
             </div>
             <button
+              type="button"
+              role="switch"
+              aria-label="Enable deep logging"
+              aria-checked={advancedMode}
               onClick={() => setAdvancedMode(!advancedMode)}
               className={`w-12 h-7 rounded-full transition-all relative ${advancedMode ? 'bg-indigo-600 shadow-sm shadow-indigo-500/30' : 'bg-slate-200 dark:bg-slate-800'}`}
             >
@@ -179,26 +182,8 @@ export default function TrackHabitDrawer({
                 {/* Workout Specifically */}
                 {isWorkout && (
                   <WorkoutLogger 
-                    goal={goal}
                     onUpdate={(data) => setWorkoutData(data)} 
                   />
-                )}
-
-                {/* Calorie Calculator for Diet/Fitness */}
-                {(habit.category === 'Diet' || habit.category === 'Fitness') && (
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Nutrition Engine</h4>
-                    <KcalCalculator 
-                      onSave={async (data) => {
-                        await fetch('/api/user/profile', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(data)
-                        });
-                        toast.success('Health profile updated');
-                      }}
-                    />
-                  </div>
                 )}
 
                 {/* Custom Sub-Activities */}

@@ -30,8 +30,11 @@ export default function AdminLayout({
     adminId: null,
     role: null,
   });
+  const [authCheckFailed, setAuthCheckFailed] = useState(false);
 
   const checkAuth = useCallback(async () => {
+    setAuthCheckFailed(false);
+    setAuthState(current => ({ ...current, isLoading: true }));
     try {
       const res = await fetch('/api/admin/status', {
         credentials: 'include',
@@ -55,19 +58,18 @@ export default function AdminLayout({
         });
         
         // Only redirect if not on a public page
-        const publicPages = ['/admin/login', '/admin/reset-password'];
+        const publicPages = ['/admin/login', '/admin/setup', '/admin/password', '/admin/reset-password'];
         if (!publicPages.includes(pathname)) {
-          router.push('/admin/login?redirect=' + encodeURIComponent(pathname));
+          router.replace('/admin/login?redirect=' + encodeURIComponent(pathname));
         }
+      } else {
+        setAuthCheckFailed(true);
+        setAuthState(current => ({ ...current, isLoading: false }));
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      setAuthState({
-        isAuthenticated: false,
-        isLoading: false,
-        adminId: null,
-        role: null,
-      });
+      setAuthCheckFailed(true);
+      setAuthState(current => ({ ...current, isLoading: false }));
     }
   }, [pathname, router]);
 
@@ -87,8 +89,12 @@ export default function AdminLayout({
     );
   }
 
+  if (authCheckFailed && !authState.isAuthenticated) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4"><section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8" role="alert"><h1 className="text-xl font-bold text-slate-950">Could not verify admin access</h1><p className="mt-2 text-sm leading-relaxed text-slate-600">The security check could not reach the server. Your session has not been cleared.</p><button type="button" onClick={() => void checkAuth()} className="mt-5 min-h-11 rounded-xl bg-indigo-700 px-5 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">Try again</button></section></div>;
+  }
+
   // Public pages that don't require authentication
-  const publicPages = ['/admin/login', '/admin/reset-password'];
+  const publicPages = ['/admin/login', '/admin/setup', '/admin/password', '/admin/reset-password'];
   const isPublicPage = publicPages.includes(pathname);
 
   // If not authenticated and not on a public page, show access denied

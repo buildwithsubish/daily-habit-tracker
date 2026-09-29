@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Calculator, Flame, Info, ChevronRight, Save, Dumbbell } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, HeartPulse, Info, Save, UserRound } from 'lucide-react';
 
 interface HealthProfile {
   age?: number;
@@ -11,24 +10,14 @@ interface HealthProfile {
   gender?: 'male' | 'female' | 'other';
   activityLevel?: 'sedentary' | 'light' | 'moderate' | 'very' | 'extra';
   healthGoal?: 'loss' | 'maintain' | 'gain';
-  targetWeight?: number;
-  avgWorkoutDuration?: number;
-  avgWorkoutIntensity?: 'low' | 'medium' | 'high';
-}
-
-interface ProjectionData {
-  daysToGoal: number;
-  weeksToGoal: number;
-  macros: { p: number; c: number; f: number };
-  professionalAdvice: string;
 }
 
 interface KcalCalculatorProps {
-  onSave?: (data: any) => void;
+  onSave?: (data: HealthProfile) => void;
   initialData?: HealthProfile;
 }
 
-const ACTIVITY_MULTIPLIERS = {
+const activityMultipliers: Record<NonNullable<HealthProfile['activityLevel']>, number> = {
   sedentary: 1.2,
   light: 1.375,
   moderate: 1.55,
@@ -36,375 +25,55 @@ const ACTIVITY_MULTIPLIERS = {
   extra: 1.9,
 };
 
+const inputClass = 'mt-1.5 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-indigo-900/50';
+
 export default function KcalCalculator({ onSave, initialData }: KcalCalculatorProps) {
   const [profile, setProfile] = useState<HealthProfile>(initialData || {});
-  const [result, setResult] = useState<{ bmr: number; tdee: number; target: number } | null>(null);
-  const [projection, setProjection] = useState<ProjectionData | null>(null);
-  const [showForm, setShowForm] = useState(!initialData?.age);
 
-  useEffect(() => {
-    calculate();
+  useEffect(() => setProfile(initialData || {}), [initialData]);
+
+  const estimate = useMemo(() => {
+    const { age, height, weight, gender, activityLevel } = profile;
+    if (!age || !height || !weight || !gender || !activityLevel) return null;
+    const bmr = (10 * weight) + (6.25 * height) - (5 * age) + (gender === 'male' ? 5 : gender === 'female' ? -161 : -78);
+    return { resting: Math.round(bmr), daily: Math.round(bmr * activityMultipliers[activityLevel]) };
   }, [profile]);
 
-  const calculate = () => {
-    const { age, height, weight, gender, activityLevel, healthGoal } = profile;
-    if (!age || !height || !weight || !gender || !activityLevel || !healthGoal) {
-      setResult(null);
-      return;
-    }
-
-    // Mifflin-St Jeor Equation
-    let bmr = (10 * weight) + (6.25 * height) - (5 * age);
-    if (gender === 'male') bmr += 5;
-    else if (gender === 'female') bmr -= 161;
-    else bmr -= 78; // average of male/female for 'other'
-
-    const tdee = bmr * ACTIVITY_MULTIPLIERS[activityLevel];
-    
-    let target = tdee;
-    if (healthGoal === 'loss') target -= 500;
-    else if (healthGoal === 'gain') target += 500;
-
-    setResult({
-      bmr: Math.round(bmr),
-      tdee: Math.round(tdee),
-      target: Math.round(target)
-    });
-
-    if (profile.targetWeight && profile.avgWorkoutDuration && profile.avgWorkoutIntensity) {
-      calculateProjection(bmr, tdee, target, profile.targetWeight, profile.avgWorkoutDuration, profile.avgWorkoutIntensity, profile.healthGoal || 'maintain', weight);
-    } else {
-      setProjection(null);
-    }
-  };
-
-  const calculateProjection = (
-    bmr: number, 
-    tdee: number, 
-    target: number, 
-    targetWeight: number, 
-    duration: number, 
-    intensity: string, 
-    goal: string,
-    currentWeight: number
-  ) => {
-    // 1 kg of fat/muscle = ~7700 kcal
-    const weightDiff = Math.abs(currentWeight - targetWeight);
-    const totalKcalNeeded = weightDiff * 7700;
-
-    // Estimate daily calorie difference (food)
-    const foodDeficitSurplus = Math.abs(tdee - target);
-    
-    // Estimate daily workout burn based on intensity and duration
-    // Typical burn per minute: Low=5, Med=8, High=12
-    const burnPerMin = intensity === 'high' ? 12 : intensity === 'medium' ? 8 : 5;
-    const workoutBurnSession = burnPerMin * duration;
-    // Assume 4 workouts per week on average for the daily distributed burn
-    const dailyWorkoutBurn = (workoutBurnSession * 4) / 7;
-
-    let totalDailyDifference = foodDeficitSurplus;
-    if (goal === 'loss') totalDailyDifference += dailyWorkoutBurn;
-    else if (goal === 'gain') totalDailyDifference -= dailyWorkoutBurn; // Burn reduces surplus
-
-    // Avoid infinite days if difference is too small
-    totalDailyDifference = Math.max(totalDailyDifference, 100);
-
-    const daysToGoal = Math.round(totalKcalNeeded / totalDailyDifference);
-    const weeksToGoal = Math.round(daysToGoal / 7);
-
-    // Standard Professional Macros
-    let pMultiplier, cPercent, fPercent;
-    if (goal === 'loss') {
-        pMultiplier = 2.2; // High protein for preservation
-        cPercent = 0.35;
-        fPercent = 1 - cPercent - ((currentWeight * pMultiplier * 4) / Math.max(target, 1));
-    } else if (goal === 'gain') {
-        pMultiplier = 1.8;
-        cPercent = 0.50;
-        fPercent = 1 - cPercent - ((currentWeight * pMultiplier * 4) / Math.max(target, 1));
-    } else {
-        pMultiplier = 2.0;
-        cPercent = 0.40;
-        fPercent = 1 - cPercent - ((currentWeight * pMultiplier * 4) / Math.max(target, 1));
-    }
-
-    const protein = Math.round(currentWeight * pMultiplier);
-    const carbs = Math.round((target * cPercent) / 4);
-    const fat = Math.round((target * Math.max(fPercent, 0.2)) / 9);
-
-    const advice = goal === 'loss' 
-      ? `Maintained a highly structured deficit integrating ${intensity} intensity intervals. Peak metabolic efficiency mapping indicates core recomposition in ${Math.round(weeksToGoal * 0.7)} weeks.`
-      : goal === 'gain' 
-        ? `Optimized anabolic surplus incorporating ${intensity} intensity volume. Expected primary muscle hypertrophy milestones in ${Math.round(weeksToGoal * 0.8)} weeks.`
-        : `Homeostatic equilibrium maintained through balanced ${intensity} mechanics. Prime conditioning phase active.`;
-
-    setProjection({
-      daysToGoal,
-      weeksToGoal,
-      macros: { p: protein, c: carbs, f: fat },
-      professionalAdvice: advice
-    });
-  };
-
-  const handleUpdate = (field: keyof HealthProfile, value: any) => {
-    setProfile(prev => ({ ...prev, [field]: value }));
+  const setNumber = (field: 'age' | 'height' | 'weight', raw: string) => {
+    const value = raw === '' ? undefined : Number(raw);
+    setProfile(current => ({ ...current, [field]: value }));
   };
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-      <div className="p-4 sm:p-5 bg-indigo-50/50 dark:bg-indigo-500/5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-            <Flame size={20} />
-          </div>
-          <div>
-            <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Kcal Strategy</h3>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Personalized Fitness Engine</p>
-          </div>
-        </div>
-        <button 
-          onClick={() => setShowForm(!showForm)}
-          className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 transition-colors"
-        >
-          {showForm ? 'Hide Details' : 'Edit Profile'}
-        </button>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/70 p-5 dark:border-slate-800 dark:bg-slate-900">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300"><HeartPulse size={20}/></span>
+        <div><h3 className="text-sm font-semibold text-slate-900 dark:text-white">Health profile</h3><p className="mt-0.5 text-xs text-slate-500">Your details and optional energy estimate</p></div>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-6">
-        <AnimatePresence mode="wait">
-          {showForm ? (
-            <motion.div 
-              key="form"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-4"
-            >
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Age</label>
-                  <input 
-                    type="number" 
-                    value={profile.age || ''} 
-                    onChange={(e) => handleUpdate('age', parseInt(e.target.value))}
-                    placeholder="yrs"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Height</label>
-                  <input 
-                    type="number" 
-                    value={profile.height || ''} 
-                    onChange={(e) => handleUpdate('height', parseInt(e.target.value))}
-                    placeholder="cm"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Weight</label>
-                  <input 
-                    type="number" 
-                    value={profile.weight || ''} 
-                    onChange={(e) => handleUpdate('weight', parseInt(e.target.value))}
-                    placeholder="kg"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Gender</label>
-                  <select 
-                    value={profile.gender || ''} 
-                    onChange={(e) => handleUpdate('gender', e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  >
-                    <option value="">Select</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Goal</label>
-                  <select 
-                    value={profile.healthGoal || ''} 
-                    onChange={(e) => handleUpdate('healthGoal', e.target.value)}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                  >
-                    <option value="">Select</option>
-                    <option value="loss">Weight Loss</option>
-                    <option value="maintain">Maintain</option>
-                    <option value="gain">Mass Gain</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Activity Level</label>
-                <select 
-                  value={profile.activityLevel || ''} 
-                  onChange={(e) => handleUpdate('activityLevel', e.target.value)}
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="">Select</option>
-                  <option value="sedentary">Sedentary (Little to no exercise)</option>
-                  <option value="light">Lightly Active (1-3 days/week)</option>
-                  <option value="moderate">Moderately Active (3-5 days/week)</option>
-                  <option value="very">Very Active (6-7 days/week)</option>
-                  <option value="extra">Extra Active (Very intense exercise/job)</option>
-                </select>
-              </div>
-
-              {/* Advanced Fitness Projections */}
-              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-4">
-                 <h4 className="text-[10px] uppercase font-black tracking-widest text-zinc-900 border-l-[3px] border-indigo-500 pl-2">Professional Projections</h4>
-                 <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Target Wgt</label>
-                      <input 
-                        type="number" 
-                        value={profile.targetWeight || ''} 
-                        onChange={(e) => handleUpdate('targetWeight', parseInt(e.target.value))}
-                        placeholder="kg"
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Avg Wko Mins</label>
-                      <input 
-                        type="number" 
-                        value={profile.avgWorkoutDuration || ''} 
-                        onChange={(e) => handleUpdate('avgWorkoutDuration', parseInt(e.target.value))}
-                        placeholder="min"
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-2 py-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-none">Intensity</label>
-                      <select 
-                        value={profile.avgWorkoutIntensity || ''} 
-                        onChange={(e) => handleUpdate('avgWorkoutIntensity', e.target.value)}
-                        className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-1 py-2 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
-                      >
-                        <option value="">Sel</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                      </select>
-                    </div>
-                 </div>
-              </div>
-
-              {onSave && (
-                <button 
-                  onClick={() => onSave(profile)}
-                  className="w-full py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95"
-                >
-                  <Save size={14} /> Save Profile Data
-                </button>
-              )}
-            </motion.div>
-          ) : result ? (
-            <motion.div 
-              key="result"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-3 gap-6"
-            >
-              <div className="text-center group">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 group-hover:text-zinc-600 transition-colors">BMR</p>
-                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">{result.bmr}</div>
-                <p className="text-[8px] text-zinc-400 font-bold uppercase mt-1">Basal Metabolic</p>
-              </div>
-              <div className="text-center group">
-                <p className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mb-1 group-hover:text-indigo-600 transition-colors">Target</p>
-                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{result.target}</div>
-                <p className="text-[8px] text-indigo-400 font-bold uppercase mt-1">Daily Kcal Goal</p>
-              </div>
-              <div className="text-center group">
-                <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 group-hover:text-zinc-600 transition-colors">TDEE</p>
-                <div className="text-xl font-black text-zinc-900 dark:text-zinc-100">{result.tdee}</div>
-                <p className="text-[8px] text-zinc-400 font-bold uppercase mt-1">Total Daily Energy</p>
-              </div>
-            </motion.div>
-          ) : (
-             <div className="flex flex-col items-center justify-center py-6 text-center">
-               <Info size={32} className="text-zinc-200 dark:text-zinc-800 mb-3" />
-               <p className="text-sm font-bold text-zinc-500">Complete your profile to see targets</p>
-               <button 
-                 onClick={() => setShowForm(true)}
-                 className="mt-3 text-[10px] font-black uppercase tracking-widest text-indigo-600"
-               >
-                 Set Up Health Profile
-               </button>
-             </div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {result && !showForm && (
-        <div className="px-6 pb-6 pt-2">
-           <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex items-center justify-between group cursor-help">
-              <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-                    <Dumbbell size={16} />
-                 </div>
-                 <div>
-                    <p className="text-[10px] font-black text-zinc-900 dark:text-zinc-100 uppercase leading-none">Smart Suggestion</p>
-                    <p className="text-[9px] text-zinc-500 font-medium">Based on your {profile.healthGoal} goal</p>
-                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">Active Plan</p>
-                <p className="text-[9px] text-zinc-400 font-bold uppercase">{profile.activityLevel} protocol</p>
-              </div>
-           </div>
-
-           {projection && (
-             <motion.div 
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="mt-4 p-4 rounded-2xl bg-zinc-900 border border-zinc-800"
-             >
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800">
-                   <div>
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Estimated Timeline</p>
-                      <p className="text-xl font-black text-white">{projection.weeksToGoal} <span className="text-sm text-zinc-400">Weeks</span></p>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none mb-1">Total Days</p>
-                      <p className="text-lg font-bold text-indigo-400">{projection.daysToGoal}</p>
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                   <div className="p-2 rounded-xl bg-zinc-800/50 text-center">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Protein</p>
-                      <p className="text-sm font-bold text-emerald-400">{projection.macros.p}g</p>
-                   </div>
-                   <div className="p-2 rounded-xl bg-zinc-800/50 text-center">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Carbs</p>
-                      <p className="text-sm font-bold text-amber-400">{projection.macros.c}g</p>
-                   </div>
-                   <div className="p-2 rounded-xl bg-zinc-800/50 text-center">
-                      <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Fats</p>
-                      <p className="text-sm font-bold text-rose-400">{projection.macros.f}g</p>
-                   </div>
-                </div>
-
-                <div className="p-3 bg-zinc-800/80 rounded-xl">
-                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1 text-center">Professional Protocol</p>
-                   <p className="text-[11px] font-medium text-zinc-300 leading-relaxed text-center">
-                      "{projection.professionalAdvice}"
-                   </p>
-                </div>
-             </motion.div>
-           )}
+      <div className="space-y-5 p-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Age<input aria-label="Age" type="number" min="13" max="120" value={profile.age ?? ''} onChange={event => setNumber('age', event.target.value)} className={inputClass} placeholder="Years"/></label>
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Height<input aria-label="Height" type="number" min="80" max="250" value={profile.height ?? ''} onChange={event => setNumber('height', event.target.value)} className={inputClass} placeholder="cm"/></label>
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Weight<input aria-label="Weight" type="number" min="25" max="400" value={profile.weight ?? ''} onChange={event => setNumber('weight', event.target.value)} className={inputClass} placeholder="kg"/></label>
         </div>
-      )}
-    </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Sex used by estimate<select aria-label="Sex used by estimate" value={profile.gender || ''} onChange={event => setProfile(current => ({ ...current, gender: (event.target.value || undefined) as HealthProfile['gender'] }))} className={inputClass}><option value="">Choose</option><option value="female">Female</option><option value="male">Male</option><option value="other">Other / prefer not to say</option></select></label>
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Usual activity<select aria-label="Usual activity" value={profile.activityLevel || ''} onChange={event => setProfile(current => ({ ...current, activityLevel: (event.target.value || undefined) as HealthProfile['activityLevel'] }))} className={inputClass}><option value="">Choose</option><option value="sedentary">Mostly seated</option><option value="light">Light activity</option><option value="moderate">Moderate activity</option><option value="very">Very active</option><option value="extra">Highly active</option></select></label>
+        </div>
+
+        <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Personal goal<select aria-label="Personal goal" value={profile.healthGoal || ''} onChange={event => setProfile(current => ({ ...current, healthGoal: (event.target.value || undefined) as HealthProfile['healthGoal'] }))} className={inputClass}><option value="">Choose (optional)</option><option value="loss">Weight management</option><option value="maintain">Maintain current weight</option><option value="gain">Build weight</option></select></label>
+
+        {estimate ? <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 dark:border-indigo-900/60 dark:bg-indigo-950/30">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white"><Activity size={16} className="text-indigo-600 dark:text-indigo-300"/> Estimated daily energy use</div>
+          <div className="grid grid-cols-2 gap-3"><div className="rounded-xl bg-white/80 p-3 dark:bg-slate-900/70"><p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">At rest</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{estimate.resting.toLocaleString()} <span className="text-xs font-medium text-slate-500">kcal/day</span></p></div><div className="rounded-xl bg-white/80 p-3 dark:bg-slate-900/70"><p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">With activity</p><p className="mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{estimate.daily.toLocaleString()} <span className="text-xs font-medium text-slate-500">kcal/day</span></p></div></div>
+          <p className="mt-3 flex gap-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"><Info size={14} className="mt-0.5 shrink-0"/>A rough formula-based estimate, not a nutrition prescription. Actual needs vary. This app does not track food intake and won’t predict weight change.</p>
+        </div> : <p className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-500 dark:bg-slate-800/70">Add age, height, weight, sex and usual activity to see an approximate energy-use estimate. You can save your profile without completing every field.</p>}
+
+        {onSave && <button type="button" onClick={() => onSave(profile)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-700 px-4 text-sm font-semibold text-white transition hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:bg-indigo-300 dark:text-slate-950 dark:hover:bg-indigo-200"><Save size={16}/>Save health profile</button>}
+        <p className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500"><UserRound size={14} className="mt-0.5 shrink-0"/>Profile data is used for this on-screen estimate and your health summary.</p>
+      </div>
+    </section>
   );
 }

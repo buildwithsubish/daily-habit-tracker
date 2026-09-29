@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Zap, Sparkles, LogOut, LayoutDashboard, Target, BarChart3, Menu, X, Settings, Award } from 'lucide-react';
+import { Sparkles, LogOut, LayoutDashboard, Target, BarChart3, Menu, X, Settings, Award } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import BrandMark from './BrandMark';
 import ThemeToggle from './ThemeToggle';
 import { useApp } from '@/context/AppContext';
@@ -27,22 +28,29 @@ export default function Navbar() {
         setMobileMenuOpen(false);
       }
     };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
 
     window.addEventListener('scroll', handleScroll);
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
     
     return () => {
       window.removeEventListener('scroll', handleScroll);
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, []);
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not sign out');
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
+      toast.error('Could not sign out. Check your connection and try again.');
     }
   };
 
@@ -88,11 +96,12 @@ export default function Navbar() {
           <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center p-1 bg-gray-50/50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(`${link.href}/`));
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200 ${
                     isActive
                       ? 'text-indigo-600 dark:text-indigo-400 bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-200/50 dark:ring-gray-700/50'
@@ -111,6 +120,9 @@ export default function Navbar() {
             {/* Advanced Mode Toggle */}
             <button
               onClick={toggleAdvancedMode}
+              type="button"
+              aria-pressed={advancedMode}
+              title="Use detailed check-ins when you mark a habit complete"
               className={`hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full transition-all duration-300 border ${
                 advancedMode 
                   ? 'bg-white border-gray-200 text-indigo-600 dark:bg-gray-800 dark:border-gray-700 dark:text-indigo-400 shadow-sm' 
@@ -118,7 +130,7 @@ export default function Navbar() {
               }`}
             >
               <Sparkles size={14} className={advancedMode ? 'text-indigo-500 fill-indigo-500/20' : ''} />
-              <span className="text-[10px] font-black uppercase tracking-wider">Advanced</span>
+              <span className="text-[10px] font-black uppercase tracking-wider">Deep logging</span>
             </button>
 
             <div className="h-4 w-px bg-gray-200 dark:bg-gray-800 mx-0.5 sm:mx-1 hidden sm:block" />
@@ -135,7 +147,8 @@ export default function Navbar() {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center justify-center w-9 h-9 rounded-xl text-gray-400 hover:text-red-500 transition-all hover:bg-red-50 dark:hover:bg-red-500/10"
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                aria-label="Sign out"
               >
                 <LogOut size={18} />
               </button>
@@ -157,12 +170,13 @@ export default function Navbar() {
             <div className="responsive-container py-3 space-y-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = pathname === link.href;
+                const isActive = pathname === link.href || (link.href !== '/dashboard' && pathname.startsWith(`${link.href}/`));
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={() => setMobileMenuOpen(false)}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors touch-button ${
                       isActive
                         ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
@@ -174,6 +188,16 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+              <button
+                type="button"
+                onClick={toggleAdvancedMode}
+                aria-pressed={advancedMode}
+                className={`flex min-h-11 w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors touch-button ${advancedMode ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}
+              >
+                <Sparkles size={18} />
+                <span className="flex-1 text-left">Deep logging</span>
+                <span className="text-xs font-semibold">{advancedMode ? 'On' : 'Off'}</span>
+              </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors touch-button"

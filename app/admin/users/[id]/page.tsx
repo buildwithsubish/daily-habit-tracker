@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Shield, Mail, User, Calendar,
   Target, CheckCircle, TrendingUp, Activity,
-  Eye, EyeOff, Clock, BarChart3, MessageCircle, AlertTriangle, Edit2
+  Eye, EyeOff, Clock, BarChart3
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar,
@@ -20,21 +20,6 @@ interface UserDetails {
     username: string;
     createdAt: string;
     timeZone: string;
-    whatsappNumber?: string;
-    whatsappAutomation?: boolean;
-    whatsappVerified?: boolean;
-    pollSchedule?: {
-      enabled: boolean;
-      time: string;
-      frequency: string;
-      customDays: number[];
-    };
-    weeklyReportSchedule?: {
-      enabled: boolean;
-      day: number;
-      time: string;
-    };
-    passwordHash: string;
     notificationPreferences: any;
   };
   habits: Array<{
@@ -72,26 +57,10 @@ export default function UserDetailsPage() {
   const [data, setData] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [showResetModal, setShowResetModal] = useState(false);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
-  const [scheduleMessage, setScheduleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
-  // Schedule form state
-  const [pollSchedule, setPollSchedule] = useState({
-    enabled: true,
-    time: '08:00',
-    frequency: 'daily',
-    customDays: [] as number[]
-  });
-  const [weeklyReportSchedule, setWeeklyReportSchedule] = useState({
-    enabled: true,
-    day: 0,
-    time: '09:00'
-  });
-
   useEffect(() => {
     fetchUserDetails();
   }, [userId]);
@@ -178,75 +147,6 @@ export default function UserDetailsPage() {
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <MessageCircle className={`${data.user.whatsappNumber ? 'text-green-500' : 'text-gray-400'}`} size={20} />
-              <div className="flex-1 overflow-hidden">
-                <p className="text-xs text-gray-500">WhatsApp Notification Hub</p>
-                {data.user.whatsappNumber ? (
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <p className="font-mono font-bold text-gray-900 truncate">{data.user.whatsappNumber}</p>
-                    <span className={`text-xs px-2 py-1 rounded-md font-bold ${data.user.whatsappVerified ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {data.user.whatsappVerified ? 'Verified' : 'Unverified'}
-                    </span>
-                    {data.user.whatsappAutomation && (
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-md font-bold">Automation Active</span>
-                    )}
-                    <a href={`https://wa.me/${data.user.whatsappNumber.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md font-bold hover:bg-green-200 transition-colors">Message</a>
-                  </div>
-                ) : (
-                  <p className="font-bold text-gray-400 mt-1">Not Linked</p>
-                )}
-              </div>
-            </div>
-
-            {/* Schedule Settings */}
-            {(data.user.whatsappNumber && data.user.whatsappVerified) && (
-              <div className="col-span-1 md:col-span-2 flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <Clock className="text-blue-500 mt-1" size={20} />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-blue-600 font-bold">Schedule Settings</p>
-                    <button
-                      onClick={() => {
-                        setPollSchedule(data.user.pollSchedule || { enabled: true, time: '08:00', frequency: 'daily', customDays: [] });
-                        setWeeklyReportSchedule(data.user.weeklyReportSchedule || { enabled: true, day: 0, time: '09:00' });
-                        setShowScheduleModal(true);
-                      }}
-                      className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                      <Edit2 size={12} /> Edit
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <p className="text-gray-500 text-xs">Poll Schedule</p>
-                        <p className="font-bold text-gray-900">
-                          {data.user.pollSchedule?.enabled ? `${data.user.pollSchedule.frequency} at ${data.user.pollSchedule.time}` : 'Disabled'}
-                        </p>
-                      </div>
-                      {data.user.pollSchedule?.frequency === 'daily' && data.user.pollSchedule?.enabled && (
-                        <div className="group relative">
-                          <AlertTriangle size={16} className="text-yellow-500 cursor-help" />
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800 hidden group-hover:block z-10">
-                            Daily polls may be excessive. Consider weekdays only for better user experience.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-xs">Weekly Report</p>
-                      <p className="font-bold text-gray-900">
-                        {data.user.weeklyReportSchedule?.enabled 
-                          ? `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][data.user.weeklyReportSchedule.day]} at ${data.user.weeklyReportSchedule.time}`
-                          : 'Disabled'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <User className="text-green-500" size={20} />
               <div>
                 <p className="text-xs text-gray-500">Username</p>
@@ -321,12 +221,12 @@ export default function UserDetailsPage() {
         </div>
 
         {/* Activity Chart */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-scale-in">
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-scale-in min-h-[320px] w-full min-w-0">
           <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <BarChart3 className="text-red-600" size={24} />
             Activity Over Time
           </h2>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0} initialDimension={{ width: 320, height: 300 }}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
@@ -487,149 +387,7 @@ export default function UserDetailsPage() {
           </div>
         )}
 
-        {/* Schedule Edit Modal */}
-        {showScheduleModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock className="text-blue-600" size={24} />
-                Edit User Schedule
-              </h3>
 
-              {scheduleMessage && (
-                <div className={`mb-4 p-3 rounded-lg ${scheduleMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                  {scheduleMessage.text}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {/* Poll Schedule */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="pollEnabled"
-                        checked={pollSchedule.enabled}
-                        onChange={(e) => setPollSchedule({ ...pollSchedule, enabled: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <label htmlFor="pollEnabled" className="font-bold text-gray-900">Poll Notifications</label>
-                    </div>
-                    {pollSchedule.frequency === 'daily' && pollSchedule.enabled && (
-                      <span className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full font-medium">
-                        <AlertTriangle size={12} /> High Frequency
-                      </span>
-                    )}
-                  </div>
-                  
-                  {pollSchedule.enabled && (
-                    <div className="grid grid-cols-2 gap-3 ml-6">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Frequency</label>
-                        <select
-                          value={pollSchedule.frequency}
-                          onChange={(e) => setPollSchedule({ ...pollSchedule, frequency: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekdays">Weekdays</option>
-                          <option value="weekends">Weekends</option>
-                          <option value="custom">Custom</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Time</label>
-                        <input
-                          type="time"
-                          value={pollSchedule.time}
-                          onChange={(e) => setPollSchedule({ ...pollSchedule, time: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Weekly Report Schedule */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="reportEnabled"
-                        checked={weeklyReportSchedule.enabled}
-                        onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, enabled: e.target.checked })}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      <label htmlFor="reportEnabled" className="font-bold text-gray-900">Weekly Report</label>
-                    </div>
-                  </div>
-                  
-                  {weeklyReportSchedule.enabled && (
-                    <div className="grid grid-cols-2 gap-3 ml-6">
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Day</label>
-                        <select
-                          value={weeklyReportSchedule.day}
-                          onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, day: parseInt(e.target.value) })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        >
-                          <option value={0}>Sunday</option>
-                          <option value={1}>Monday</option>
-                          <option value={2}>Tuesday</option>
-                          <option value={3}>Wednesday</option>
-                          <option value={4}>Thursday</option>
-                          <option value={5}>Friday</option>
-                          <option value={6}>Saturday</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Time</label>
-                        <input
-                          type="time"
-                          value={weeklyReportSchedule.time}
-                          onChange={(e) => setWeeklyReportSchedule({ ...weeklyReportSchedule, time: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Warning */}
-                {pollSchedule.frequency === 'daily' && pollSchedule.enabled && (
-                  <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <AlertTriangle className="text-yellow-600 flex-shrink-0 mt-0.5" size={16} />
-                    <p className="text-xs text-yellow-800">
-                      Daily polls may lead to user fatigue. Consider using weekdays or custom schedule for better engagement.
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowScheduleModal(false);
-                    setScheduleMessage(null);
-                  }}
-                  disabled={scheduleLoading}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleScheduleUpdate}
-                  disabled={scheduleLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {scheduleLoading ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -666,43 +424,4 @@ export default function UserDetailsPage() {
     }
   }
 
-  async function handleScheduleUpdate() {
-    setScheduleLoading(true);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scheduleSettings: {
-            pollSchedule,
-            weeklyReportSchedule
-          }
-        }),
-      });
-
-      const result = await res.json();
-      if (res.ok) {
-        setScheduleMessage({ type: 'success', text: '✅ Schedule updated successfully!' });
-        setData((prev) => prev ? {
-          ...prev,
-          user: {
-            ...prev.user,
-            pollSchedule: result.pollSchedule,
-            weeklyReportSchedule: result.weeklyReportSchedule
-          }
-        } : null);
-        setTimeout(() => {
-          setShowScheduleModal(false);
-          setScheduleMessage(null);
-        }, 2000);
-      } else {
-        setScheduleMessage({ type: 'error', text: result.error || 'Failed to update schedule' });
-      }
-    } catch (error) {
-      setScheduleMessage({ type: 'error', text: 'Error updating schedule' });
-    } finally {
-      setScheduleLoading(false);
-    }
-  }
 }
-

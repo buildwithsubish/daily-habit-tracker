@@ -81,6 +81,7 @@ export default function BrandMark({ href = '/dashboard' }: { href?: string }) {
           src="/logo.png"
           alt="DF"
           fill
+          sizes="(max-width: 640px) 32px, 42px"
           className="object-contain"
           priority
         />
@@ -105,6 +106,7 @@ export default function BrandMark({ href = '/dashboard' }: { href?: string }) {
               stroke="url(#logo-gradient)"
               strokeWidth="2"
               strokeDasharray="100"
+              initial={{ strokeDashoffset: 100 }}
               animate={{ strokeDashoffset: 100 - pressProgress }}
               className="text-indigo-500"
               strokeLinecap="round"
@@ -134,4 +136,3 @@ export default function BrandMark({ href = '/dashboard' }: { href?: string }) {
     </div>
   );
 }
-

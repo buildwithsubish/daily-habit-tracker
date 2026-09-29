@@ -5,7 +5,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
-import { Target, Flame, Brain, Heart, Sparkles, TrendingUp, Award, MessageCircle } from 'lucide-react';
+import { Target, Flame, Sparkles, TrendingUp, Award } from 'lucide-react';
 import { motion, Variants } from 'framer-motion';
 import { AnalyticsSkeleton } from '@/components/Skeleton';
 
@@ -59,72 +59,45 @@ const itemVariants: Variants = {
   }
 };
 
-// Mock data for fallback
-const defaultWeeklyData = [
-  { name: 'Mon', completion: 65, consistency: 40 },
-  { name: 'Tue', completion: 85, consistency: 60 },
-  { name: 'Wed', completion: 75, consistency: 55 },
-  { name: 'Thu', completion: 90, consistency: 80 },
-  { name: 'Fri', completion: 95, consistency: 85 },
-  { name: 'Sat', completion: 70, consistency: 90 },
-  { name: 'Sun', completion: 80, consistency: 75 },
-];
-
-const defaultCategoryData = [
-  { name: 'Health', value: 35, color: '#10b981' },
-  { name: 'Productivity', value: 25, color: '#6366f1' },
-  { name: 'Growth', value: 20, color: '#f59e0b' },
-  { name: 'Mindfulness', value: 20, color: '#8b5cf6' },
-];
-
 export default function AnalyticsClient() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'week' | 'month' | 'year'>('week');
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [whatsappStatus, setWhatsappStatus] = useState<{ whatsappNumber: string; whatsappAutomation: boolean } | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => setMounted(true), 800);
-    return () => clearTimeout(timer);
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
-      fetchAnalytics();
-      fetchWhatsAppStatus();
-    }
-  }, [mounted, activeTab]);
-
-  const fetchWhatsAppStatus = async () => {
-    try {
-      const res = await fetch('/api/whatsapp');
-      if (res.ok) {
-        const data = await res.json();
-        setWhatsappStatus(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch WhatsApp status:', error);
-    }
-  };
-
-  const fetchAnalytics = async () => {
-    try {
+    if (!mounted) return;
+    const controller = new AbortController();
+    const load = async () => {
       setLoading(true);
+      setFetchError(false);
+      setAnalyticsData(null);
       const period = activeTab === 'week' ? 'weekly' : activeTab === 'month' ? 'monthly' : 'yearly';
-      const res = await fetch(`/api/analytics?period=${period}`);
-      const data = await res.json();
-      setAnalyticsData(data);
-    } catch (error) {
-      console.error('Failed to fetch analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const response = await fetch(`/api/analytics?period=${period}`, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) throw new Error('Could not load analytics');
+        const data = await response.json();
+        setAnalyticsData(data);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setFetchError(true);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [mounted, activeTab, reloadCount]);
 
   // Transform API data for charts
   const getWeeklyData = () => {
-    if (!analyticsData?.completionStats) return defaultWeeklyData;
+    if (!analyticsData?.completionStats) return [];
 
     const completionStats = analyticsData.completionStats;
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -134,7 +107,7 @@ export default function AnalyticsClient() {
       const slice = completionStats.slice(-365);
       const monthMap = new Map<string, { completed: number; total: number }>();
       slice.forEach((stat: any) => {
-        const d = new Date(stat.date);
+        const d = new Date(`${stat.date}T12:00:00`);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const prev = monthMap.get(key) || { completed: 0, total: 0 };
         monthMap.set(key, { completed: prev.completed + stat.completed, total: prev.total + stat.total });
@@ -145,7 +118,6 @@ export default function AnalyticsClient() {
         return {
           name: `${m}/${y.slice(2)}`,
           completion: agg.total > 0 ? Math.round((agg.completed / agg.total) * 100) : 0,
-          consistency: agg.total > 0 ? Math.round((agg.completed / agg.total) * 100) : 0,
         };
       });
     }
@@ -156,13 +128,12 @@ export default function AnalyticsClient() {
       return {
         name: activeTab === 'week' ? dayNames[date.getDay()] : `${date.getMonth() + 1}/${date.getDate()}`,
         completion: stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0,
-        consistency: stat.completed > 0 ? 100 : 0,
       };
     });
   };
 
   const getCategoryData = () => {
-    if (!analyticsData?.habitStats) return defaultCategoryData;
+    if (!analyticsData?.habitStats) return [];
 
     const categories: Record<string, number> = {};
     analyticsData.habitStats.forEach((habit: any) => {
@@ -170,7 +141,8 @@ export default function AnalyticsClient() {
       categories[cat] = (categories[cat] || 0) + habit.completedLogs;
     });
 
-    const total = Object.values(categories).reduce((a: number, b: number) => a + b, 0) || 1;
+    const total = Object.values(categories).reduce((a: number, b: number) => a + b, 0);
+    if (!total) return [];
     const colors = ['#10b981', '#6366f1', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
 
     return Object.entries(categories).map(([name, value], index) => ({
@@ -181,7 +153,7 @@ export default function AnalyticsClient() {
   };
 
   const getStreaks = () => {
-    if (!analyticsData?.streaks) return { current: 14, longest: 21 };
+    if (!analyticsData?.streaks) return { current: 0, longest: 0 };
 
     const streaks = Object.values(analyticsData.streaks) as Array<{ current: number; longest: number }>;
     const current = Math.max(...streaks.map(s => s.current), 0);
@@ -190,12 +162,12 @@ export default function AnalyticsClient() {
   };
 
   const getCompletionRate = () => {
-    if (!analyticsData?.completionStats) return 82;
+    if (!analyticsData?.completionStats) return 0;
 
     const stats = analyticsData.completionStats;
     const total = stats.reduce((acc: number, s: any) => acc + s.total, 0);
     const completed = stats.reduce((acc: number, s: any) => acc + s.completed, 0);
-    return total > 0 ? Math.round((completed / total) * 100) : 82;
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
   };
 
   const weeklyData = getWeeklyData();
@@ -209,19 +181,22 @@ export default function AnalyticsClient() {
     const window = activeTab === 'week' ? 7 : activeTab === 'month' ? 30 : 365;
     const slice = stats.slice(-window);
     const daysWithAny = slice.reduce((acc, s: any) => acc + (s.completed > 0 ? 1 : 0), 0);
-    return Math.round((daysWithAny / Math.max(slice.length, 1)) * 100);
+    return Math.round((daysWithAny / window) * 100);
   };
 
-  const focusScore = (() => {
-    // Deterministic metric: completion + show-up consistency + small trend bonus.
-    const consistency = getConsistencyRate();
-    const trend = analyticsData?.trend?.changePercent ?? 0;
-    const trendBonus = Math.max(Math.min(trend, 20), -20);
-    const base = Math.round(0.6 * completionRate + 0.4 * consistency + trendBonus * 0.25);
-    return Math.max(0, Math.min(100, base));
-  })();
+  const completionStats = (analyticsData?.completionStats || []) as Array<{ date: string; total: number; completed: number }>;
+  const weekdayTotals = new Map<string, { total: number; completed: number }>();
+  for (const stat of completionStats) {
+    const weekday = new Date(`${stat.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long' });
+    const prior = weekdayTotals.get(weekday) || { total: 0, completed: 0 };
+    weekdayTotals.set(weekday, { total: prior.total + stat.total, completed: prior.completed + stat.completed });
+  }
+  const bestWeekday = [...weekdayTotals.entries()].filter(([, value]) => value.total > 0).sort((a, b) => b[1].completed / b[1].total - a[1].completed / a[1].total)[0];
+  const bestHabit = [...(analyticsData?.habitStats || [])].filter((habit: any) => habit.totalLogs > 0).sort((a: any, b: any) => b.completedLogs / b.totalLogs - a.completedLogs / a.totalLogs)[0];
 
   if (!mounted) return <AnalyticsSkeleton />;
+
+  if (fetchError) return <main className="premium-container min-h-[60vh] pt-24" role="alert"><section className="mx-auto max-w-lg rounded-2xl border border-rose-200 bg-white p-6 text-center shadow-sm dark:border-rose-900 dark:bg-zinc-900 sm:p-8"><h1 className="text-xl font-semibold text-slate-950 dark:text-white">Your analytics couldn’t load</h1><p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Check your connection and try again. Your habit records have not been changed.</p><button onClick={() => setReloadCount(value => value + 1)} className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-indigo-700 px-5 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">Try again</button></section></main>;
 
   return (
     <motion.div
@@ -254,7 +229,8 @@ export default function AnalyticsClient() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all duration-300 ${activeTab === tab
+                  aria-pressed={activeTab === tab}
+                  className={`min-h-11 flex-1 rounded-xl px-4 py-2 text-sm font-semibold capitalize transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:flex-none sm:px-6 ${activeTab === tab
                     ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/25'
                     : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50'
                     }`}
@@ -273,7 +249,7 @@ export default function AnalyticsClient() {
           {[
             { icon: Flame, label: 'Current Streak', value: streaks.current, suffix: 'days', colorKey: 'orange', gradient: 'orange' },
             { icon: Target, label: 'Completion Rate', value: completionRate, suffix: '%', colorKey: 'indigo', gradient: 'indigo' },
-            { icon: Brain, label: 'Focus Score', value: focusScore, suffix: '%', colorKey: 'purple', gradient: 'purple' },
+            { icon: Sparkles, label: 'Days with activity', value: getConsistencyRate(), suffix: '%', colorKey: 'purple', gradient: 'purple' },
             { icon: Award, label: 'Best Streak', value: streaks.longest, suffix: 'days', colorKey: 'emerald', gradient: 'emerald' },
           ].map((stat, index) => {
             const colors = colorClasses[stat.colorKey as keyof typeof colorClasses];
@@ -316,6 +292,8 @@ export default function AnalyticsClient() {
 
             {loading ? (
               <div className="h-20 rounded-2xl bg-zinc-100/60 dark:bg-zinc-800/40 animate-pulse" />
+            ) : completionStats.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm leading-relaxed text-slate-600 dark:border-zinc-700 dark:text-zinc-300">Log a few habits to see how your recent week compares with the previous one.</p>
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -353,6 +331,8 @@ export default function AnalyticsClient() {
 
             {loading ? (
               <div className="h-28 rounded-2xl bg-zinc-100/60 dark:bg-zinc-800/40 animate-pulse" />
+            ) : Object.keys(analyticsData?.heatmap || {}).length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-600 dark:border-zinc-700 dark:text-zinc-300">Your completed habits will build this activity view over time.</p>
             ) : (
               <div className="overflow-x-auto custom-scrollbar">
                 <div className="inline-grid grid-rows-7 grid-flow-col gap-1">
@@ -403,19 +383,13 @@ export default function AnalyticsClient() {
                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Consistency Trend</h3>
                 <p className="text-sm text-zinc-500 mt-1">Your activity over the past {activeTab === 'week' ? 'week' : activeTab === 'month' ? 'month' : 'year'}</p>
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/40" />
-                  <span className="text-sm font-medium text-zinc-500">Completion</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 shadow-lg shadow-emerald-500/40" />
-                  <span className="text-sm font-medium text-zinc-500">Consistency</span>
-                </div>
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-indigo-600" />
+                <span className="text-sm font-medium text-zinc-500">Completion rate</span>
               </div>
             </div>
 
-            <div className="h-[320px] w-full">
+            <div className="h-[320px] w-full min-h-[320px]">
               {loading ? (
                 <div className="h-full flex items-center justify-center">
                   <div className="flex flex-col items-center gap-4">
@@ -423,17 +397,15 @@ export default function AnalyticsClient() {
                     <span className="text-sm text-zinc-400 font-medium">Loading data...</span>
                   </div>
                 </div>
+              ) : weeklyData.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center text-sm text-slate-600 dark:border-zinc-700 dark:text-zinc-300">No habit history for this period yet.</div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 320, height: 260 }}>
                   <AreaChart data={weeklyData}>
                     <defs>
                       <linearGradient id="colorCompletionNew" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorConsistencyNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                       </linearGradient>
                       <filter id="glow">
                         <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -487,15 +459,6 @@ export default function AnalyticsClient() {
                       fill="url(#colorCompletionNew)"
                       filter="url(#glow)"
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="consistency"
-                      stroke="url(#colorConsistencyNew)"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#colorConsistencyNew)"
-                      filter="url(#glow)"
-                    />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -504,39 +467,29 @@ export default function AnalyticsClient() {
 
           {/* AI Insights & Category */}
           <div className="space-y-6 lg:space-y-8">
-            {/* AI Insights Card */}
-            <motion.div variants={itemVariants} className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-6 shadow-xl shadow-indigo-500/25">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-violet-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
-
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <Sparkles size={20} className="text-white" />
-                  </div>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-white/90">Smart Insights</h3>
-                </div>
-                <p className="text-white/90 leading-relaxed text-sm font-medium">
-                  "You're most consistent on <span className="text-yellow-300">weekdays</span>. Your morning routine has a <span className="text-yellow-300">94% success rate</span> when started before 8:00 AM."
-                </p>
-                <div className="mt-6 pt-5 border-t border-white/20">
-                  <p className="text-xs text-indigo-200 font-semibold uppercase tracking-wider">Suggestion:</p>
-                  <p className="text-sm mt-2 text-white/80 italic">Try shifting your reading habit to 7:45 AM for better consistency.</p>
-                </div>
-              </div>
+            <motion.div variants={itemVariants} className="rounded-2xl border border-slate-200 bg-[#fbfaf7] p-5 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+              <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300"><Sparkles size={17}/><h3 className="text-sm font-semibold">Patterns from your records</h3></div>
+              {completionStats.length === 0 ? <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-zinc-300">As you log habits, this space will summarize patterns from your own activity.</p> : <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700 dark:text-zinc-200">
+                {bestWeekday && <p>Your strongest recorded day is <strong>{bestWeekday[0]}</strong> ({Math.round(bestWeekday[1].completed / bestWeekday[1].total * 100)}% completion).</p>}
+                {bestHabit && <p><strong>{bestHabit.name}</strong> has your highest completion rate ({Math.round(bestHabit.completedLogs / bestHabit.totalLogs * 100)}%).</p>}
+                {!bestWeekday && !bestHabit && <p>There is not enough completed activity yet to identify a pattern.</p>}
+              </div>}
+              <p className="mt-4 border-t border-slate-200 pt-3 text-xs text-slate-500 dark:border-zinc-700 dark:text-zinc-400">These are simple summaries of saved logs, not predictions.</p>
             </motion.div>
 
             {/* Focus Areas Pie Chart */}
             <motion.div variants={itemVariants} className="rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-6">Focus Areas</h3>
 
-              <div className="h-[180px] w-full relative">
+              <div className="relative h-[180px] min-h-[180px] w-full">
                 {loading ? (
                   <div className="h-full flex items-center justify-center">
                     <div className="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                   </div>
+                ) : categoryData.length === 0 ? (
+                  <div className="flex h-full items-center justify-center px-3 text-center text-sm text-slate-500">Complete some habits to see category activity.</div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 320, height: 180 }}>
                     <PieChart>
                       <Pie
                         data={categoryData}
@@ -579,15 +532,15 @@ export default function AnalyticsClient() {
                     </PieChart>
                   </ResponsiveContainer>
                 )}
-                <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                {categoryData.length > 0 && <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-bold bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
                     {loading ? '—' : `${completionRate}%`}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em]">Total</span>
-                </div>
+                </div>}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mt-6">
+              <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {categoryData.map((cat) => (
                   <div key={cat.name} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
                     <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: cat.color }} />
@@ -626,7 +579,7 @@ export default function AnalyticsClient() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : analyticsData?.habitStats?.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {analyticsData?.habitStats?.slice(0, 6).map((habit: any, index: number) => {
                 const completionRate = habit.totalLogs > 0
@@ -640,7 +593,7 @@ export default function AnalyticsClient() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
-                    className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer group"
+                    className="rounded-xl border border-white/10 bg-white/5 p-4 transition-colors group sm:p-5"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -672,68 +625,7 @@ export default function AnalyticsClient() {
                 );
               })}
             </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* WhatsApp Automation Stats */}
-      <motion.div variants={itemVariants} className="premium-container pt-10">
-        <div className="rounded-3xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-zinc-200/20 dark:shadow-zinc-950/40 p-6 lg:p-8">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center">
-              <MessageCircle size={22} className="text-green-500" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">WhatsApp Automation</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Weekly messaging insights</p>
-            </div>
-            {whatsappStatus && (
-              <div className={`ml-auto px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider ${whatsappStatus.whatsappAutomation
-                ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300'
-                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
-                }`}>
-                {whatsappStatus.whatsappAutomation ? 'Active' : 'Inactive'}
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {(() => {
-              const totalHabits = analyticsData?.habitStats?.length || 0;
-              const automatedHabits = whatsappStatus?.whatsappAutomation ? totalHabits : 0;
-              const totalLogs = analyticsData?.habitStats?.reduce((acc: number, h: any) => acc + (h.totalLogs || 0), 0) || 0;
-              const completedLogs = analyticsData?.habitStats?.reduce((acc: number, h: any) => acc + (h.completedLogs || 0), 0) || 0;
-              const responseRate = totalLogs > 0 ? Math.round((completedLogs / totalLogs) * 100) : 0;
-              const messagesSent = whatsappStatus?.whatsappAutomation ? Math.max(completedLogs, totalHabits * 2) : 0;
-              const engagement = responseRate >= 80 ? 'High' : responseRate >= 50 ? 'Medium' : responseRate > 0 ? 'Low' : 'N/A';
-
-              return [
-                { label: 'Messages Sent', value: messagesSent, suffix: '', color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-500/10' },
-                { label: 'Habits Automated', value: automatedHabits, suffix: '', color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
-                { label: 'Response Rate', value: responseRate, suffix: '%', color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-500/10' },
-                { label: 'Engagement', value: engagement, suffix: '', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10' },
-              ].map((stat, i) => (
-                <div key={i} className={`rounded-2xl p-5 ${stat.bg} border border-zinc-100 dark:border-zinc-800/50`}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-2">{stat.label}</p>
-                  <p className={`text-2xl font-bold ${stat.color}`}>{loading ? '\u2014' : `${stat.value}${stat.suffix}`}</p>
-                </div>
-              ));
-            })()}
-          </div>
-
-          <div className="mt-6 p-4 rounded-2xl bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-500/5 dark:to-emerald-500/5 border border-green-100 dark:border-green-800/30">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">💬</span>
-              <div>
-                <p className="text-sm font-semibold text-green-800 dark:text-green-300">Automation keeps you accountable</p>
-                <p className="text-xs text-green-600/80 dark:text-green-400/60 mt-0.5">
-                  {whatsappStatus?.whatsappAutomation
-                    ? `You have ${analyticsData?.habitStats?.length || 0} habits tracked. Keep it up!`
-                    : 'Link your WhatsApp number to enable daily reminders and boost completion by up to 23%.'}
-                </p>
-              </div>
-            </div>
-          </div>
+          ) : <p className="rounded-xl border border-dashed border-white/20 px-4 py-8 text-center text-sm text-zinc-300">Your habit performance will appear here after you start logging habits.</p>}
         </div>
       </motion.div>
 
@@ -742,4 +634,3 @@ export default function AnalyticsClient() {
     </motion.div>
   );
 }
-

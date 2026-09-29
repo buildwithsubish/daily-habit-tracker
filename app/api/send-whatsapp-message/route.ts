@@ -5,6 +5,7 @@ import Habit from '@/lib/models/Habit';
 import MessageLog from '@/lib/models/MessageLog';
 import { requireAuth } from '@/lib/middleware';
 import { formatHabitListMessage, sendWhatsAppMessage } from '@/lib/whatsapp';
+import { resolveUserPhone } from '@/lib/pii';
 import mongoose from 'mongoose';
 
 export async function POST(request: NextRequest) {
@@ -15,14 +16,15 @@ export async function POST(request: NextRequest) {
         const userId = requireAuth(request);
 
         // 2. Fetch the user's secure automation details
-        const user = await User.findById(userId).select('whatsappNumber whatsappVerified whatsappAutomation whatsappContactName username');
+        const user = await User.findById(userId).select('whatsappNumber whatsappNumberEncrypted whatsappVerified whatsappAutomation whatsappContactName username');
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
         // 3. Validate WhatsApp setup
-        if (!user.whatsappNumber) {
+        const phoneNumber = resolveUserPhone(user);
+        if (!phoneNumber) {
             return NextResponse.json({
                 error: 'No WhatsApp number linked. Please add your phone number in settings.'
             }, { status: 400 });
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
         // 7. Dispatch message with error handling
         let result;
         try {
-            result = await sendWhatsAppMessage(user.whatsappNumber, messageBody, user.whatsappContactName || user.username);
+            result = await sendWhatsAppMessage(phoneNumber, messageBody, user.whatsappContactName || user.username);
         } catch (sendError: any) {
             console.error('[WhatsApp] Send error:', sendError);
 
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
                 messageId: result.messageId,
             });
 
-            console.log(`[WhatsApp] Message sent successfully to ${user.whatsappNumber} (Provider: ${result.provider})`);
+            console.log(`[WhatsApp] Message sent successfully to verified account (Provider: ${result.provider})`);
 
             return NextResponse.json({
                 success: true,
@@ -134,4 +136,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { initAdmin } from '@/lib/init-admin';
 import { hashPassword } from '@/lib/auth';
 import mongoose from 'mongoose';
 
@@ -12,7 +11,6 @@ export async function POST(
 ) {
   try {
     await connectDB();
-    await initAdmin();
     requireAdmin(request);
 
     const { id: userId } = await params;

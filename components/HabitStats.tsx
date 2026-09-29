@@ -91,8 +91,8 @@ export default function HabitStats({ habits = [], logs = [] }: HabitStatsProps) 
         ))}
       </div>
 
-      <div className="h-28 w-full mb-5">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="h-28 w-full mb-5 min-h-[112px]">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 320, height: 112 }}>
           <AreaChart data={stats.dailyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorOverview" x1="0" y1="0" x2="0" y2="1">

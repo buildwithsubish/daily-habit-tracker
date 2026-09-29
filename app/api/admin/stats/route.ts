@@ -6,15 +6,12 @@ import DailyLog from '@/lib/models/DailyLog';
 import MessageLog from '@/lib/models/MessageLog';
 import AuditLog from '@/lib/models/AuditLog';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { initAdmin } from '@/lib/init-admin';
 import mongoose from 'mongoose';
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
-    // Initialize admin if not exists
-    await initAdmin();
-    requireAdmin(request); // Ensure admin is authenticated
+    requireAdmin(request);
     
     const userIdObj = new mongoose.Types.ObjectId();
     

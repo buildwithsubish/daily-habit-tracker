@@ -1,6 +1,6 @@
 # Daily Habit Tracker
 
-A comprehensive web-based habit tracker with daily reminders, multi-step habits, visual progress dashboards, AI-driven motivation, per-user themes, WhatsApp integration, and health tips.
+A web-based habit tracker with daily progress, multi-step habits, an eight-day editable history, personal reminders, progress insights, and health tips.
 
 ## 🚀 Features
 
@@ -16,11 +16,10 @@ A comprehensive web-based habit tracker with daily reminders, multi-step habits,
 - **Responsive Design**: Fully mobile-adaptive UI
 
 ### WhatsApp Integration
-- **Phone Verification**: 6-digit code verification via WhatsApp
-- **Automated Reminders**: Daily summaries and scheduled reminders
-- **Message Scheduling**: 08:00 AM daily summary, 10:00 AM/2:00 PM/7:00 PM reminders
-- **Status Tracking**: Message delivery status with retry logic
-- **Admin Dashboard**: WhatsApp session management and broadcasting
+- Optional, API-only capability retained for future use
+- No WhatsApp connection, reminder, polling, or message pipeline starts with the app
+- Session status reads are read-only; QR/connect actions happen only after an explicit API request
+- The user dashboard does not depend on WhatsApp
 
 ### Theme System
 - **28 Dark Themes**: Black and red color combinations
@@ -84,34 +83,18 @@ sudo systemctl start mongod && sudo systemctl enable mongod
 
 3. **Environment Configuration**
    
-   Create `.env.local`:
-```env
-# Database
-MONGODB_URI=mongodb://localhost:27017/habit-tracker
-
-# JWT (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-JWT_SECRET=your-super-secret-jwt-key-min-32-chars-change-in-production
-ADMIN_JWT_SECRET=your-different-admin-secret-key-min-32-chars
-
-# Admin Account
-ADMIN_EMAIL=your-admin-email@example.com
-ADMIN_PASSWORD=YourSuperSecurePassword123!@#
-
-# WhatsApp Integration (Optional)
-WHATSAPP_PROVIDER=twilio
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_WHATSAPP_NUMBER=+1234567890
-CRON_SECRET=your-secret-key
-
-# Environment
-NODE_ENV=development
-```
-
-4. **Initialize Admin Account**
+   Copy the template and edit values:
 ```bash
-npm run init-admin
+cp .env.example .env.local
 ```
+
+   Required variables: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_JWT_SECRET`, `ENCRYPTION_KEY`.
+   Admin login is stored in MongoDB (not `.env`). For first boot use `/admin/setup` or:
+```bash
+npm run bootstrap-admin
+```
+
+   In production, set `ADMIN_SETUP_TOKEN` (min 16 chars) for one-time web setup.
 
 5. **Start Development Server**
 ```bash
@@ -149,54 +132,22 @@ git add . && git commit -m "Deploy" && git push
 
 ### Admin Login
 - **URL**: `/admin/login`
-- **Email**: From `.env.local` ADMIN_EMAIL
-- **Password**: From `.env.local` ADMIN_PASSWORD
+- **First-time setup**: `/admin/setup` or `npm run bootstrap-admin` (credentials stored in MongoDB)
 
 ### Admin Features
 - **User Management**: View and manage all users
 - **Analytics**: Advanced statistics and performance tracking
 - **Theme Management**: Create/edit/delete themes
-- **WhatsApp Integration**: Session management and broadcasting
+- **Integration APIs**: Optional WhatsApp session and message endpoints (no user-facing WhatsApp workflow)
 - **Password Reset**: Secure admin password recovery
 
-## 📱 WhatsApp Integration
+## 📱 WhatsApp API-only capability
 
-### Setup
-1. Configure Twilio or Meta Business API credentials
-2. Users verify phone numbers via 6-digit code
-3. Enable automated reminders and daily summaries
+WhatsApp is separate from the daily habit workflow. The app has no WhatsApp UI or background scheduler. Authenticated API routes can be called directly when you choose to use the integration.
 
-### Features
-- **Phone Verification**: Secure verification flow
-- **Message Scheduling**: Automated reminders at set times
-- **Status Tracking**: Monitor message delivery
-- **Retry Logic**: Automatic retry for failed messages
-- **Admin Broadcasting**: Send messages to multiple users one-by-one
+For QR/session setup, call `POST /api/admin/whatsapp/session` with an explicit action such as `init` or `connect`; the response contains the result, including a QR code when available. `GET /api/admin/whatsapp/session` only reports status and never opens a session. Other message actions likewise run only when their API route is called. The optional Python WhatsApp service must be started separately when using the `whatsapp-web` provider.
 
-### Admin Broadcasting
-The broadcast system sends messages to users one-by-one with proper verification:
-- **Pre-Flight Checks**: Verifies WhatsApp is connected before starting
-- **Individual Delivery**: Each message is sent individually with status tracking
-- **Failure Logging**: Failed messages are logged with specific error reasons
-- **Detailed Results**: Returns per-user success/failure status
-- **Health Endpoint**: Check broadcast readiness at `/api/admin/whatsapp/broadcast-health`
-
-### API Endpoints
-```
-POST /api/whatsapp/verify-number           - Send/verify code
-GET  /api/whatsapp/message-history         - View message history
-POST /api/send-whatsapp-message            - Send manual message
-POST /api/admin/whatsapp/broadcast         - Send broadcast to users
-GET  /api/admin/whatsapp/broadcast-health  - Check broadcast system health
-```
-
-### Troubleshooting Broadcasts
-If broadcasts show as "sent" but aren't delivering:
-1. Run: `curl http://localhost:3000/api/admin/whatsapp/broadcast-health`
-2. Verify WhatsApp is **connected** at `/admin/whatsapp`
-3. Ensure Python server is running: `python whatsapp_server.py`
-4. Check users have WhatsApp enabled in their settings
-5. See [BROADCAST_DEBUG_GUIDE.md](./BROADCAST_DEBUG_GUIDE.md) for detailed debugging
+The single daily check-in reminder is a separate browser feature. It uses the chosen local time and can display while the dashboard is open. Browser notifications must be allowed; delivery when the app is closed requires a push service to be configured.
 
 ## 🎨 Theme System
 
@@ -310,10 +261,10 @@ sudo systemctl start mongod
 MONGODB_URI=mongodb://localhost:27017/habit-tracker
 ```
 
-### WhatsApp Issues
-- Check Twilio credentials in `.env.local`
-- Verify phone number format (+countrycode)
-- Check server logs for `[WhatsApp]` messages
+### Optional WhatsApp API
+- Use authenticated API requests only; the app does not start WhatsApp work automatically.
+- Connect or retrieve a QR code with an explicit `POST /api/admin/whatsapp/session` action.
+- For `whatsapp-web`, start the Python WhatsApp service separately.
 
 ### Common Issues
 - **Build fails**: Check TypeScript errors
@@ -326,7 +277,7 @@ MONGODB_URI=mongodb://localhost:27017/habit-tracker
 npm run dev          # Start development server
 npm run build        # Build for production
 npm start            # Start production server
-npm run init-admin   # Initialize admin account
+npm run bootstrap-admin   # Create admin account in MongoDB (first boot)
 npm run seed         # Seed database with themes
 ```
 

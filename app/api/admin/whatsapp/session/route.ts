@@ -8,88 +8,30 @@ import {
   initializeWhatsApp, 
   getWhatsAppStatus, 
   reconnectWhatsApp, 
-  disconnectWhatsApp,
-  isWhatsAppInitialized
+  disconnectWhatsApp
 } from '@/lib/whatsapp-init';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
+    const adminId = getAdminIdFromRequest(request);
+    if (!adminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await connectDB();
-    
-    let adminId = getAdminIdFromRequest(request);
-    
-    // If no admin token, try to get the session from MongoDB
-    // Query for any existing WhatsApp session in the database
-    if (!adminId) {
-      console.log('[WhatsApp Session] No admin token, checking MongoDB for existing session...');
-      
-      // Find the most recent session with session data
-      const existingSession = await WhatsAppSession.findOne({
-        $or: [
-          { sessionData: { $exists: true, $nin: [null, ''] } },
-          { status: 'connected' }
-        ]
-      }).sort({ updatedAt: -1, createdAt: -1 });
-      
-      if (existingSession) {
-        // Use the session's stored ID
-        adminId = existingSession.ADMIN_SESSION_ID || existingSession.adminIdString || existingSession.adminId?.toString() || null;
-        console.log('[WhatsApp Session] Found existing session in DB:', adminId);
-      } else {
-        console.log('[WhatsApp Session] No existing session found in DB');
-      }
-    }
 
-    // If still no adminId, return not authenticated
-    if (!adminId) {
-      return NextResponse.json({
-        status: 'disconnected',
-        message: 'No WhatsApp session found. Please login as admin to connect WhatsApp.',
-        sessionExists: false,
-      });
-    }
-
-    // Check if already initialized for this specific adminId, if not initialize
-    if (!isWhatsAppInitialized(adminId)) {
-      console.log('[WhatsApp Session] Initializing WhatsApp for:', adminId);
-      await initializeWhatsApp(adminId);
-    }
-
-    // Get current status
-    const status = await getWhatsAppStatus(adminId);
+    // GET is read-only. Session initialization happens only after an explicit POST action.
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === '1' || searchParams.get('force') === 'true';
+    const status = await getWhatsAppStatus(adminId, force);
     
-    console.log('[WhatsApp Session] GET Status:', status.status, 'for adminId:', adminId);
+    // Reduce log spam: only log on status changes or infrequently (lower layer also throttles)
+    if (status.status !== 'connected' || Math.random() < 0.1) {
+      console.log('[WhatsApp Session] GET Status:', status.status, 'for adminId:', adminId);
+    }
     
     return NextResponse.json(status);
   } catch (error: any) {
     console.error('[WhatsApp Session] GET Error:', error);
-    
-    // Try to get session from DB even if there's an error
-    try {
-      // Find the most recent session with session data
-      const session = await WhatsAppSession.findOne({
-        $or: [
-          { sessionData: { $exists: true, $nin: [null, ''] } },
-          { status: 'connected' }
-        ]
-      }).sort({ updatedAt: -1, createdAt: -1 });
-      
-      if (session) {
-        const adminId = session.ADMIN_SESSION_ID || session.adminIdString || session.adminId?.toString();
-        return NextResponse.json({
-          status: 'disconnected',
-          hasSavedSession: true,
-          phoneNumber: session.phoneNumber,
-          lastConnectedAt: session.lastConnectedAt,
-          message: 'Saved session exists. Click "Connect WhatsApp" to reconnect.',
-        });
-      }
-    } catch (dbError) {
-      // Ignore DB error
-    }
-    
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
@@ -99,38 +41,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const adminId = getAdminIdFromRequest(request);
+    if (!adminId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await connectDB();
 
-    let adminId = getAdminIdFromRequest(request);
-    
-    // If no admin token, try to get the session from MongoDB
-    if (!adminId) {
-      console.log('[WhatsApp Session] POST: No admin token, checking MongoDB for existing session...');
-      
-      // Find the most recent session with session data
-      const existingSession = await WhatsAppSession.findOne({
-        $or: [
-          { sessionData: { $exists: true, $nin: [null, ''] } },
-          { status: 'connected' }
-        ]
-      }).sort({ updatedAt: -1, createdAt: -1 });
-      
-      if (existingSession) {
-        adminId = existingSession.ADMIN_SESSION_ID || existingSession.adminIdString || existingSession.adminId?.toString() || null;
-        console.log('[WhatsApp Session] POST: Found existing session in DB:', adminId);
-      }
-    }
-
-    // If still no adminId, return not authenticated
-    if (!adminId) {
-      return NextResponse.json(
-        { error: 'No WhatsApp session found. Please login as admin to connect WhatsApp.' },
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
-    const { action, sessionData } = body;
+    const { action, sessionData, password } = body;
 
     // Connect or reconnect
     if (action === 'connect' || action === 'auto_connect') {
@@ -235,6 +151,33 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Session loaded successfully'
       });
+    }
+
+    // Setup App Lock
+    if (action === 'setup_app_lock') {
+      if (!password) {
+        return NextResponse.json({ success: false, error: 'Password is required' }, { status: 400 });
+      }
+      const result = await whatsappClientManager.setupAppLock(adminId, password);
+      return NextResponse.json(result);
+    }
+
+    // Lock App
+    if (action === 'lock_app') {
+      const result = await whatsappClientManager.lockApp(adminId);
+      return NextResponse.json(result);
+    }
+
+    // Unlock App
+    if (action === 'unlock_app') {
+      const result = await whatsappClientManager.unlockApp(adminId);
+      return NextResponse.json(result);
+    }
+
+    // Full logout (WA Web logout + session cleanup) - admin level
+    if (action === 'logout') {
+      const result = await whatsappClientManager.logout(adminId);
+      return NextResponse.json(result);
     }
 
     return NextResponse.json(

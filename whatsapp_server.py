@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import random
+import re
 import signal
 import sys
 import time
@@ -51,6 +52,55 @@ db = None
 
 # Create session directory
 Path(USER_DATA_DIR).mkdir(parents=True, exist_ok=True)
+
+COUNTRY_DIAL_CODES: Dict[str, str] = {
+    "India": "+91",
+    "United States": "+1",
+    "United Kingdom": "+44",
+    "United Arab Emirates": "+971",
+    "Canada": "+1",
+    "Australia": "+61",
+}
+
+
+def resolve_dial_code(country: str, country_code: Optional[str] = None) -> str:
+    if country_code:
+        digits = "".join(c for c in country_code if c.isdigit())
+        if digits:
+            return f"+{digits}"
+    return COUNTRY_DIAL_CODES.get(country, "")
+
+
+def sanitize_local_phone_number(phone_number: str, country_code: Optional[str] = None) -> str:
+    raw = phone_number.strip()
+    if raw.startswith("+"):
+        raw = raw[1:]
+    digits = "".join(c for c in raw if c.isdigit())
+    if not digits:
+        return ""
+    dial_digits = ""
+    if country_code:
+        dial_digits = "".join(c for c in country_code if c.isdigit())
+    if not dial_digits:
+        for _country, dial in COUNTRY_DIAL_CODES.items():
+            code = dial.lstrip("+")
+            if digits.startswith(code) and len(digits) > len(code):
+                dial_digits = code
+                break
+    if dial_digits and digits.startswith(dial_digits) and len(digits) > len(dial_digits):
+        digits = digits[len(dial_digits):]
+    return digits.lstrip("0") or digits
+
+
+def format_phone_input_number(phone_number: str, country_code: Optional[str] = None) -> str:
+    """Format for WhatsApp phone input: country code + local digits (e.g. 919876543210)."""
+    local = sanitize_local_phone_number(phone_number, country_code)
+    if not local:
+        return ""
+    dial_digits = "".join(c for c in (country_code or "91") if c.isdigit()) or "91"
+    if local.startswith(dial_digits) and len(local) > len(dial_digits):
+        return local
+    return f"{dial_digits}{local}"
 
 
 def connect_to_mongodb():
@@ -576,68 +626,271 @@ class WhatsAppClient:
         except Exception as e:
             print(f"Failed to capture QR code: {e}")
         return None
-    
-    async def phone_login(self, phone_number: str, country: str = "India", session_timeout: int = 120) -> Dict[str, Any]:
+
+    def _normalize_dial_code(self, value: str) -> str:
+        digits = "".join(c for c in (value or "") if c.isdigit())
+        return f"+{digits}" if digits else ""
+
+    async def _get_country_picker_button(self):
+        phone_input_xpath = "//input[@aria-label='Type your phone number to log in to WhatsApp']"
+        picker_xpaths = [
+            f"{phone_input_xpath}/preceding-sibling::*[self::button or @role='button'][1]",
+            f"{phone_input_xpath}/parent::*/preceding-sibling::*[self::button or @role='button'][1]",
+            f"{phone_input_xpath}/parent::*/child::*[self::button or @role='button'][1]",
+            f"{phone_input_xpath}/preceding::button[.//span[contains(normalize-space(),'+')]][1]",
+            f"{phone_input_xpath}/preceding::div[@role='button'][.//span[contains(normalize-space(),'+')]][1]",
+        ]
+        for xpath in picker_xpaths:
+            try:
+                btn = await self.page.query_selector(f"xpath={xpath}")
+                if btn and await btn.is_visible():
+                    return btn
+            except Exception:
+                continue
+        try:
+            locator = self.page.locator(
+                "input[aria-label='Type your phone number to log in to WhatsApp']"
+            ).locator("xpath=preceding-sibling::*[1]")
+            if await locator.count() > 0 and await locator.first.is_visible():
+                return await locator.first.element_handle()
+        except Exception:
+            pass
+        return None
+
+    async def _read_country_dial_code(self) -> str:
+        btn = await self._get_country_picker_button()
+        if not btn:
+            return ""
+        try:
+            label = await btn.inner_text()
+            match = re.search(r"\+\d{1,4}", label.replace("\u00a0", " "))
+            if match:
+                return self._normalize_dial_code(match.group(0))
+        except Exception:
+            pass
+        return ""
+
+    async def _search_country_in_picker(self, country: str) -> None:
+        search_xpaths = [
+            "//div[@role='dialog']//input[@type='text']",
+            "//div[@role='dialog']//input",
+            "//input[contains(translate(@aria-label,'SEARCH','search'),'search')]",
+            "//input[contains(translate(@placeholder,'SEARCH','search'),'search')]",
+        ]
+        for xpath in search_xpaths:
+            try:
+                search_input = await self.page.query_selector(f"xpath={xpath}")
+                if search_input and await search_input.is_visible():
+                    await search_input.click()
+                    await self._random_delay(0.2, 0.3)
+                    await search_input.fill("")
+                    await search_input.fill(country)
+                    print(f"🔍 Searched country list for: {country}")
+                    await self._random_delay(0.8, 1.2)
+                    return
+            except Exception:
+                continue
+
+    async def _click_country_option(self, country: str, dial_code: str = "") -> bool:
+        dial_digits = "".join(c for c in dial_code if c.isdigit())
+        clicked = await self.page.evaluate(
+            """({ country, dialDigits }) => {
+                const isVisible = (el) => {
+                    if (!el) return false;
+                    const style = window.getComputedStyle(el);
+                    const rect = el.getBoundingClientRect();
+                    return style.visibility !== 'hidden' && style.display !== 'none'
+                        && rect.width > 0 && rect.height > 0;
+                };
+                const normalize = (s) => (s || '').replace(/\\s+/g, ' ').trim();
+                const matches = [];
+                for (const node of document.querySelectorAll('span')) {
+                    if (normalize(node.textContent) !== country) continue;
+                    const row = node.closest(
+                        '[role="button"], [role="listitem"], [role="option"], li, button'
+                    ) || node.parentElement;
+                    if (!row || !isVisible(row)) continue;
+                    matches.push(row);
+                }
+                for (const row of matches) {
+                    const rowText = normalize(row.textContent);
+                    if (!dialDigits || rowText.includes(dialDigits)) {
+                        row.click();
+                        return true;
+                    }
+                }
+                if (matches.length === 1) {
+                    matches[0].click();
+                    return true;
+                }
+                return false;
+            }""",
+            {"country": country, "dialDigits": dial_digits},
+        )
+        if clicked:
+            return True
+        xpaths = [
+            f"//*[@role='dialog']//div[@role='button'][.//span[normalize-space()='{country}']]",
+            f"//span[normalize-space()='{country}']/ancestor::*[@role='button' or @role='listitem'][1]",
+            f"//button[.//span[normalize-space()='{country}']]",
+        ]
+        for xpath in xpaths:
+            try:
+                elements = await self.page.query_selector_all(f"xpath={xpath}")
+                for element in elements:
+                    if await element.is_visible():
+                        await element.click()
+                        return True
+            except Exception:
+                continue
+        return False
+
+    async def _select_phone_login_country(self, country: str, dial_code: str = "") -> bool:
+        expected_dial = self._normalize_dial_code(dial_code)
+        current_dial = await self._read_country_dial_code()
+        if expected_dial and current_dial == expected_dial:
+            print(f"✅ Country picker already shows {expected_dial} ({country})")
+            return True
+        picker_btn = await self._get_country_picker_button()
+        if not picker_btn:
+            return False
+        try:
+            await picker_btn.click()
+            await self._random_delay(0.6, 1)
+        except Exception:
+            return False
+        await self._search_country_in_picker(country)
+        if not await self._click_country_option(country, expected_dial):
+            try:
+                await self.page.keyboard.press("Escape")
+            except Exception:
+                pass
+            return False
+        await self._random_delay(0.6, 1)
+        selected_dial = await self._read_country_dial_code()
+        return not expected_dial or selected_dial == expected_dial
+
+    async def _hold_phone_login_session(self, session_timeout: int) -> None:
+        """Keep browser open in background while user enters linking code on phone."""
+        try:
+            print(f"⏱️  Keeping browser open for {session_timeout} seconds (background)...")
+            await asyncio.sleep(session_timeout)
+            self.status = "connected"
+            try:
+                await self.save_session_to_db()
+                print("✅ Session saved automatically after phone login hold")
+            except Exception as e:
+                print(f"⚠️ Auto-save session failed: {e}")
+            print("✅ Phone login background hold completed")
+        except Exception as e:
+            print(f"⚠️ Phone login background hold error: {e}")
+
+    async def _clear_and_fill_phone_input(self, phone_input, phone_number: str) -> None:
+        input_digits = "".join(c for c in phone_number if c.isdigit())
+        if not input_digits:
+            raise ValueError("Phone number must contain digits")
+        await phone_input.click()
+        await self._random_delay(0.3, 0.5)
+        for _ in range(4):
+            await phone_input.fill("")
+            await phone_input.press("Control+a")
+            await phone_input.press("Backspace")
+            await phone_input.press("Meta+a")
+            await phone_input.press("Backspace")
+            await self._random_delay(0.15, 0.25)
+            current = await phone_input.input_value()
+            if not "".join(c for c in (current or "") if c.isdigit()):
+                break
+        await phone_input.fill(input_digits)
+        await self._random_delay(0.2, 0.4)
+        entered_digits = "".join(c for c in (await phone_input.input_value() or "") if c.isdigit())
+        if entered_digits != input_digits:
+            await phone_input.fill("")
+            for char in input_digits:
+                await phone_input.type(char, delay=random.randint(40, 100))
+
+    async def phone_login(
+        self,
+        phone_number: str,
+        country: str = "India",
+        session_timeout: int = 120,
+        country_code: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Streamlined phone number-based login for WhatsApp Web
-        Automatically handles the complete login flow and displays the code
-        
-        Args:
-            phone_number (str): Phone number without country code (e.g., "9876543210")
-            country (str): Country name (default: "India")
-            session_timeout (int): Keep browser open for this many seconds (default: 120 = 2 minutes)
-        
-        Returns:
-            dict: Contains status, login_code, and instructions
+        Streamlined phone number-based login for WhatsApp Web.
+        Clears the input and enters number starting with country code (e.g. 919876543210).
         """
         try:
             print("\n" + "="*60)
             print("🚀 Starting Streamlined WhatsApp Web Phone Login")
             print("="*60)
-            
+
             if not self.page:
                 return {"status": "failed", "error": "Browser not initialized. Call initialize() first."}
-            
+
+            input_phone_number = format_phone_input_number(phone_number, country_code)
+            if not input_phone_number:
+                return {
+                    "status": "failed",
+                    "error": "Invalid phone number. Provide local digits (e.g. 9876543210) or full number with 91.",
+                }
+            print(f"📞 Phone input value (starts with country code): {input_phone_number}")
+
             current_url = self.page.url if self.page else ""
-            
+
             if "web.whatsapp.com" not in current_url:
                 print("🌐 Navigating to WhatsApp Web...")
                 await self.page.goto("https://web.whatsapp.com/", wait_until="domcontentloaded", timeout=30000)
                 await self._random_delay(2, 3)
-            
-            print(f"📍 Selecting country: {country}...")
-            country_xpath = f"//button[.//span[contains(text(),'{country}')]]"
-            
+
+            phone_input_xpath = "//input[@aria-label='Type your phone number to log in to WhatsApp']"
+            phone_login_button_xpath = (
+                "//div[@role='button'][.//*[normalize-space()='Log in with phone number']]"
+            )
+
+            print("📲 Opening phone login screen...")
+            on_phone_form = await self._is_element_visible_xpath(phone_input_xpath, timeout=3000)
+            if not on_phone_form:
+                try:
+                    if await self._is_element_visible_xpath(phone_login_button_xpath, timeout=10000):
+                        phone_login_btn = await self.page.query_selector(
+                            f'xpath={phone_login_button_xpath}'
+                        )
+                        if phone_login_btn:
+                            await phone_login_btn.click()
+                            print("✅ Clicked 'Log in with phone number'")
+                            await self._random_delay(1, 2)
+                    else:
+                        print("⚠️ 'Log in with phone number' button not found — continuing")
+                except Exception as e:
+                    print(f"⚠️ Could not click phone login button: {e}")
+
+                on_phone_form = await self._is_element_visible_xpath(phone_input_xpath, timeout=15000)
+                if not on_phone_form:
+                    return {
+                        "status": "failed",
+                        "error": "Phone login form not found. Could not open 'Log in with phone number' screen.",
+                    }
+
+            dial_code = resolve_dial_code(country, country_code)
+            print(f"📍 Selecting country: {country} ({dial_code or 'no dial code'})...")
+
+            country_selected = await self._select_phone_login_country(country, dial_code)
+            if not country_selected:
+                print(
+                    f"⚠️ Country picker could not set {country} ({dial_code}) — "
+                    f"will enter {input_phone_number} directly in the input box"
+                )
+
+            await self._random_delay(0.5, 1)
+
+            print(f"📱 Clearing input and entering from 91: {input_phone_number}...")
+
             try:
-                country_button = await self.page.query_selector(f'xpath={country_xpath}')
-                if country_button:
-                    try:
-                        await country_button.click()
-                        await self._random_delay(0.5, 1)
-                    except:
-                        pass
-                print(f"✅ Country '{country}' selector found")
-            except TimeoutException:
-                print(f"⚠️ Country selector not found, but continuing...")
-            
-            await self._random_delay(1, 2)
-            
-            print(f"📱 Entering phone number: {phone_number}...")
-            phone_xpath = "//input[@aria-label='Type your phone number to log in to WhatsApp']"
-            
-            try:
-                phone_input = await self.page.query_selector(f'xpath={phone_xpath}')
+                phone_input = await self.page.query_selector(f"xpath={phone_input_xpath}")
                 if phone_input:
-                    await phone_input.click()
-                    await self._random_delay(0.3, 0.5)
-                    await phone_input.fill("")
-                    await self._random_delay(0.2, 0.3)
-                    
-                    for char in phone_number:
-                        await phone_input.type(char, delay=random.randint(50, 150))
-                        await self._random_delay(0.05, 0.15)
-                    
-                    print(f"✅ Phone number entered: {phone_number}")
+                    await self._clear_and_fill_phone_input(phone_input, input_phone_number)
+                    print(f"✅ Phone number entered in input box: {input_phone_number}")
                 else:
                     return {"status": "failed", "error": "Phone input field not found"}
             except Exception as e:
@@ -646,10 +899,19 @@ class WhatsAppClient:
             await self._random_delay(1, 2)
             
             print("⏩ Clicking Next button...")
-            next_xpath = "//button[.//div[text()='Next']]"
-            
+            next_xpaths = [
+                "//button[@type='button' and .//span[normalize-space()='Next']]",
+                "//button[.//div[text()='Next']]",
+            ]
+
             try:
-                next_button = await self.page.query_selector(f'xpath={next_xpath}')
+                next_button = None
+                for next_xpath in next_xpaths:
+                    next_button = await self.page.query_selector(f"xpath={next_xpath}")
+                    if next_button and await next_button.is_visible():
+                        break
+                    next_button = None
+
                 if next_button:
                     await next_button.click()
                     print("✅ Next button clicked")
@@ -690,7 +952,7 @@ class WhatsAppClient:
                 }
             
             print("\n" + "="*60)
-            print(f"🔐 YOUR WHATSAPP WEB LOGIN CODE")
+            print("🔐 YOUR WHATSAPP WEB LOGIN CODE")
             print("="*60)
             print(f"\n📊 CODE: {login_code}")
             print("\n📱 INSTRUCTIONS FOR YOUR MOBILE DEVICE:")
@@ -699,44 +961,26 @@ class WhatsAppClient:
             print("   3. When prompted, enter the 8-character code shown above")
             print("   4. You have approximately 2 minutes to enter this code")
             print("\n" + "="*60)
-            
+
             code_chars = list(raw_code.split(",") if "," in raw_code else login_code)
             if len(code_chars) == 8:
                 print("\n📊 Code Breakdown:")
                 for i, char in enumerate(code_chars, 1):
                     print(f"   Digit {i}: {char}")
-            
-            print("\n" + "="*60)
-            print(f"⏱️  Keeping browser open for {session_timeout} seconds...")
-            print("   (The page will remain open to maintain your login session)")
-            print("   (Close manually or press Ctrl+C to exit early)")
-            print("="*60 + "\n")
-            
-            try:
-                await asyncio.sleep(session_timeout)
-            except KeyboardInterrupt:
-                print("\n👋 Session interrupted by user")
-            
-            print("\n✅ Login process completed!")
-            print("   Your session will remain active for further WhatsApp operations")
-            
-            self.status = "connected"
-            
-            try:
-                await self.save_session_to_db()
-                print("✅ Session saved automatically")
-            except Exception as e:
-                print(f"⚠️ Auto-save session failed: {e}")
-            
+
+            # Return code to API immediately — do not block HTTP response for session_timeout
+            asyncio.create_task(self._hold_phone_login_session(session_timeout))
+
             return {
-                "status": "connected",
+                "status": "code_ready",
                 "login_code": login_code,
-                "phone_number": phone_number,
+                "phone_number": input_phone_number,
                 "country": country,
-                "message": "Login code displayed. Please enter it on your phone.",
-                "code_breakdown": list(raw_code.split(",") if "," in raw_code else login_code)
+                "message": "Login code generated. Enter it on your phone within 2 minutes.",
+                "code_breakdown": list(raw_code.split(",") if "," in raw_code else login_code),
+                "session_timeout": session_timeout,
             }
-            
+
         except Exception as e:
             return {
                 "status": "failed",
@@ -2218,6 +2462,7 @@ class PhoneLoginRequest(BaseModel):
     session_id: str = "default"
     phone_number: str
     country: str = "India"
+    country_code: Optional[str] = None
     session_timeout: int = 120
 
 
@@ -2285,10 +2530,13 @@ async def phone_login(request: PhoneLoginRequest):
     result = await client.phone_login(
         phone_number=request.phone_number,
         country=request.country,
-        session_timeout=request.session_timeout
+        session_timeout=request.session_timeout,
+        country_code=request.country_code,
     )
     
     # Return appropriate HTTP status based on result
+    if result.get("login_code"):
+        return JSONResponse(result, status_code=200)
     if result.get("status") == "connected":
         return JSONResponse(result, status_code=200)
     elif result.get("status") == "timeout":
@@ -2296,9 +2544,6 @@ async def phone_login(request: PhoneLoginRequest):
     elif result.get("status") == "failed":
         return JSONResponse(result, status_code=400)  # Bad Request
     else:
-        # Unknown status, treat as success if it has login_code
-        if result.get("login_code"):
-            return JSONResponse(result, status_code=200)
         return JSONResponse(result, status_code=400)
 
 

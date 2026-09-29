@@ -4,7 +4,7 @@ import { getAdminIdFromRequest } from '@/lib/admin-middleware';
 import WhatsAppSession from '@/lib/models/WhatsAppSession';
 import User from '@/lib/models/User';
 
-const PYTHON_SERVER_URL = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8765';
+const PYTHON_SERVER_URL = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8000';
 
 /**
  * Check WhatsApp broadcast health and readiness
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       });
 
       if (!whatsappSession) {
-        health.checks.whatsappSession.message = 'No WhatsApp session found. Visit /admin/whatsapp to connect.';
+        health.checks.whatsappSession.message = 'No WhatsApp session found. Use the authenticated session API to connect.';
       } else if (whatsappSession.status !== 'connected') {
         health.checks.whatsappSession.message = `WhatsApp session is ${whatsappSession.status}. Last connected: ${whatsappSession.lastConnectedAt || 'Never'}`;
       } else {
@@ -136,7 +136,7 @@ function getRecommendations(health: any): string[] {
   const recommendations: string[] = [];
 
   if (!health.checks.whatsappSession.ok) {
-    recommendations.push('❌ Connect WhatsApp: Visit /admin/whatsapp and scan the QR code');
+    recommendations.push('❌ Connect WhatsApp by calling POST /api/admin/whatsapp/session with action "connect" or "init".');
   }
 
   if (!health.checks.pythonServer.ok) {

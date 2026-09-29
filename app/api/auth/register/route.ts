@@ -3,19 +3,26 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import { hashPassword, generateToken } from '@/lib/auth';
 import { sanitizeInput, isValidEmail, isValidUsername, isStrongPassword } from '@/lib/security';
+import rateLimiter from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    const rate = await rateLimiter(request, 5, 60);
+    if (!rate.allowed) return NextResponse.json({ error: 'Too many registration attempts. Try again later.' }, { status: 429 });
     await connectDB();
-    
-    let { email, password, username } = await request.json();
+    let body: unknown;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
+    if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    const { email, password, username } = body as { email?: unknown; password?: unknown; username?: unknown };
     
     // Sanitize inputs
-    email = sanitizeInput(email || '');
-    password = sanitizeInput(password || '');
-    username = username ? sanitizeInput(username) : undefined;
+    if (typeof email !== 'string' || typeof password !== 'string' || (username !== undefined && typeof username !== 'string') || email.length > 254 || password.length > 256 || (typeof username === 'string' && username.length > 64)) {
+      return NextResponse.json({ error: 'Invalid registration details' }, { status: 400 });
+    }
+    const cleanEmail = sanitizeInput(email);
+    const cleanUsername = username ? sanitizeInput(username) : undefined;
     
-    if (!email || !password) {
+    if (!cleanEmail || !password) {
       return NextResponse.json(
         { error: 'Email and password are required' },
         { status: 400 }
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate email
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(cleanEmail)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
@@ -31,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate username if provided
-    if (username && !isValidUsername(username)) {
+    if (cleanUsername && !isValidUsername(cleanUsername)) {
       return NextResponse.json(
         { error: 'Username must be 3-20 characters and contain only letters, numbers, and underscores' },
         { status: 400 }
@@ -56,8 +63,8 @@ export async function POST(request: NextRequest) {
     // Check if user exists
     const existingUser = await User.findOne({ 
       $or: [
-        { email: email.toLowerCase() },
-        ...(username ? [{ username: username.toLowerCase() }] : [])
+      { email: cleanEmail.toLowerCase() },
+        ...(cleanUsername ? [{ username: cleanUsername.toLowerCase() }] : [])
       ]
     });
     if (existingUser) {
@@ -70,8 +77,8 @@ export async function POST(request: NextRequest) {
     // Create user with encrypted password
     const passwordHash = await hashPassword(password);
     const user = await User.create({
-      email: email.toLowerCase(),
-      ...(username && { username: username.toLowerCase() }),
+      email: cleanEmail.toLowerCase(),
+      ...(cleanUsername && { username: cleanUsername.toLowerCase() }),
       passwordHash,
     });
     
@@ -87,8 +94,9 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/',
     });
-    
+    response.headers.set('Cache-Control', 'no-store');
     return response;
   } catch (error: any) {
     console.error('Registration error:', error);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAdminIdFromRequest } from '@/lib/admin-middleware';
 
 interface ServerHealth {
   isRunning: boolean;
@@ -14,10 +15,12 @@ interface ServerHealth {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse<ServerHealth | { error: string }>> {
+  if (!getAdminIdFromRequest(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const startTime = Date.now();
 
   try {
-    const response = await fetch('http://127.0.0.1:8765/health', {
+    const pythonServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8000';
+    const response = await fetch(`${pythonServerUrl}/health`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       signal: AbortSignal.timeout(5000),
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<ServerHeal
           sessionPersistence: false,
           qrCodeLogin: false,
         },
-        error: error instanceof Error ? error.message : 'Server unreachable',
+        error: 'WhatsApp service is unavailable',
       },
       { status: 503 }
     );

@@ -1,8 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Configure static page generation caching
-  experimental: {},
   // Add Turbopack configuration to top level
   turbopack: {},
   // React 19 / Next.js 15+ compatibility settings
@@ -36,4 +34,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-

@@ -1,7 +1,12 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET must be configured before authentication is used');
+  if (process.env.NODE_ENV === 'production' && secret.length < 32) throw new Error('JWT_SECRET must be at least 32 characters in production');
+  return secret;
+}
 
 // Enhanced password hashing with higher salt rounds for better security
 export async function hashPassword(password: string): Promise<string> {
@@ -14,15 +19,14 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 }
 
 export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '30d' });
 }
 
 export function verifyToken(token: string): { userId: string } | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
     return decoded;
   } catch {
     return null;
   }
 }
-

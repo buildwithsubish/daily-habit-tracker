@@ -3,103 +3,21 @@ import crypto from 'crypto';
 import User from '@/lib/models/User';
 import WhatsAppVerification from '@/lib/models/WhatsAppVerification';
 import AuditLog from '@/lib/models/AuditLog';
-import Admin from '@/lib/models/Admin';
-import WhatsAppSession from '@/lib/models/WhatsAppSession';
 import connectDB from '@/lib/mongodb';
-import { encrypt, hashPhoneNumber, validatePhoneNumber, formatPhoneNumber, maskPhoneNumber } from '@/lib/security';
+import { buildUserPhoneStorage, resolveUserPhone } from '@/lib/pii';
+import { decrypt, hashPhoneNumber, validatePhoneNumber, formatPhoneNumber, maskPhoneNumber } from '@/lib/security';
+import { resolveAdminSessionId } from '@/lib/admin-session';
 import whatsappClientManager from '@/lib/whatsapp-web';
 
-const PYTHON_SERVER_URL = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8765';
-
-async function resolveAdminSessionId(): Promise<string> {
-  // Prefer a WhatsAppSession linked to the Admin user (connected). Then any connected session. Then env ADMIN_ID or 'admin'.
-  try {
-    const adminUser = await Admin.findOne({ role: 'admin' }).select('_id').lean().catch(() => null);
-    const adminUserId = (adminUser as any)?._id?.toString();
-
-    if (adminUserId) {
-      // Try both adminIdString and adminId (ObjectId cast) to be robust
-      const wsLinked = await (WhatsAppSession as any).findOne({
-        $or: [{ adminIdString: adminUserId }, { adminId: adminUserId }],
-        status: 'connected'
-      }).lean().catch(() => null);
-      if (wsLinked && wsLinked.ADMIN_SESSION_ID) {
-        console.log('[WhatsApp Verify] resolveAdminSessionId: using linked DB session', wsLinked.ADMIN_SESSION_ID);
-        return wsLinked.ADMIN_SESSION_ID;
-      }
-    }
-
-    // Check in-memory instances first (they take priority)
-    try {
-      const mgrAny = whatsappClientManager as any;
-      const instances: Map<string, any> | undefined = mgrAny && mgrAny.instances;
-      if (instances && instances instanceof Map) {
-        for (const [key, inst] of instances.entries()) {
-          if (inst && inst.status === 'connected') {
-            console.log('[WhatsApp Verify] resolveAdminSessionId: using in-memory connected instance', key);
-            return key;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[WhatsApp Verify] resolveAdminSessionId: error checking instances', e);
-    }
-
-    // Query database for ANY connected session (most important fallback)
-    // This is the key fix - find ANY session with status 'connected' regardless of ID
-    const anyConnected = await (WhatsAppSession as any).findOne({ 
-      status: 'connected'
-    }).sort({ lastConnectedAt: -1 }).lean().catch(() => null);
-    
-    if (anyConnected) {
-      // Try ADMIN_SESSION_ID first, then adminIdString, then adminId
-      const sessionId = anyConnected.ADMIN_SESSION_ID || anyConnected.adminIdString || anyConnected.adminId?.toString();
-      if (sessionId) {
-        console.log('[WhatsApp Verify] resolveAdminSessionId: using connected DB session:', sessionId);
-        return sessionId;
-      }
-    }
-    
-    // If no connected session found, try to find any saved session and auto-connect
-    const savedSession = await (WhatsAppSession as any).findOne({ 
-      sessionData: { $exists: true, $ne: '' }
-    }).sort({ lastConnectedAt: -1 }).lean().catch(() => null);
-    
-    if (savedSession) {
-      const sessionId = savedSession.ADMIN_SESSION_ID || savedSession.adminIdString || savedSession.adminId?.toString();
-      if (sessionId) {
-        console.log('[WhatsApp Verify] resolveAdminSessionId: found saved session, triggering auto-connect:', sessionId);
-        // Try to auto-connect using this session ID
-        try {
-          const { autoConnectWhatsApp } = await import('@/lib/whatsapp-auto-connect');
-          await autoConnectWhatsApp(sessionId);
-          // Wait a moment for connection to establish
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          // Check if connected now
-          const status = await whatsappClientManager.getStatus(sessionId);
-          if (status.status === 'connected') {
-            console.log('[WhatsApp Verify] resolveAdminSessionId: auto-connected successfully');
-            return sessionId;
-          }
-        } catch (e) {
-          console.warn('[WhatsApp Verify] resolveAdminSessionId: auto-connect failed', e);
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[WhatsApp Verify] resolveAdminSessionId: error', e);
-  }
-
-  return process.env.ADMIN_ID || 'admin';
-}
+const PYTHON_SERVER_URL = process.env.WHATSAPP_SERVER_URL || 'http://127.0.0.1:8000';
 
 async function checkOrCreateContact(username: string, phoneNumber: string, savedContactName?: string): Promise<{ success: boolean; action?: string; error?: string; existingContactName?: string; existingPhoneNumber?: string }> {
   try {
     const adminId = await resolveAdminSessionId();
     console.log('[WhatsApp Verify] Resolved admin session ID for verification:', adminId);
     
-    // Verify that admin session is connected first
-    const status = await whatsappClientManager.getStatus(adminId);
+    // Verify that admin session is connected first (force fresh check)
+    const status = await whatsappClientManager.getStatus(adminId, true);
     
     if (status.status !== 'connected') {
       return { 
@@ -292,8 +210,8 @@ export async function POST(request: NextRequest) {
     const username = user.username || `User_${userId.slice(0, 8)}`;
 
     // Check if this phone number is already linked to this user (already verified)
-    if (user.whatsappNumber === formattedPhone && user.whatsappVerified) {
-      console.log(`[WhatsApp Verify] User ${userId} already verified for phone ${formattedPhone}`);
+    if (user.whatsappVerified && user.whatsappNumberHash === phoneHash) {
+      console.log(`[WhatsApp Verify] User ${userId} already verified for phone ${maskPhoneNumber(formattedPhone)}`);
       return NextResponse.json(
         { 
           error: 'This number is already verified for your account', 
@@ -305,8 +223,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is already verified with any number - skip OTP for verified users
-    if (user.whatsappVerified && user.whatsappNumber) {
-      console.log(`[WhatsApp Verify] User ${userId} already verified with ${user.whatsappNumber}, new number requested`);
+    if (user.whatsappVerified && resolveUserPhone(user)) {
+      console.log(`[WhatsApp Verify] User ${userId} already verified, new number requested`);
       // Allow number change but require verification for new number
       // Continue with normal flow for number change
     }
@@ -397,10 +315,11 @@ export async function POST(request: NextRequest) {
     // Delete old pending verifications
     await WhatsAppVerification.deleteMany({ userId, status: 'pending' });
 
+    const pendingPhone = buildUserPhoneStorage(formattedPhone);
     await WhatsAppVerification.create({
       userId,
-      phoneNumber: formattedPhone,
-      phoneNumberEncrypted: encrypt(formattedPhone),
+      phoneNumber: pendingPhone.whatsappNumber,
+      phoneNumberEncrypted: pendingPhone.whatsappNumberEncrypted,
       verificationCode,
       status: 'pending',
       expiresAt,
@@ -539,18 +458,15 @@ export async function PUT(request: NextRequest) {
     verification.attempts += 1;
     await verification.save();
 
-    const formattedPhone = verification.phoneNumber;
+    const formattedPhone = decrypt(verification.phoneNumberEncrypted);
     const phoneHash = hashPhoneNumber(formattedPhone);
     
     // Get the contact name from the verification record
     const contactName = verification.contactName;
     
     await User.findByIdAndUpdate(userId, {
-      whatsappNumber: formattedPhone,
-      whatsappNumberEncrypted: encrypt(formattedPhone),
-      whatsappNumberHash: phoneHash,
+      ...buildUserPhoneStorage(formattedPhone),
       whatsappVerified: true,
-      whatsappAutomation: true,
       whatsappContactName: contactName || undefined,
     });
 

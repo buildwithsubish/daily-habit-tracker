@@ -1,4 +1,22 @@
-import mongoose, { Schema } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
+import { AUDIT_CATEGORIES, AuditCategory } from '../audit-log-constants';
+
+export type { AuditCategory };
+export { AUDIT_CATEGORIES };
+
+export interface IAuditLog extends Document {
+  adminId?: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId;
+  action: string;
+  category: AuditCategory;
+  details?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
+  success: boolean;
+  errorMessage?: string;
+  createdAt: Date;
+}
 
 const AuditLogSchema = new Schema({
   adminId: {
@@ -18,16 +36,7 @@ const AuditLogSchema = new Schema({
   },
   category: {
     type: String,
-    enum: [
-      'whatsapp_session',
-      'whatsapp_verification',
-      'whatsapp_message',
-      'whatsapp_broadcast',
-      'user_management',
-      'habit_tracking',
-      'system',
-      'security',
-    ],
+    enum: [...AUDIT_CATEGORIES],
     required: true,
     index: true,
   },
@@ -66,4 +75,6 @@ AuditLogSchema.index({ userId: 1, createdAt: -1 });
 AuditLogSchema.index({ category: 1, createdAt: -1 });
 AuditLogSchema.index({ createdAt: -1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
-export default mongoose.models.AuditLog || mongoose.model('AuditLog', AuditLogSchema);
+const AuditLog: Model<IAuditLog> =
+  mongoose.models.AuditLog || mongoose.model<IAuditLog>('AuditLog', AuditLogSchema);
+export default AuditLog;

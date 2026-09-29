@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Plus, X, Sparkles, Zap, Target, Calendar, MessageCircle, FileText, Dumbbell, ListChecks, Clock, Bell, ChevronUp, ChevronDown, Trash2, Save, AlertTriangle, Timer, Send, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, X, Sparkles, Zap, Target, Calendar, FileText, Dumbbell, ListChecks, Clock, Bell, ChevronUp, ChevronDown, Trash2, Save, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Habit } from '@/types';
@@ -39,23 +39,12 @@ export default function EditHabitPage() {
     },
     active: true,
     inactiveAlertDays: 3,
-    sendRemainder: false,
-    remainderInterval: 5,
-    maxRemainders: 3,
-    remainderMessages: [
-      "Hey! Don't forget to complete {habit} today! 💪",
-      "Quick reminder: {habit} is waiting for you! 🎯",
-      "One last push! Complete {habit} now! 🚀",
-    ],
-    whatsappEnabled: false,
-    whatsappFrequency: 'manual' as 'daily' | 'weekly' | 'manual' | 'smart',
-    whatsappTime: '08:00',
     activityLoggingEnabled: false,
     advancedMode: false,
     subActivities: [] as Array<{ name: string; type: string }>,
   });
   const [selectedWorkout, setSelectedWorkout] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'basic' | 'schedule' | 'whatsapp' | 'advanced'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'schedule' | 'advanced'>('basic');
 
   useEffect(() => {
     fetchHabit();
@@ -79,17 +68,6 @@ export default function EditHabitPage() {
           schedule: data.habit?.schedule || { weekdays: true, weekends: true, custom: [] },
           active: data.habit?.active !== false,
           inactiveAlertDays: data.habit?.inactiveAlertDays || 3,
-          sendRemainder: data.habit?.sendRemainder || false,
-          remainderInterval: data.habit?.remainderInterval || 5,
-          maxRemainders: data.habit?.maxRemainders || 3,
-          remainderMessages: data.habit?.remainderMessages || [
-            "Hey! Don't forget to complete {habit} today! 💪",
-            "Quick reminder: {habit} is waiting for you! 🎯",
-            "One last push! Complete {habit} now! 🚀",
-          ],
-          whatsappEnabled: data.habit?.whatsappEnabled || false,
-          whatsappFrequency: data.habit?.whatsappFrequency || 'manual',
-          whatsappTime: data.habit?.whatsappTime || '08:00',
           activityLoggingEnabled: data.habit?.activityLoggingEnabled || false,
           advancedMode: data.habit?.advancedMode || false,
           subActivities: data.habit?.subActivities || [],
@@ -223,13 +201,6 @@ export default function EditHabitPage() {
           schedule: formData.schedule,
           active: formData.active,
           inactiveAlertDays: formData.inactiveAlertDays,
-          sendRemainder: formData.sendRemainder,
-          remainderInterval: formData.remainderInterval,
-          maxRemainders: formData.maxRemainders,
-          remainderMessages: formData.remainderMessages,
-          whatsappEnabled: formData.whatsappEnabled,
-          whatsappFrequency: formData.whatsappFrequency,
-          whatsappTime: formData.whatsappTime,
           activityLoggingEnabled: formData.activityLoggingEnabled,
           advancedMode: formData.advancedMode,
           subActivities: formData.subActivities,
@@ -277,7 +248,6 @@ export default function EditHabitPage() {
   const tabs = [
     { id: 'basic', label: 'Basic', icon: Target },
     { id: 'schedule', label: 'Schedule', icon: Calendar },
-    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle },
     { id: 'advanced', label: 'Advanced', icon: Zap },
   ];
 
@@ -707,95 +677,6 @@ export default function EditHabitPage() {
             )}
           </AnimatePresence>
 
-          {/* WhatsApp Tab */}
-          <AnimatePresence>
-            {activeTab === 'whatsapp' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="space-y-5"
-              >
-                {/* WhatsApp Enable Toggle */}
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${formData.whatsappEnabled ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}>
-                        <MessageCircle size={22} className={formData.whatsappEnabled ? 'text-white' : 'text-zinc-500'} />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                          WhatsApp Reminders
-                        </h3>
-                        <p className="text-sm text-zinc-500">
-                          {formData.whatsappEnabled ? 'Enabled for this habit' : 'Disabled for this habit'}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, whatsappEnabled: !formData.whatsappEnabled })}
-                      className={`relative w-14 h-8 rounded-full transition-all duration-300 ${formData.whatsappEnabled ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
-                    >
-                      <motion.div
-                        animate={{ x: formData.whatsappEnabled ? 26 : 4 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* WhatsApp Settings */}
-                {formData.whatsappEnabled && (
-                  <>
-                    {/* Frequency */}
-                    <div className="glass-card p-6">
-                      <label className="block text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-3">Reminder Frequency</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { value: 'daily', label: 'Daily', desc: 'Every day' },
-                          { value: 'weekly', label: 'Weekly', desc: 'Once a week' },
-                          { value: 'smart', label: 'Smart', desc: 'Based on your patterns' },
-                          { value: 'manual', label: 'Manual', desc: 'You choose when' },
-                        ].map((freq) => (
-                          <motion.button
-                            key={freq.value}
-                            type="button"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setFormData({ ...formData, whatsappFrequency: freq.value as any })}
-                            className={`p-4 rounded-xl border-2 text-left transition-all ${formData.whatsappFrequency === freq.value
-                                ? 'border-green-500 bg-green-50 dark:bg-green-500/10 shadow-lg'
-                                : 'border-zinc-200/60 dark:border-zinc-700/60 hover:border-zinc-300'
-                              }`}
-                          >
-                            <div className={`text-sm font-bold ${formData.whatsappFrequency === freq.value ? 'text-green-700 dark:text-green-300' : 'text-zinc-700 dark:text-zinc-300'}`}>{freq.label}</div>
-                            <div className="text-[11px] text-zinc-500 mt-0.5">{freq.desc}</div>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Time */}
-                    <div className="glass-card p-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Clock size={16} className="text-green-500" />
-                        <label className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Reminder Time</label>
-                      </div>
-                      <input
-                        type="time"
-                        value={formData.whatsappTime}
-                        onChange={(e) => setFormData({ ...formData, whatsappTime: e.target.value })}
-                        className="input-modern"
-                      />
-                    </div>
-                  </>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {/* Advanced Tab */}
           <AnimatePresence>
             {activeTab === 'advanced' && (
@@ -973,107 +854,6 @@ export default function EditHabitPage() {
                       <p className="text-sm text-purple-700 dark:text-purple-300 font-medium">
                         💡 When you complete this habit, you'll be prompted to add details about your activity (workout type, duration, etc.)
                       </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Remainder / Follow-up Messages */}
-                <div className="glass-card p-6 border-2 border-blue-200 dark:border-blue-800/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
-                        <Timer size={22} className="text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                          Polling Remainder
-                        </h3>
-                        <p className="text-sm text-zinc-500">
-                          Send messages if habit not marked
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, sendRemainder: !formData.sendRemainder })}
-                      className={`relative w-14 h-8 rounded-full transition-all duration-300 ${formData.sendRemainder ? 'bg-gradient-to-r from-blue-500 to-indigo-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
-                    >
-                      <motion.div
-                        animate={{ x: formData.sendRemainder ? 26 : 4 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                        className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
-                      />
-                    </button>
-                  </div>
-
-                  {formData.sendRemainder && (
-                    <div className="space-y-4">
-                      {/* Interval */}
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-500 mb-2">
-                          <Clock size={12} className="inline mr-1" />
-                          Send reminder every (minutes):
-                        </label>
-                        <div className="flex items-center gap-3">
-                          {[1, 3, 5, 10, 15, 30].map((mins) => (
-                            <motion.button
-                              key={mins}
-                              type="button"
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setFormData({ ...formData, remainderInterval: mins })}
-                              className={`px-3 py-2 rounded-xl text-sm font-bold transition-all ${formData.remainderInterval === mins
-                                  ? 'bg-blue-500 text-white shadow-lg'
-                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
-                                }`}
-                            >
-                              {mins}m
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Max Remainders */}
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-500 mb-2">
-                          <RotateCcw size={12} className="inline mr-1" />
-                          Maximum reminders to send:
-                        </label>
-                        <div className="flex items-center gap-3">
-                          {[1, 2, 3].map((num) => (
-                            <motion.button
-                              key={num}
-                              type="button"
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => setFormData({ ...formData, maxRemainders: num })}
-                              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${formData.maxRemainders === num
-                                  ? 'bg-blue-500 text-white shadow-lg'
-                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200'
-                                }`}
-                            >
-                              {num} {num === 1 ? 'time' : 'times'}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Messages */}
-                      <div>
-                        <label className="block text-xs font-semibold text-zinc-500 mb-2">
-                          <Send size={12} className="inline mr-1" />
-                          Custom messages (one per line):
-                        </label>
-                        <textarea
-                          value={formData.remainderMessages?.join('\n') || ''}
-                          onChange={(e) => setFormData({ 
-                            ...formData, 
-                            remainderMessages: e.target.value.split('\n').filter(m => m.trim()) 
-                          })}
-                          placeholder="Hey! Don't forget to complete {habit} today!"
-                          rows={4}
-                          className="w-full px-4 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                        />
-                        <p className="text-xs text-zinc-500 mt-1">Use {"{habit}"} to include habit name</p>
-                      </div>
                     </div>
                   )}
                 </div>

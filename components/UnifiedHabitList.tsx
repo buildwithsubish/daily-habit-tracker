@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Habit, DailyLog, SubActivity, WorkoutData } from '@/types';
 import { useApp } from '@/context/AppContext';
 import TrackHabitDrawer from './TrackHabitDrawer';
-import WhatsAppAutomationDashboard from './WhatsAppAutomationDashboard';
 
-import { useIsMobile } from '@/hooks/use-responsive';
+
 import {
   CheckCircle2,
   Heart,
@@ -18,11 +17,9 @@ import {
   Briefcase,
   Target,
   Flame,
-  MessageCircle,
   ChevronDown,
   TrendingUp,
   Zap,
-  Send,
   Users,
   Wallet,
   Sparkles,
@@ -55,11 +52,8 @@ interface UnifiedHabitListProps {
   habits: Habit[];
   logs: DailyLog[];
   selectedDate: string;
-  onToggle: (habitId: string, stepIndex?: number, activityNote?: string, subActivities?: any[]) => void;
-  onSettingsSave: (habitId: string, settings: Partial<Habit>) => Promise<void>;
-  userWhatsAppNumber?: string;
-  userWhatsAppAutomation?: boolean;
-  onGlobalWhatsAppToggle?: (enabled: boolean) => Promise<void>;
+  onToggle: (habitId: string, stepIndex?: number, activityNote?: string, subActivities?: SubActivity[], workoutData?: WorkoutData) => void;
+  readOnly?: boolean;
 }
 
 
@@ -68,23 +62,13 @@ export default function UnifiedHabitList({
   logs,
   selectedDate,
   onToggle,
-  onSettingsSave,
-  userWhatsAppNumber,
-  userWhatsAppAutomation,
+  readOnly = false,
 }: UnifiedHabitListProps) {
   const { advancedMode: globalAdvancedMode } = useApp();
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [activityModal, setActivityModal] = useState<{ habit: Habit; stepIndex?: number } | null>(null);
   const [expandedHabit, setExpandedHabit] = useState<string | null>(null);
 
-  const closeWhatsAppModal = useCallback(() => {
-    setShowWhatsAppModal(false);
-  }, []);
-
-  const isWhatsAppGloballyReady = !!userWhatsAppNumber && !!userWhatsAppAutomation;
-
   const stats = useMemo(() => {
-    const automatedHabits = habits.filter((h) => h.whatsappEnabled && isWhatsAppGloballyReady).length;
     const totalHabits = habits.length;
     const completedToday = habits.filter((h) => {
       if (h.type === 'single-step') {
@@ -100,14 +84,10 @@ export default function UnifiedHabitList({
     }).length;
 
     return {
-      messagesSent: automatedHabits * 3,
-      habitsAutomated: automatedHabits,
-      responseRate: automatedHabits > 0 ? 87 : 0,
-      engagement: totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0,
       completedToday,
       totalHabits,
     };
-  }, [habits, logs, selectedDate, isWhatsAppGloballyReady]);
+  }, [habits, logs, selectedDate]);
 
   const getActivityNote = (habitId: string) => {
     const log = logs.find(
@@ -151,6 +131,7 @@ export default function UnifiedHabitList({
   };
 
   const handleHabitToggle = (habit: Habit, stepIndex?: number) => {
+    if (readOnly && (habit.type === 'single-step' || stepIndex !== undefined)) return;
     const isCompleted = stepIndex !== undefined
       ? getStepCompletions(habit.id).includes(stepIndex)
       : getHabitCompletion(habit.id);
@@ -161,14 +142,11 @@ export default function UnifiedHabitList({
       return;
     }
 
-    // Streamlined logic: Only use drawer if it's multi-step OR logging is explicitly required OR advanced mode is on
-    const needsDrawer = habit.type === 'multi-step' || habit.activityLoggingEnabled || habit.advancedMode;
-    
-    if (needsDrawer && (habit.type === 'single-step' || habit.advancedMode)) {
-      setActivityModal({ habit, stepIndex });
-    } else if (habit.type === 'multi-step' && stepIndex === undefined) {
-      // If a multi-step habit is clicked on the main row, expand it instead of checking all
+    // Step based habits expand from their main row; a step tap can open deep logging.
+    if (habit.type !== 'single-step' && stepIndex === undefined) {
       setExpandedHabit(expandedHabit === habit.id ? null : habit.id);
+    } else if (habit.activityLoggingEnabled || habit.advancedMode || globalAdvancedMode) {
+      setActivityModal({ habit, stepIndex });
     } else {
       // Simple toggling for single-step habits
       onToggle(habit.id, stepIndex);
@@ -193,28 +171,10 @@ export default function UnifiedHabitList({
 
   const handleActivityConfirm = (note: string, subActivities?: SubActivity[], workoutData?: WorkoutData) => {
     if (activityModal) {
-      onToggle(activityModal.habit.id, activityModal.stepIndex, note, subActivities);
-      // We could also save workoutData here if its persistence is implemented in the parent onToggle
+      onToggle(activityModal.habit.id, activityModal.stepIndex, note, subActivities, workoutData);
       toast.success(`${activityModal.habit.name} tracked!`, { icon: '✅' });
       window.dispatchEvent(new CustomEvent('habit-refetch'));
       setActivityModal(null);
-    }
-  };
-
-  const handleGlobalWhatsAppSave = async (number: string, enabled: boolean) => {
-    const res = await fetch('/api/whatsapp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ whatsappNumber: number, whatsappAutomation: enabled }),
-    });
-    if (!res.ok) throw new Error('Failed to save');
-
-    if (enabled) {
-      for (const habit of habits) {
-        if (!habit.whatsappEnabled) {
-          await onSettingsSave(habit.id, { whatsappEnabled: true });
-        }
-      }
     }
   };
 
@@ -234,24 +194,15 @@ export default function UnifiedHabitList({
     <div className="space-y-3">
       {/* Track Habit Drawer */}
       <AnimatePresence>
-        {activityModal && (
+        {activityModal && !readOnly && (
           <TrackHabitDrawer
             habit={activityModal.habit}
+            initialAdvancedMode={globalAdvancedMode}
             onConfirm={handleActivityConfirm}
-            onCancel={() => {
-              onToggle(activityModal.habit.id, activityModal.stepIndex);
-              setActivityModal(null);
-            }}
+            onCancel={() => setActivityModal(null)}
           />
         )}
       </AnimatePresence>
-
-      {/* WhatsApp Dashboard */}
-      <WhatsAppAutomationDashboard
-        isOpen={showWhatsAppModal}
-        onClose={closeWhatsAppModal}
-        isAdmin={false}
-      />
 
       {/* Habit List Card */}
       <div className="card !p-0 overflow-hidden">
@@ -262,21 +213,6 @@ export default function UnifiedHabitList({
               <span className="font-semibold text-emerald-600">{stats.completedToday}</span> of {stats.totalHabits} completed
             </p>
           </div>
-          
-          {/* WhatsApp Toggle */}
-          <button
-            onClick={() => setShowWhatsAppModal(true)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              isWhatsAppGloballyReady
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
-            }`}
-          >
-            <MessageCircle size={13} />
-            <span className="hidden sm:inline">
-              {isWhatsAppGloballyReady ? 'Automation On' : 'WhatsApp'}
-            </span>
-          </button>
         </div>
 
         {/* Habit Rows */}
@@ -304,16 +240,27 @@ export default function UnifiedHabitList({
                       : 'bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5'
                   }`}
                 >
-                {/* Main Row */}
-                <div className="flex items-center gap-4 px-4 py-2.5 min-h-[48px]">
-                  {/* Checkbox - First */}
+                {/* The primary row is one large, keyboard-operable completion target. */}
+                <div className="flex items-stretch gap-1 sm:gap-2 p-1.5 sm:p-2">
                   <button
+                    type="button"
                     onClick={() => handleHabitToggle(habit)}
-                    className={`flex-shrink-0 w-5 h-5 rounded-md border-[1.5px] flex items-center justify-center transition-all duration-200 ${
+                    disabled={readOnly && habit.type === 'single-step'}
+                    title={readOnly && habit.type === 'single-step' ? 'This date is read-only' : undefined}
+                    aria-label={habit.type === 'multi-step'
+                      ? `${isExpanded ? 'Collapse' : 'Open'} ${habit.name} checklist`
+                      : `${isCompleted ? 'Mark' : 'Complete'} ${habit.name}${isCompleted ? ' incomplete' : ' habit'}`}
+                    aria-pressed={habit.type === 'single-step' ? isCompleted : undefined}
+                    className={`flex min-h-11 min-w-0 flex-1 select-none items-center gap-2.5 sm:gap-4 rounded-xl px-2.5 sm:px-3 text-left transition-colors duration-150 touch-manipulation active:bg-indigo-50/70 dark:active:bg-indigo-950/30 focus-ring ${
+                      isCompleted ? 'text-gray-400' : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                  >
+                    {/* Checkbox indicator */}
+                    <span aria-hidden="true" className={`flex-shrink-0 w-5 h-5 rounded-md border-[1.5px] flex items-center justify-center transition-all duration-200 ${
                       isCompleted
                         ? 'bg-indigo-600 border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500'
                         : 'border-gray-300 dark:border-gray-700 group-hover:border-indigo-400'
-                    } focus-ring`}
+                    }`}
                   >
                     <AnimatePresence>
                       {isCompleted && (
@@ -322,54 +269,54 @@ export default function UnifiedHabitList({
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </button>
+                    </span>
 
-                  {/* Icon - Second */}
-                  <div className={`flex-shrink-0 flex items-center justify-center ${
+                    {/* Category icon */}
+                    <span aria-hidden="true" className={`flex-shrink-0 flex items-center justify-center ${
                     isCompleted ? 'text-gray-300 dark:text-gray-700' : 'text-gray-400 group-hover:text-indigo-500'
                   }`}>
                     <CategoryIcon size={16} />
-                  </div>
+                    </span>
 
-                  {/* Title - Third */}
-                  <div className="flex-1 min-w-0 flex items-center gap-3">
-                    <span className={`text-sm font-medium transition-all duration-200 ${
+                    {/* Title and optional metadata */}
+                    <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-3">
+                      <span className={`min-w-0 break-words text-sm font-medium leading-snug transition-all duration-200 ${
                       isCompleted ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-100'
                     }`}>
                       {habit.name}
-                    </span>
+                      </span>
                     
                     {habit.streak > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                         isCompleted ? 'bg-gray-100 dark:bg-gray-800 text-gray-400' : 'bg-orange-50 dark:bg-orange-500/10 text-orange-600'
                       }`}>
                         {habit.streak}d
                       </span>
                     )}
 
-                    {isCompleted && activityNote && (
-                      <span className="text-[11px] text-gray-400 font-medium hidden sm:inline-block">
+                      {isCompleted && activityNote && (
+                      <span className="w-full truncate text-[11px] text-gray-400 font-medium sm:w-auto sm:inline-block">
                         • {activityNote}
                       </span>
                     )}
-                  </div>
+                    </span>
+                  </button>
 
-                  {/* Metadata/Action - Right */}
-                  <div className="flex items-center gap-3">
+                  {/* Keep expansion independent from completion. */}
+                  <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                     {habit.type === 'multi-step' && (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                      <span className="px-0.5 text-[10px] font-black uppercase tracking-wide text-gray-500 dark:text-gray-400 sm:tracking-widest">
                         {stepCompleted.length}/{habit.steps.length}
                       </span>
                     )}
 
-                    {habit.whatsappEnabled && isWhatsAppGloballyReady && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" title="WhatsApp Automation On" />
-                    )}
-
                     {(habit.type === 'multi-step' || (isCompleted && activityNote)) && (
                       <button
+                        type="button"
+                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${habit.name}`}
+                        aria-expanded={isExpanded}
                         onClick={() => setExpandedHabit(isExpanded ? null : habit.id)}
-                        className={`p-1.5 rounded-lg transition-colors ${
+                        className={`touch-target rounded-lg transition-colors focus-ring ${
                           isExpanded ? 'bg-gray-100 dark:bg-gray-800 text-gray-900' : 'text-gray-400 hover:bg-gray-100'
                         }`}
                       >
@@ -388,14 +335,18 @@ export default function UnifiedHabitList({
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden bg-gray-50/30 dark:bg-gray-900/10"
                     >
-                      <div className="px-4 pb-4 ml-[56px] space-y-2">
+                      <div className="space-y-2 px-3 pb-4 pl-12 sm:px-4 sm:pb-4 sm:pl-[4.5rem]">
                         {habit.type === 'multi-step' && habit.steps.map((step: any, idx: number) => {
                           const isStepDone = stepCompleted.includes(idx);
                           return (
                             <button
                               key={idx}
+                              type="button"
                               onClick={() => handleHabitToggle(habit, idx)}
-                              className="w-full flex items-center gap-3 py-1.5 group/step transition-all"
+                              disabled={readOnly}
+                              title={readOnly ? 'This date is read-only' : undefined}
+                              aria-pressed={isStepDone}
+                              className="group/step flex min-h-11 w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-indigo-50/70 active:bg-indigo-100/70 disabled:cursor-not-allowed disabled:opacity-70 dark:hover:bg-indigo-950/30 dark:active:bg-indigo-900/40 focus-ring touch-manipulation"
                             >
                               <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
                                 isStepDone ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 dark:border-gray-700'
@@ -432,12 +383,6 @@ export default function UnifiedHabitList({
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
             {stats.completedToday} OF {stats.totalHabits} RITUALS COMPLETE
           </p>
-          {isWhatsAppGloballyReady && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">WhatsApp Live</span>
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            </div>
-          )}
         </div>
       </div>
     </div>

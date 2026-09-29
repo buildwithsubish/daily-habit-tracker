@@ -5,8 +5,7 @@ publish = ".next"
 [build.environment]
 # Omit these environment variable names from secrets scanning
 # NODE_ENV is standard for Next.js builds and gets bundled into webpack output
-# ADMIN_EMAIL is set as an environment variable for runtime configuration
-SECRETS_SCAN_OMIT_KEYS = "NODE_ENV,ADMIN_EMAIL"
+SECRETS_SCAN_OMIT_KEYS = "NODE_ENV"
 
 [[plugins]]
 package = "@netlify/plugin-nextjs"

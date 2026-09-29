@@ -21,15 +21,31 @@ export default function AdminLoginPage() {
   const [twoFactorError, setTwoFactorError] = useState('');
   const [lockoutRemaining, setLockoutRemaining] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [setupHint, setSetupHint] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    // Check if user is already authenticated
+    if (searchParams.get('setup') === 'complete') {
+      setSetupHint('Admin account created successfully. Log in below.');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Check setup status and existing session
     const checkAuth = async () => {
       try {
+        const setupRes = await fetch('/api/admin/setup');
+        if (setupRes.ok) {
+          const setupData = await setupRes.json();
+          if (setupData.needsSetup) {
+            router.replace('/admin/setup');
+            return;
+          }
+        }
+
         const res = await fetch('/api/admin/status', { credentials: 'include' });
         if (res.ok) {
           router.push(redirect);
@@ -125,8 +141,14 @@ export default function AdminLoginPage() {
         window.location.replace(targetUrl);
         return;
       } else {
+        const errorCode = data.errorCode || data.code;
+        if (errorCode === 'NEEDS_SETUP') {
+          router.replace('/admin/setup');
+          return;
+        }
+
         // Handle specific error codes
-        if (data.code === 'ACCOUNT_LOCKED') {
+        if (errorCode === 'ACCOUNT_LOCKED') {
           // Parse lockout time from error message
           const match = data.error.match(/(\d+)/);
           if (match) {
@@ -134,12 +156,12 @@ export default function AdminLoginPage() {
           }
         }
         
-        if (data.code === 'IP_NOT_ALLOWED') {
+        if (errorCode === 'IP_NOT_ALLOWED') {
           setError('Your IP address is not authorized to access this admin panel.');
-        } else if (data.code === 'INVALID_2FA') {
+        } else if (errorCode === 'INVALID_2FA') {
           setTwoFactorError('Invalid 2FA code. Please try again.');
         } else {
-          setError(data.error || 'Invalid credentials. Please try again.');
+          setError(data.message || data.error || 'Invalid credentials. Please try again.');
         }
       }
     } catch (err) {
@@ -187,6 +209,12 @@ export default function AdminLoginPage() {
         {/* Login Card */}
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {setupHint && (
+              <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-sm">
+                {setupHint}
+              </div>
+            )}
+
             {/* Error Alert */}
             {error && (
               <div className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
@@ -268,7 +296,7 @@ export default function AdminLoginPage() {
                     className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all ${
                       emailError ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="admin@habittracker.com"
+                    placeholder="Account email"
                     autoComplete="email"
                   />
                   {emailError && (
@@ -307,14 +335,13 @@ export default function AdminLoginPage() {
                   )}
                 </div>
 
-                {/* Forgot Password */}
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    onClick={() => router.push('/admin/reset-password')}
+                    onClick={() => router.push('/admin/password')}
                     className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
                   >
-                    Forgot Password?
+                    Update password
                   </button>
                 </div>
               </>

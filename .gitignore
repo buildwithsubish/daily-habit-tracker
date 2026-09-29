@@ -75,6 +75,36 @@ wheels/
 *.swp
 *.swo
 
+# ---------------------------------------------------------------------------
+# WhatsApp browser session profiles — NEVER COMMIT
+# These are Chromium user_data dirs containing live session cookies,
+# "Login Data" (saved passwords), Local Storage and encrypted keys.
+# Exfiltrating them grants full account takeover. Regenerate by re-scanning
+# the QR code; they are runtime state, not source.
+/whatsapp_sessions/
+/whatsapp_session/
+*.session/
+/sessions/
+/user_data/
+/user-data/
+/browser_data/
+/browser-data/
+/chrome-profile/
+*Cookies
+*Login Data
+*Local State
+*Local Storage
+
+# Python client artifacts
+/wa_client/__pycache__/
+.pytest_cache/
+htmlcov/
+
+# Logs and local scratch
+*.log
+*.pid
+.tmp/
+
 # Deployment scripts (keep in repo but make executable)
 # setup-server.sh
 # deploy.sh

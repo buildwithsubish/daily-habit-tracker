@@ -1,206 +1,67 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { 
-  Plus, Search, Grid, List as ListIcon, 
-  GripVertical, MoreVertical, Edit, Trash2,
-  ExternalLink, Download, Upload, Zap,
-  BarChart, CheckCircle2, Clock
-} from 'lucide-react';
-import { motion, Reorder, AnimatePresence } from 'framer-motion';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Download, Grid2X2, List, RefreshCw, Search, CheckCircle2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { cn } from '@/lib/utils';
-import toast from 'react-hot-toast';
 
 interface Preset {
   _id: string;
-  type: 'weekday' | 'gym' | 'diet';
   name: string;
-  structure: { habits: any[] };
-  usageCount: number;
+  description?: string;
+  type: string;
+  category?: string;
+  habitsCount: number;
+  structure?: { habits?: unknown[] };
 }
 
 export default function AdminPresetsPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [search, setSearch] = useState('');
-  
-  const { data: presets = [], isLoading } = useQuery<Preset[]>({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery<{ presets: Preset[] }>({
     queryKey: ['admin-presets'],
     queryFn: async () => {
-      const res = await fetch('/api/presets');
-      const data = await res.json();
-      return data.presets || [];
-    }
+      const response = await fetch('/api/presets-templates', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not load preset templates');
+      return response.json();
+    },
   });
 
-  const [items, setItems] = useState<Preset[]>([]);
-
-  // Update items when presets are loaded or search changes
-  React.useEffect(() => {
-    if (presets.length > 0) {
-      setItems(presets.filter(p => 
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.type.toLowerCase().includes(search.toLowerCase())
-      ));
-    }
+  const presets = data?.presets || [];
+  const filtered = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    if (!term) return presets;
+    return presets.filter(preset => [preset.name, preset.type, preset.category || '', preset.description || ''].some(value => value.toLocaleLowerCase().includes(term)));
   }, [presets, search]);
 
-  const handleExport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(items));
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href",     dataStr);
-    downloadAnchorNode.setAttribute("download", "presets_export.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-    toast.success('Presets exported successfully');
+  const exportPresets = () => {
+    const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'habit-presets.json';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Preset Templates</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1">Configure global habit bundles for user onboarding</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleExport} className="font-bold border-slate-200">
-             <Download size={16} className="mr-2" /> Export
-          </Button>
-          <Button variant="outline" className="font-bold border-slate-200">
-             <Upload size={16} className="mr-2" /> Import
-          </Button>
-          <Button className="font-bold shadow-indigo-600/20 shadow-lg">
-             <Plus size={16} className="mr-2" /> New Preset
-          </Button>
-        </div>
-      </div>
+  return <main className="mx-auto max-w-7xl space-y-5 sm:space-y-7">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-indigo-700">Library</p><h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Habit presets</h1><p className="mt-2 text-sm text-slate-600">Read-only templates currently available to users.</p></div><div className="flex w-full gap-2 sm:w-auto"><button onClick={exportPresets} disabled={!filtered.length} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"><Download size={16}/>Export JSON</button><button onClick={() => void refetch()} disabled={isFetching} className="inline-flex min-h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-800 disabled:opacity-50" aria-label="Refresh presets"><RefreshCw size={16} className={isFetching ? 'animate-spin' : ''}/></button></div></header>
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <Input 
-            placeholder="Search templates..." 
-            className="pl-10"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
-          <button 
-            onClick={() => setView('grid')}
-            className={cn(
-              "p-1.5 rounded-md transition-all",
-              view === 'grid' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
-            )}
-          >
-            <Grid size={18} />
-          </button>
-          <button 
-             onClick={() => setView('list')}
-             className={cn(
-              "p-1.5 rounded-md transition-all",
-              view === 'list' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
-            )}
-          >
-            <ListIcon size={18} />
-          </button>
-        </div>
-      </div>
+    <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <label className="relative block w-full sm:max-w-md"><span className="sr-only">Search presets</span><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><Input placeholder="Search templates…" value={search} onChange={event => setSearch(event.target.value)} className="h-11 pl-10"/></label>
+      <div className="flex items-center gap-1 self-end rounded-xl bg-slate-100 p-1 sm:self-auto" role="group" aria-label="Preset display mode"><button type="button" onClick={() => setView('grid')} aria-label="Grid view" aria-pressed={view === 'grid'} className={`flex h-11 w-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${view === 'grid' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}><Grid2X2 size={18}/></button><button type="button" onClick={() => setView('list')} aria-label="List view" aria-pressed={view === 'list'} className={`flex h-11 w-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${view === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}><List size={18}/></button></div>
+    </section>
 
-      {/* Grid Content */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => <div key={i} className="h-48 bg-slate-200 animate-pulse rounded-xl"></div>)}
-        </div>
-      ) : (
-        <Reorder.Group 
-          axis="y" 
-          values={items} 
-          onReorder={setItems}
-          className={cn(
-            view === 'grid' 
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
-              : "flex flex-col gap-4"
-          )}
-        >
-          {items.map((preset) => (
-            <Reorder.Item 
-              key={preset._id} 
-              value={preset}
-              className="list-none"
-            >
-              <Card className="group hover:border-indigo-600 transition-all cursor-move">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <div className="flex items-center gap-2">
-                    <GripVertical size={16} className="text-slate-300 group-hover:text-slate-400" />
-                    <CardTitle className="text-lg font-bold">{preset.name}</CardTitle>
-                  </div>
-                  <Badge className={cn(
-                    "uppercase text-[10px] font-black",
-                    preset.type === 'gym' ? "bg-orange-500" : 
-                    preset.type === 'diet' ? "bg-emerald-500" : "bg-blue-500"
-                  )}>
-                    {preset.type}
-                  </Badge>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div className="space-y-1">
-                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Usage</p>
-                       <div className="flex items-center gap-2">
-                          <BarChart size={14} className="text-indigo-500" />
-                          <span className="text-sm font-black text-slate-900">{preset.usageCount} users</span>
-                       </div>
-                    </div>
-                    <div className="space-y-1">
-                       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Habits</p>
-                       <div className="flex items-center gap-2">
-                          <CheckCircle2 size={14} className="text-emerald-500" />
-                          <span className="text-sm font-black text-slate-900">{preset.structure.habits.length} items</span>
-                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Heatmap Preview Placeholder */}
-                  <div className="mt-4 h-1.5 w-full bg-slate-100 rounded-full flex gap-0.5 overflow-hidden">
-                     {Array.from({length: 12}).map((_, i) => (
-                        <div key={i} className={cn(
-                          "h-full flex-1",
-                          Math.random() > 0.5 ? "bg-indigo-500" : "bg-slate-200"
-                        )}></div>
-                     ))}
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-2 flex justify-between">
-                   <div className="flex -space-x-1.5">
-                      {[1,2,3].map(i => (
-                        <div key={i} className="h-6 w-6 rounded-full border-2 border-white bg-slate-100"></div>
-                      ))}
-                      <div className="h-6 w-6 rounded-full border-2 border-white bg-slate-50 flex items-center justify-center text-[8px] font-bold text-slate-400">+12</div>
-                   </div>
-                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
-                         <Edit size={16} />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600">
-                         <Trash2 size={16} />
-                      </Button>
-                   </div>
-                </CardFooter>
-              </Card>
-            </Reorder.Item>
-          ))}
-        </Reorder.Group>
-      )}
-    </div>
-  );
+    {isLoading ? <section className={`grid gap-3 ${view === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : ''}`} aria-label="Loading presets">{[1, 2, 3].map(item => <div key={item} className="h-40 animate-pulse rounded-2xl bg-slate-200"/>)}</section> : null}
+
+    {isError ? <section className="rounded-2xl border border-rose-200 bg-white p-6" role="alert"><h2 className="text-base font-semibold text-slate-950">Preset templates could not be loaded</h2><p className="mt-1 text-sm text-slate-600">Check your connection and try again.</p><button onClick={() => void refetch()} disabled={isFetching} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-700 px-4 text-sm font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"><RefreshCw size={16} className={isFetching ? 'animate-spin' : ''}/>{isFetching ? 'Retrying…' : 'Try again'}</button></section> : null}
+
+    {!isLoading && !isError && filtered.length === 0 ? <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center"><div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700"><Search size={19}/></div><h2 className="mt-3 text-sm font-semibold text-slate-900">{presets.length ? 'No matching presets' : 'No presets available'}</h2><p className="mt-1 text-sm text-slate-600">{presets.length ? 'Try another search term.' : 'Templates will appear here when they are configured.'}</p>{search && <button onClick={() => setSearch('')} className="mt-4 inline-flex min-h-11 items-center rounded-lg px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-50">Clear search</button>}</section> : null}
+
+    {!isLoading && !isError && filtered.length > 0 ? <section className={`grid gap-3 ${view === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : ''}`} aria-label="Preset templates">{filtered.map(preset => <Card key={preset._id} className="min-w-0 overflow-hidden"><CardHeader className="flex flex-row items-start justify-between gap-3 p-4 sm:p-5"><div className="min-w-0"><CardTitle className="truncate text-base font-semibold">{preset.name}</CardTitle>{preset.category && <p className="mt-1 truncate text-xs text-slate-500">{preset.category}</p>}</div><Badge variant="secondary" className="shrink-0 capitalize">{preset.type.replaceAll('-', ' ')}</Badge></CardHeader><CardContent className="px-4 pb-4 pt-0 sm:px-5 sm:pb-5"><p className="min-h-10 text-sm leading-relaxed text-slate-600">{preset.description || 'A ready-made collection of habit ideas.'}</p><div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm font-medium text-slate-700"><CheckCircle2 size={16} className="text-teal-700"/>{preset.habitsCount ?? preset.structure?.habits?.length ?? 0} habits</div></CardContent></Card>)}</section> : null}
+  </main>;
 }

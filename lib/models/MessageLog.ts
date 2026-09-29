@@ -14,12 +14,12 @@ const MessageLogSchema = new Schema({
     },
     type: {
         type: String,
-        enum: ['summary', 'reminder', 'poll', 'appreciation', 'escalation', 'scheduled'],
+        enum: ['summary', 'reminder', 'poll', 'appreciation', 'escalation', 'scheduled', 'broadcast'],
         required: true,
     },
     status: {
         type: String,
-        enum: ['scheduled', 'sent', 'delivered', 'responded', 'failed'],
+        enum: ['pending', 'scheduled', 'sent', 'delivered', 'responded', 'failed'],
         default: 'sent',
     },
     content: {
