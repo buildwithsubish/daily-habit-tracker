@@ -7,7 +7,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white dark:bg-[#030712] transition-colors duration-500">
+    <div className="min-h-screen bg-slate-50/80 dark:bg-[#090A0F] text-slate-900 dark:text-zinc-100">
       <AchievementNotifier />
       <Navbar />
       <main className="pt-14 sm:pt-16 lg:pt-16">

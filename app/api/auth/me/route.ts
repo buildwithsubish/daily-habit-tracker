@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       id: userId,
       username: user.username,
@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
       whatsappVerified: user.whatsappVerified || false,
       timeZone: user.timeZone || 'UTC',
     });
+
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to fetch user' },

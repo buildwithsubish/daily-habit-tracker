@@ -73,9 +73,6 @@ export default function AdminLoginPage() {
     if (!password) {
       setPasswordError('Password is required');
       isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
     }
 
     return isValid;

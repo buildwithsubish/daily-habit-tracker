@@ -17,6 +17,7 @@ import { ResponsiveDrawer, DrawerToggle, DrawerContent, DrawerHeader, DrawerBody
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/admin/dashboard' },
   { icon: Users, label: 'Users', href: '/admin/users' },
+  { icon: Shield, label: 'Team & RBAC', href: '/admin/team' },
   { icon: Layers, label: 'Presets', href: '/admin/presets' },
   { icon: BarChart3, label: 'Analytics', href: '/admin/analytics' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },

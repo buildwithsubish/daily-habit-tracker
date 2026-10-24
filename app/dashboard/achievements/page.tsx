@@ -3,19 +3,20 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Achievement, AchievementCategory } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Award, Star, Trophy, Zap, Clock, Flame, Layout, MoreHorizontal, Sparkles } from 'lucide-react';
+import { Search, Filter, Award, Star, Trophy, Zap, Clock, Flame, Layout, MoreHorizontal, Sparkles, Dumbbell } from 'lucide-react';
 import AchievementCard from '@/components/AchievementCard';
 import { AchievementSkeleton } from '@/components/Skeleton';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES: { id: AchievementCategory | 'All'; label: string; icon: any }[] = [
   { id: 'All', label: 'All', icon: Layout },
+  { id: 'Fitness & Gym', label: 'Gym & Fitness', icon: Dumbbell },
   { id: 'Streak', label: 'Streak', icon: Flame },
   { id: 'Completion', label: 'Completion', icon: Trophy },
   { id: 'Time-Based', label: 'Time-Based', icon: Clock },
   { id: 'Diversity', label: 'Diversity', icon: Zap },
   { id: 'Consistency', label: 'Consistency', icon: Filter },
-  { id: 'Milestone & Special', label: 'Special', icon: Award },
+  { id: 'Milestone & Special', label: 'Milestones & Special', icon: Award },
 ];
 
 export default function AchievementsPage() {

@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
-  themeColor: '#6366f1',
+  themeColor: '#0a0a0a',
 };
 
 import { HiddenModeProvider } from '@/context/HiddenModeContext';
@@ -37,7 +37,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased bg-white dark:bg-[#0a0a0a] text-slate-900 dark:text-zinc-100 transition-colors duration-300">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem('themeMode');if(!m){var c=document.cookie.match(/(^|;)\\s*themeMode\\s*=\\s*([^;]+)/);if(c)m=c[2];}var d=m==='dark'||(!m&&window.matchMedia('(prefers-color-scheme: dark)').matches)||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark');document.documentElement.style.colorScheme='light';}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-screen">
         <Providers>
           <HiddenModeProvider>
             <ThemeProvider>

@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Award, CheckCircle2, Lock, Star, Trophy, Target, Flame, Zap, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { Award, CheckCircle2, Lock, Star, Trophy, Target, Flame, Zap, Clock, Dumbbell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Achievement, AchievementTier } from '@/types';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_ICON: Record<string, any> = {
+  'Fitness & Gym': Dumbbell,
   'Streak': Flame,
   'Completion': Trophy,
   'Time-Based': Clock,
@@ -134,12 +136,12 @@ export default function AchievementBadges() {
         })}
       </div>
 
-      <button
-        onClick={() => window.location.href = '/dashboard/achievements'}
-        className="w-full py-2.5 mt-2 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-600 transition-colors border border-slate-100 dark:border-slate-800"
+      <Link
+        href="/dashboard/achievements"
+        className="block text-center w-full py-2.5 mt-2 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-600 transition-colors border border-slate-100 dark:border-slate-800"
       >
         View All Milestones
-      </button>
+      </Link>
     </div>
   );
 }

@@ -135,9 +135,20 @@ const UserSchema = new Schema({
     default: '09:00',
     validate: { validator: (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value), message: 'Reminder time must use HH:MM' },
   },
+  soundEnabled: { type: Boolean, default: true },
   age: { type: Number },
   height: { type: Number }, // in cm
   weight: { type: Number }, // in kg
+  lastWeightUpdate: { type: Date, default: null },
+  weightHistory: [
+    {
+      weight: { type: Number, required: true },
+      date: { type: String, required: true }, // 'YYYY-MM-DD'
+      loggedAt: { type: Date, default: Date.now },
+      note: { type: String, default: '' },
+      _id: false,
+    },
+  ],
   gender: { type: String, enum: ['male', 'female', 'other'] },
   activityLevel: { type: String, enum: ['sedentary', 'light', 'moderate', 'very', 'extra'] },
   healthGoal: { type: String, enum: ['loss', 'maintain', 'gain'] },

@@ -1,53 +1,59 @@
 import { NextRequest } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Admin from '@/lib/models/Admin';
-import { requireAdmin, adminRateLimiter, createAdminTokenResponse } from '@/lib/admin-middleware';
+import { requireAdmin, adminRateLimiter, createAdminTokenResponse, requireCsrfCheck } from '@/lib/admin-middleware';
 import { hashAdminPassword, verifyAdminPassword } from '@/lib/admin-auth';
-import { isStrongPassword } from '@/lib/security';
+import { adminPasswordChangeSchema } from '@/lib/validations/admin';
 import { apiError } from '@/lib/api-response';
 import { writeAuditLogFromRequest } from '@/lib/audit-log';
-import { AUDIT_CATEGORY } from '@/lib/audit-log-constants';
+import { AUDIT_ACTIONS, AUDIT_CATEGORY } from '@/lib/audit-log-constants';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    const origin = request.headers.get('origin');
-    if (origin) {
-      try {
-        if (new URL(origin).host !== request.nextUrl.host) return apiError('Cross-origin request rejected', 'INVALID_ORIGIN', 403);
-      } catch {
-        return apiError('Invalid request origin', 'INVALID_ORIGIN', 403);
-      }
+    const auth = requireAdmin(request);
+
+    // CSRF check on state-changing request
+    try {
+      requireCsrfCheck(request);
+    } catch (csrfErr: any) {
+      return apiError(csrfErr.message || 'CSRF validation failed', 'CSRF_ERROR', 403);
     }
 
-    const auth = requireAdmin(request);
     const rate = await adminRateLimiter.check(request, 5);
     if (!rate.success) return apiError('Too many password attempts. Try again later.', 'RATE_LIMITED', 429);
 
     let body: unknown;
-    try { body = await request.json(); }
-    catch { return apiError('Invalid request body', 'INVALID_JSON', 400); }
-    if (!body || typeof body !== 'object') return apiError('Invalid request body', 'INVALID_JSON', 400);
-
-    const { currentPassword, newPassword, confirmPassword } = body as Record<string, unknown>;
-    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || typeof confirmPassword !== 'string' ||
-      currentPassword.length > 256 || newPassword.length > 256 || confirmPassword.length > 256) {
-      return apiError('Enter your current password and a valid new password.', 'INVALID_INPUT', 400);
+    try {
+      body = await request.json();
+    } catch {
+      return apiError('Invalid request body', 'INVALID_JSON', 400);
     }
-    if (!isStrongPassword(newPassword)) return apiError('Use at least 8 characters with uppercase, lowercase and a number.', 'WEAK_PASSWORD', 400);
-    if (newPassword !== confirmPassword) return apiError('New passwords do not match.', 'PASSWORD_MISMATCH', 400);
-    if (currentPassword === newPassword) return apiError('Choose a password different from your current one.', 'PASSWORD_UNCHANGED', 400);
+
+    const parseResult = adminPasswordChangeSchema.safeParse(body);
+    if (!parseResult.success) {
+      const msg = parseResult.error.issues[0]?.message || 'Invalid password payload';
+      return apiError(msg, 'INVALID_PASSWORD', 400);
+    }
+
+    const { currentPassword, newPassword } = parseResult.data;
+
+    if (currentPassword === newPassword) {
+      return apiError('Choose a new password different from your current one.', 'PASSWORD_UNCHANGED', 400);
+    }
 
     await connectDB();
     const admin = await Admin.findById(auth.adminId);
     if (!admin) return apiError('Admin account not found.', 'ADMIN_NOT_FOUND', 404);
+
     if (!(await verifyAdminPassword(currentPassword, admin.passwordHash))) {
       void writeAuditLogFromRequest(request, {
         adminId: admin._id.toString(),
+        targetResourceId: admin._id.toString(),
         action: 'admin_password_change_failed',
         category: AUDIT_CATEGORY.SECURITY,
-        details: 'In-session password change rejected because the current password was incorrect.',
+        details: 'Password change rejected because the current password was incorrect.',
         success: false,
       });
       return apiError('Current password is incorrect.', 'INVALID_CURRENT_PASSWORD', 401);
@@ -61,21 +67,22 @@ export async function POST(request: NextRequest) {
 
     void writeAuditLogFromRequest(request, {
       adminId: admin._id.toString(),
-      action: 'admin_password_changed',
+      targetResourceId: admin._id.toString(),
+      action: AUDIT_ACTIONS.PASSWORD_CHANGE,
       category: AUDIT_CATEGORY.SECURITY,
-      details: 'Admin password changed from the authenticated settings page.',
+      details: 'Administrator successfully changed password adhering to 14+ character policy.',
       success: true,
     });
 
-    const response = createAdminTokenResponse(admin._id.toString(), {
+    return createAdminTokenResponse(admin._id.toString(), {
       email: admin.email,
       role: admin.role,
-      twoFactorVerified: Boolean(admin.twoFactorEnabled && auth.twoFactorVerified),
+      twoFactorVerified: Boolean(admin.twoFactorEnabled && admin.twoFactorSecret),
     });
-    response.headers.set('Cache-Control', 'no-store');
-    return response;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Password update failed';
-    return apiError(message === 'Unauthorized' ? 'Authentication required.' : 'Password update failed.', 'PASSWORD_UPDATE_FAILED', message === 'Unauthorized' ? 401 : 500);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (message === 'Unauthorized') return apiError('Authentication required', 'UNAUTHORIZED', 401);
+    console.error('Password change error:', error);
+    return apiError('Failed to change password', 'INTERNAL_ERROR', 500);
   }
 }

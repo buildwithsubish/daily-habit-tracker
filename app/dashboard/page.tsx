@@ -9,7 +9,7 @@ import HabitStats from '@/components/HabitStats';
 import StreakCelebration from '@/components/StreakCelebration';
 import UnifiedHabitList from '@/components/UnifiedHabitList';
 import { getToday, isHabitScheduled } from '@/lib/utils';
-import { Target, CheckCircle2, X, Calendar, Bell, BellOff, ArrowDown, Sparkles } from 'lucide-react';
+import { Target, CheckCircle2, Calendar, Bell, BellOff, ArrowDown, Sparkles } from 'lucide-react';
 import { format, startOfWeek, addDays, subDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HabitSkeleton, StatsSkeleton } from '@/components/Skeleton';
@@ -17,6 +17,10 @@ import { toast } from 'react-hot-toast';
 import { useHiddenMode } from '@/context/HiddenModeContext';
 import HealthStatusCard from '@/components/HealthStatusCard';
 import ProfileSetupModal from '@/components/ProfileSetupModal';
+import MonthlyWeightCheckin from '@/components/MonthlyWeightCheckin';
+import { triggerNotification, requestNotificationPermission } from '@/lib/notifications';
+import { Dumbbell } from 'lucide-react';
+import EarnedAppreciationBanner, { EarnedAppreciationData } from '@/components/EarnedAppreciationBanner';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -52,12 +56,26 @@ export default function DashboardPage() {
   const [reminderPermission, setReminderPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [reminderSyncError, setReminderSyncError] = useState(false);
   const [timeZone, setTimeZone] = useState('');
-  const [celebration, setCelebration] = useState<{ isOpen: boolean; type: '7-day' | '30-day' | 'daily' }>({
+  const [celebration, setCelebration] = useState<{
+    isOpen: boolean;
+    type: '7-day' | '30-day' | 'daily' | 'custom-streak' | 'achievement';
+    data?: {
+      streak?: number;
+      habitName?: string;
+      achievementTitle?: string;
+      achievementDesc?: string;
+      achievementIcon?: string;
+      achievementPoints?: number;
+      achievementTier?: string;
+    };
+  }>({
     isOpen: false,
     type: '7-day',
   });
-  const [appreciation, setAppreciation] = useState<{ emoji: string; message: string } | null>(null);
-  const [showAppreciation, setShowAppreciation] = useState(true);
+  const [earnedAppreciation, setEarnedAppreciation] = useState<EarnedAppreciationData | null>(null);
+  const [showEarnedAppreciation, setShowEarnedAppreciation] = useState(true);
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [preferencesConfigured, setPreferencesConfigured] = useState(true);
   const [showProfileSetup, setShowProfileSetup] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -70,11 +88,13 @@ export default function DashboardPage() {
         setReminderEnabled(Boolean(parsed.enabled));
         if (/^([01]\d|2[0-3]):[0-5]\d$/.test(parsed.time)) setReminderTime(parsed.time);
       }
+      const isConfigured = localStorage.getItem('preferences-configured') === 'true';
+      setPreferencesConfigured(isConfigured);
       setReminderPermission('Notification' in window ? Notification.permission : 'unsupported');
       setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time');
     } catch { /* keep safe defaults */ }
     const loadData = async () => {
-      await Promise.all([fetchHabits(), fetchUser(), fetchAppreciation(), fetchProfile()]);
+      await Promise.all([fetchHabits(), fetchUser(), fetchProfile(), fetchAchievements()]);
       setLoading(false);
     };
     loadData();
@@ -90,6 +110,10 @@ export default function DashboardPage() {
     setLogs([]);
     fetch(`/api/logs?startDate=${weekStart}&endDate=${boundedWeekEnd}`, { signal: controller.signal })
       .then(async response => {
+        if (response.status === 401) {
+          router.push('/login');
+          return;
+        }
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to fetch history');
         setLogs(data.logs || []);
@@ -107,65 +131,137 @@ export default function DashboardPage() {
     if (hasMounted) localStorage.setItem('habit-reminder', JSON.stringify({ enabled: reminderEnabled, time: reminderTime }));
   }, [hasMounted, reminderEnabled, reminderTime]);
 
-  useEffect(() => {
-    if (!reminderPreferencesLoaded) return;
-    const timer = window.setTimeout(async () => {
-      try {
-        const response = await fetch('/api/user/profile', {
+  const handleSaveDashboardReminder = async (newEnabled: boolean, newTime: string) => {
+    setReminderEnabled(newEnabled);
+    setReminderTime(newTime);
+    try {
+      const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reminderEnabled, reminderTime }),
-        });
-        if (!response.ok) throw new Error('Reminder settings could not be saved');
-        setReminderSyncError(false);
-      } catch {
-        setReminderSyncError(true);
-        toast.error('Reminder settings could not be synced to your account');
-      }
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [reminderPreferencesLoaded, reminderEnabled, reminderTime]);
+        body: JSON.stringify({ reminderEnabled: newEnabled, reminderTime: newTime }),
+      });
+      if (!response.ok) throw new Error('Reminder settings could not be saved');
+      localStorage.setItem('habit-reminder', JSON.stringify({ enabled: newEnabled, time: newTime }));
+      localStorage.setItem('preferences-configured', 'true');
+      setPreferencesConfigured(true);
+      setReminderSyncError(false);
+      toast.success(newEnabled ? `Daily check-in set for ${newTime}!` : 'Reminder turned off');
+    } catch {
+      setReminderSyncError(true);
+      toast.error('Reminder settings could not be synced');
+    }
+  };
 
   useEffect(() => {
-    if (!reminderEnabled || !hasMounted) return;
-    const checkReminder = () => {
-      const now = new Date();
-      const today = format(now, 'yyyy-MM-dd');
-      const currentMinute = now.getHours() * 60 + now.getMinutes();
-      const [hour, minute] = reminderTime.split(':').map(Number);
-      const dueMinute = hour * 60 + minute;
-      if (currentMinute < dueMinute || localStorage.getItem('habit-reminder-last') === today) return;
-      const todaysHabits = habits.filter(habit => habit.active !== false && isHabitScheduled(habit, today));
-      const hasIncompleteHabit = todaysHabits.some(habit => !isHabitCompleteOnDate(habit, today));
-      if (!hasIncompleteHabit) return;
+    if (!hasMounted) return;
 
-      localStorage.setItem('habit-reminder-last', today);
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try {
-          const notification = new Notification('A gentle habit check-in', {
-            body: 'Take a moment to mark today’s progress. Every small step counts.',
-            tag: `habit-check-in-${today}`,
-          });
-          notification.onclick = () => {
-            window.focus();
-            router.push('/dashboard');
-            notification.close();
-          };
-        } catch {
-          toast('A gentle check-in: take a moment to mark today’s progress.');
+    const checkAllReminders = () => {
+      const activeZone = timeZone || (typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'Asia/Kolkata') || 'Asia/Kolkata';
+
+      // Accurately calculate date and minute in user's configured timezone (e.g. Asia/Kolkata)
+      let today: string;
+      let currentMinute: number;
+      try {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+          timeZone: activeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+        const parts = formatter.formatToParts(new Date());
+        const map: Record<string, string> = {};
+        for (const p of parts) map[p.type] = p.value;
+        today = `${map.year}-${map.month}-${map.day}`;
+        currentMinute = parseInt(map.hour, 10) * 60 + parseInt(map.minute, 10);
+      } catch {
+        const now = new Date();
+        today = format(now, 'yyyy-MM-dd');
+        currentMinute = now.getHours() * 60 + now.getMinutes();
+      }
+
+      // Check audio sound setting from localStorage
+      const soundPref = localStorage.getItem('habit-reminder-sound');
+      const shouldPlaySound = soundPref === null ? true : soundPref === 'true';
+
+      // 1. Check general daily reminder if enabled
+      if (reminderEnabled) {
+        const [hour, minute] = reminderTime.split(':').map(Number);
+        const dueMinute = hour * 60 + minute;
+        if (currentMinute >= dueMinute && localStorage.getItem('habit-reminder-last') !== today) {
+          const todaysHabits = habits.filter(habit => habit.active !== false && isHabitScheduled(habit, today));
+          const hasIncompleteHabit = todaysHabits.some(habit => !isHabitCompleteOnDate(habit, today));
+          
+          if (hasIncompleteHabit) {
+            localStorage.setItem('habit-reminder-last', today);
+            triggerNotification({
+              title: '⏰ Daily Habit Check-in',
+              body: 'Take a calm moment to mark today’s progress. Every small step counts.',
+              tag: `habit-check-in-${today}`,
+              playSound: shouldPlaySound,
+              onClick: () => router.push('/dashboard'),
+            });
+            toast('⏰ Daily Check-in: Take a moment to record your habits today!', {
+              icon: '🎯',
+              duration: 6000,
+            });
+          }
         }
-      } else {
-        toast('A gentle check-in: take a moment to mark today’s progress.');
+      }
+
+      // 2. Check individual habit reminders
+      for (const habit of habits) {
+        if (habit.active === false || !habit.reminderEnabled || !habit.reminderTime) continue;
+        if (!isHabitScheduled(habit, today)) continue;
+        if (isHabitCompleteOnDate(habit, today)) continue;
+
+        const [hHour, hMinute] = habit.reminderTime.split(':').map(Number);
+        const hDueMinute = hHour * 60 + hMinute;
+        const habitAlertKey = `habit-reminder-${habit.id}-${today}`;
+
+        if (currentMinute >= hDueMinute && !localStorage.getItem(habitAlertKey)) {
+          localStorage.setItem(habitAlertKey, 'sent');
+          triggerNotification({
+            title: `🎯 Time for: ${habit.name}`,
+            body: habit.description || `Don't break your streak! Time to complete ${habit.name}.`,
+            tag: `habit-item-${habit.id}-${today}`,
+            playSound: shouldPlaySound,
+            onClick: () => router.push('/dashboard'),
+          });
+          toast(`🎯 Reminder: Time to complete "${habit.name}"!`, {
+            icon: '⚡',
+            duration: 6000,
+          });
+        }
       }
     };
-    checkReminder();
-    const timer = window.setInterval(checkReminder, 30_000);
-    return () => window.clearInterval(timer);
+
+    checkAllReminders();
+    const intervalTimer = window.setInterval(checkAllReminders, 30_000);
+
+    // Also check immediately when tab becomes visible (iOS Safari sleep/wake)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkAllReminders();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.clearInterval(intervalTimer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [hasMounted, reminderEnabled, reminderTime, habits, completedStepsByHabitDate, router]);
 
   const fetchUser = async () => {
     try {
       const res = await fetch('/api/auth/me');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setUsername(data.username || '');
@@ -175,32 +271,34 @@ export default function DashboardPage() {
     }
   };
 
-  const fetchAppreciation = async () => {
-    try {
-      const res = await fetch('/api/appreciation');
-      if (res.ok) {
-        const data = await res.json();
-        setAppreciation(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch appreciation:', error);
-    }
-  };
-
   const fetchProfile = async () => {
     try {
       const res = await fetch('/api/user/profile');
+      if (res.status === 401) return;
       if (res.ok) {
         const data = await res.json();
         setUserProfile(data);
-      if (typeof data.reminderEnabled === 'boolean') setReminderEnabled(data.reminderEnabled);
-      if (typeof data.reminderTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(data.reminderTime)) setReminderTime(data.reminderTime);
+        const detectedZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+        if (data.timeZone && data.timeZone !== 'UTC') {
+          setTimeZone(data.timeZone);
+        } else {
+          setTimeZone(detectedZone);
+        }
+        if (typeof data.reminderEnabled === 'boolean') setReminderEnabled(data.reminderEnabled);
+        if (typeof data.reminderTime === 'string') {
+          const match = data.reminderTime.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])/);
+          if (match) setReminderTime(`${match[1].padStart(2, '0')}:${match[2]}`);
+        }
+        if (data.reminderTime || data.reminderEnabled || localStorage.getItem('preferences-configured') === 'true') {
+          setPreferencesConfigured(true);
+        }
         setReminderPreferencesLoaded(true);
-      } else setReminderSyncError(true);
-  } catch (error) {
-    console.error('Failed to fetch profile:', error);
-  }
-};
+        setReminderSyncError(false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+    }
+  };
 
   const fetchHabits = async () => {
     try {
@@ -208,15 +306,34 @@ export default function DashboardPage() {
       const res = await fetch('/api/habits');
       if (res.status === 401) {
         router.push('/login');
-        return;
+        return [];
       }
       if (!res.ok) throw new Error('Failed to fetch habits');
       const data = await res.json();
-      setHabits(data.habits || []);
+      const list = data.habits || [];
+      setHabits(list);
+      return list;
     } catch (error) {
       console.error('Failed to fetch habits:', error);
       setHabitsError(true);
+      return [];
     }
+  };
+
+  const fetchAchievements = async () => {
+    try {
+      const res = await fetch('/api/achievements');
+      if (res.status === 401) return [];
+      if (res.ok) {
+        const data = await res.json();
+        const achs = data.achievements || [];
+        setAchievements(achs);
+        return achs;
+      }
+    } catch (error) {
+      console.error('Failed to fetch achievements:', error);
+    }
+    return [];
   };
 
   const fetchLogs = async () => {
@@ -226,6 +343,10 @@ export default function DashboardPage() {
       const weekEnd = format(addDays(selectedWeekStart, 6), 'yyyy-MM-dd');
       const boundedWeekEnd = weekEnd > getToday() ? getToday() : weekEnd;
       const res = await fetch(`/api/logs?startDate=${weekStart}&endDate=${boundedWeekEnd}`);
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       const data = await res.json();
       setLogs(data.logs || []);
     } catch (error) {
@@ -288,11 +409,41 @@ export default function DashboardPage() {
       // Handle celebrations using API-calculated status
       if (completed && selectedDate === getToday()) {
         const newStreak = result.streak;
-        if (newStreak === 7) setCelebration({ isOpen: true, type: '7-day' });
-        else if (newStreak === 30) setCelebration({ isOpen: true, type: '30-day' });
-        else if (result.dailyAllDone) {
-          setCelebration({ isOpen: true, type: 'daily' });
+        if (result.dailyAllDone) {
+          setCelebration({
+            isOpen: true,
+            type: 'daily',
+            data: { streak: newStreak, habitName: habit.name },
+          });
+          toast.success('⭐ 100% daily rituals completed! Outstanding work.');
+        } else if (newStreak === 3 || newStreak === 7 || newStreak === 14 || newStreak === 21 || newStreak === 30 || newStreak === 50 || newStreak === 100) {
+          setCelebration({
+            isOpen: true,
+            type: newStreak === 30 ? '30-day' : newStreak === 7 ? '7-day' : 'custom-streak',
+            data: { streak: newStreak, habitName: habit.name },
+          });
+          toast.success(`🔥 ${newStreak}-day streak maintained on "${habit.name}"!`);
         }
+
+        // Check if completing this habit unlocked any achievements
+        fetchAchievements().then(updatedAchs => {
+          if (Array.isArray(updatedAchs)) {
+            const newlyUnlocked = updatedAchs.find(a => a.achieved && !a.celebrated);
+            if (newlyUnlocked) {
+              setCelebration({
+                isOpen: true,
+                type: 'achievement',
+                data: {
+                  achievementTitle: newlyUnlocked.title,
+                  achievementDesc: newlyUnlocked.description,
+                  achievementIcon: newlyUnlocked.icon,
+                  achievementPoints: newlyUnlocked.points,
+                },
+              });
+              toast.success(`🏆 Achievement Unlocked: ${newlyUnlocked.title} (+${newlyUnlocked.points} pts)!`);
+            }
+          }
+        });
       }
 
       // Sync state for accuracy without full reload if possible
@@ -305,6 +456,107 @@ export default function DashboardPage() {
       setLogs(previousLogs); // Rollback
       toast.error('Failed to sync progress. Please try again.');
     }
+  };
+
+  // Dynamically evaluate earned appreciation (Maintained habits/streaks & Completed achievements)
+  useEffect(() => {
+    if (!hasMounted) return;
+    const today = getToday();
+
+    // 1. Prioritize newly unlocked and uncelebrated achievements
+    const uncelebratedAch = achievements.find(a => a.achieved && !a.celebrated);
+    if (uncelebratedAch) {
+      setEarnedAppreciation({
+        id: `ach-${uncelebratedAch.id}`,
+        type: 'achievement',
+        emoji: uncelebratedAch.icon || '🏆',
+        badgeTag: `Achievement Unlocked • +${uncelebratedAch.points} PTS`,
+        title: `Achievement Unlocked: ${uncelebratedAch.title}`,
+        message: `${uncelebratedAch.description} Outstanding accomplishment!`,
+        achievementId: uncelebratedAch.id,
+        actionUrl: '/dashboard/achievements',
+        actionText: 'View Milestones',
+      });
+      setShowEarnedAppreciation(true);
+      return;
+    }
+
+    // 2. Check if today's scheduled habits are 100% maintained/completed
+    const scheduledToday = habits.filter(h => isHabitScheduled(h, today));
+    if (scheduledToday.length > 0) {
+      const allDoneToday = scheduledToday.every(h => isHabitCompleteOnDate(h, today));
+      if (allDoneToday) {
+        const isDismissed = localStorage.getItem(`earned-apprec-daily-${today}`);
+        if (!isDismissed) {
+          setEarnedAppreciation({
+            id: `daily-${today}`,
+            type: 'daily-completed',
+            emoji: '⭐',
+            badgeTag: '100% Rituals Maintained Today',
+            title: 'All Scheduled Habits Completed!',
+            message: `You've maintained every scheduled habit for today (${scheduledToday.length}/${scheduledToday.length}). Consistency turns small daily actions into massive results.`,
+          });
+          setShowEarnedAppreciation(true);
+          return;
+        }
+      }
+    }
+
+    // 3. Check for maintained active streaks (>= 3 days) completed today
+    const habitsWithStreak = habits
+      .filter(h => (h.streak || 0) >= 3 && isHabitCompleteOnDate(h, today))
+      .sort((a, b) => (b.streak || 0) - (a.streak || 0));
+
+    if (habitsWithStreak.length > 0) {
+      const topStreakHabit = habitsWithStreak[0];
+      const isDismissed = localStorage.getItem(`earned-apprec-streak-${today}-${topStreakHabit.id}`);
+      if (!isDismissed) {
+        setEarnedAppreciation({
+          id: `streak-${topStreakHabit.id}-${today}`,
+          type: 'streak-maintained',
+          emoji: '🔥',
+          badgeTag: `${topStreakHabit.streak}-Day Streak Maintained`,
+          title: `${topStreakHabit.streak}-Day Consistency on "${topStreakHabit.name}"`,
+          message: `You've kept your ${topStreakHabit.streak}-day streak alive today. Consistency builds mastery!`,
+        });
+        setShowEarnedAppreciation(true);
+        return;
+      }
+    }
+
+    // Never show generic or placeholder quotes
+    setEarnedAppreciation(null);
+  }, [hasMounted, habits, logs, achievements, completedStepsByHabitDate]);
+
+  const handleDismissEarnedAppreciation = async () => {
+    if (!earnedAppreciation) return;
+    const today = getToday();
+
+    if (earnedAppreciation.type === 'achievement' && earnedAppreciation.achievementId) {
+      try {
+        await fetch('/api/achievements/celebrate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ achievementId: earnedAppreciation.achievementId }),
+        });
+        setAchievements(prev =>
+          prev.map(a => a.id === earnedAppreciation.achievementId ? { ...a, celebrated: true } : a)
+        );
+      } catch (err) {
+        console.error('Failed to mark achievement celebrated:', err);
+      }
+    } else if (earnedAppreciation.type === 'daily-completed') {
+      try {
+        localStorage.setItem(`earned-apprec-daily-${today}`, 'true');
+      } catch {}
+    } else if (earnedAppreciation.type === 'streak-maintained') {
+      try {
+        localStorage.setItem(`earned-apprec-streak-${today}-${earnedAppreciation.id}`, 'true');
+      } catch {}
+    }
+
+    setShowEarnedAppreciation(false);
+    setEarnedAppreciation(null);
   };
 
 
@@ -369,33 +621,16 @@ export default function DashboardPage() {
         isOpen={celebration.isOpen}
         onClose={() => setCelebration({ ...celebration, isOpen: false })}
         type={celebration.type}
+        data={celebration.data}
       />
 
-      {/* Appreciation banner */}
+      {/* Earned Appreciation Banner (Maintained Streaks & Completed Achievements) */}
       <AnimatePresence>
-        {appreciation && showAppreciation && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mb-6"
-          >
-            <div className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-[#f2f1ff] px-4 py-3 text-indigo-950 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-50 sm:px-5">
-              <div className="relative flex items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/80 text-lg dark:bg-white/10">
-                  {appreciation.emoji}
-                </div>
-                <p className="flex-1 text-sm font-medium leading-relaxed">{appreciation.message}</p>
-                <button
-                  onClick={() => setShowAppreciation(false)}
-                  aria-label="Dismiss message"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-indigo-900/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:hover:bg-white/10"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
+        {earnedAppreciation && showEarnedAppreciation && (
+          <EarnedAppreciationBanner
+            appreciation={earnedAppreciation}
+            onDismiss={handleDismissEarnedAppreciation}
+          />
         )}
       </AnimatePresence>
 
@@ -462,6 +697,20 @@ export default function DashboardPage() {
             </p>
           )}
 
+          {/* Monthly Weight Check-in (Prompted once every 30 days to avoid daily fatigue) */}
+          <MonthlyWeightCheckin
+            currentWeight={userProfile?.weight}
+            lastWeightUpdate={userProfile?.lastWeightUpdate}
+            onWeightSaved={(newWeight) => {
+              setUserProfile((prev: any) => ({
+                ...prev,
+                weight: newWeight,
+                lastWeightUpdate: new Date().toISOString(),
+              }));
+              fetchProfile();
+            }}
+          />
+
           {/* One clear daily progress summary */}
           <section aria-label="Daily progress" className="mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(250px,0.72fr)]">
@@ -497,20 +746,21 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <details className="mb-7 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300">{reminderEnabled ? <Bell size={17}/> : <BellOff size={17}/>}</span><span><span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">Daily check-in</span><span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">{reminderEnabled ? `One reminder at ${reminderTime}` : 'Choose one time for a gentle reminder'}</span></span></span>
-              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Reminder settings</span>
-            </summary>
-            <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between sm:px-5">
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Reminder time<input aria-label="Reminder time" type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} className="mt-1 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"/></label>
-                <button onClick={async () => { if (!reminderEnabled && 'Notification' in window && Notification.permission === 'default') { try { const permission = await Notification.requestPermission(); setReminderPermission(permission); } catch { setReminderPermission('denied'); } } setReminderEnabled(!reminderEnabled); }} className={`min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${reminderEnabled ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800' : 'bg-indigo-900 text-white hover:bg-indigo-800 dark:bg-indigo-200 dark:text-slate-950 dark:hover:bg-indigo-100'}`}>{reminderEnabled ? 'Turn off reminder' : 'Set reminder'}</button>
+          {!preferencesConfigured && (
+            <details className="mb-7 rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500 sm:px-5 [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300">{reminderEnabled ? <Bell size={17}/> : <BellOff size={17}/>}</span><span><span className="block text-sm font-semibold text-slate-900 dark:text-slate-100">Daily check-in</span><span className="mt-0.5 block text-xs text-slate-600 dark:text-slate-400">{reminderEnabled ? `One reminder at ${reminderTime}` : 'Choose one time for a gentle reminder'}</span></span></span>
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Reminder settings</span>
+              </summary>
+              <div className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between sm:px-5">
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">Reminder time<input aria-label="Reminder time" type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} className="mt-1 block h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"/></label>
+                  <button onClick={async () => { const nextEnabled = !reminderEnabled; if (nextEnabled) { const permission = await requestNotificationPermission(); setReminderPermission(permission); } await handleSaveDashboardReminder(nextEnabled, reminderTime); }} className={`min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${reminderEnabled ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800' : 'bg-indigo-900 text-white hover:bg-indigo-800 dark:bg-indigo-200 dark:text-slate-950 dark:hover:bg-indigo-100'}`}>{reminderEnabled ? 'Turn off reminder' : 'Set reminder'}</button>
+                </div>
+                  <div className="max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400"><p>Choose a time that follows something you already do, like breakfast or winding down. Time zone: {timeZone || 'your device’s local time'}. The reminder works while this app is open.</p>{reminderPermission === 'denied' && <p className="mt-1 text-amber-700 dark:text-amber-400">Browser notifications are blocked; you’ll see an in-app reminder while this page is open.</p>}</div>
               </div>
-                <div className="max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400"><p>Choose a time that follows something you already do, like breakfast or winding down. Time zone: {timeZone || 'your device’s local time'}. The reminder works while this app is open.</p>{reminderPermission === 'denied' && <p className="mt-1 text-amber-700 dark:text-amber-400">Browser notifications are blocked; you’ll see an in-app reminder while this page is open.</p>}</div>
-            </div>
-          </details>
-          {reminderSyncError && <p className="-mt-5 mb-6 text-xs text-amber-800 dark:text-amber-300" role="status">Your reminder is active on this device, but account sync failed. Open Settings and save again when you’re back online.</p>}
+            </details>
+          )}
 
           {/* Main Content Grid (Fluid 12-cols) */}
           <div className="grid grid-cols-12 items-start gap-5 lg:gap-7">

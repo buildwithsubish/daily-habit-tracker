@@ -1,6 +1,7 @@
 /** Centralized AuditLog categories — must match lib/models/AuditLog.ts enum. */
 export const AUDIT_CATEGORIES = [
   'admin_auth',
+  'admin_security',
   'whatsapp_session',
   'whatsapp_verification',
   'whatsapp_message',
@@ -16,6 +17,7 @@ export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 /** Named category constants — use instead of raw strings. */
 export const AUDIT_CATEGORY = {
   ADMIN_AUTH: 'admin_auth',
+  ADMIN_SECURITY: 'admin_security',
   WHATSAPP_SESSION: 'whatsapp_session',
   WHATSAPP_VERIFICATION: 'whatsapp_verification',
   WHATSAPP_MESSAGE: 'whatsapp_message',
@@ -41,6 +43,18 @@ export const AUDIT_ACTIONS = {
   BULK_DEACTIVATE_USERS: 'bulk_deactivate_users',
   HABIT_COMPLETED_WHATSAPP: 'habit_completed_via_whatsapp',
   HABIT_REMINDER_SENT: 'habit_reminder_sent',
+  ROLE_CHANGE: 'admin_role_change',
+  USER_CREATE: 'user_create',
+  USER_UPDATE: 'user_update',
+  USER_DELETE: 'user_delete',
+  USER_SUSPEND: 'user_suspend',
+  USER_UNSUSPEND: 'user_unsuspend',
+  SESSION_REVOKE: 'admin_session_revoke',
+  SESSION_REVOKE_ALL: 'admin_session_revoke_all',
+  TWO_FACTOR_SETUP: 'admin_2fa_setup',
+  TWO_FACTOR_VERIFIED: 'admin_2fa_verified',
+  TWO_FACTOR_RESET: 'admin_2fa_reset',
+  PASSWORD_CHANGE: 'admin_password_change',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS] | string;

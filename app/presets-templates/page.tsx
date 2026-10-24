@@ -75,7 +75,7 @@ export default function PresetsTemplatesPage() {
     }
   };
 
-  const categories = ['All', 'Health', 'Fitness', 'Productivity', 'Mindfulness', 'Growth'];
+  const categories = ['All', 'Fitness', 'Diet', 'Health', 'Productivity', 'Mindfulness', 'Growth'];
   const filteredPresets = activeCategory === 'All'
     ? presets
     : presets.filter(p => p.category === activeCategory);
@@ -84,6 +84,7 @@ export default function PresetsTemplatesPage() {
     switch (category) {
       case 'Health': return 'bg-green-500';
       case 'Fitness': return 'bg-orange-500';
+      case 'Diet': return 'bg-amber-500';
       case 'Productivity': return 'bg-blue-500';
       case 'Mindfulness': return 'bg-purple-500';
       case 'Growth': return 'bg-yellow-500';
@@ -95,6 +96,7 @@ export default function PresetsTemplatesPage() {
     switch (category) {
       case 'Health': return 'text-green-600';
       case 'Fitness': return 'text-orange-600';
+      case 'Diet': return 'text-amber-600';
       case 'Productivity': return 'text-blue-600';
       case 'Mindfulness': return 'text-purple-600';
       case 'Growth': return 'text-yellow-600';
@@ -248,25 +250,27 @@ export default function PresetsTemplatesPage() {
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => handleApplyPreset(preset.name, preset._id)}
-                      disabled={applyingId === preset._id || appliedId === preset._id}
-                      className={`w-full sm:w-auto px-10 py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 ${
-                        appliedId === preset._id
-                          ? 'bg-green-500 text-white shadow-xl shadow-green-500/20'
-                          : applyingId === preset._id
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                          : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white shadow-xl hover:shadow-2xl hover:shadow-blue-600/20'
-                      }`}
-                    >
-                      {appliedId === preset._id ? (
-                        <><Check size={20} /> Applied</>
-                      ) : applyingId === preset._id ? (
-                        <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>Start Template <ChevronRight size={18} /></>
-                      )}
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                      <button
+                        onClick={() => handleApplyPreset(preset.name, preset._id)}
+                        disabled={applyingId === preset._id || appliedId === preset._id}
+                        className={`w-full sm:w-auto px-10 py-5 rounded-[1.5rem] font-black text-sm uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 ${
+                          appliedId === preset._id
+                            ? 'bg-green-500 text-white shadow-xl shadow-green-500/20'
+                            : applyingId === preset._id
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                            : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white shadow-xl hover:shadow-2xl hover:shadow-blue-600/20'
+                        }`}
+                      >
+                        {appliedId === preset._id ? (
+                          <><Check size={20} /> Applied</>
+                        ) : applyingId === preset._id ? (
+                          <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>Start Template <ChevronRight size={18} /></>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

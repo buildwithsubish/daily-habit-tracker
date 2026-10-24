@@ -32,7 +32,19 @@ export default function HealthStatusCard({ onSetupRequest, logs = [] }: HealthSt
     const controller = new AbortController();
     fetch('/api/user/profile', { signal: controller.signal })
       .then(async response => response.ok ? response.json() : null)
-      .then(data => setProfile(data?.age ? data : null))
+      .then(data => {
+        const hasAnyProfile = Boolean(
+          data && (
+            (typeof data.weight === 'number' && data.weight > 0) ||
+            (typeof data.height === 'number' && data.height > 0) ||
+            (typeof data.age === 'number' && data.age > 0) ||
+            data.gender ||
+            data.activityLevel ||
+            data.healthGoal
+          )
+        );
+        setProfile(hasAnyProfile ? data : null);
+      })
       .catch(error => { if (error.name !== 'AbortError') console.error('Failed to fetch health profile:', error); })
       .finally(() => setLoading(false));
     return () => controller.abort();
@@ -84,11 +96,19 @@ export default function HealthStatusCard({ onSetupRequest, logs = [] }: HealthSt
         ))}
       </div>
 
-      <div className="relative mt-4 flex items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-800">
-        <div><p className="text-xs font-medium text-slate-600 dark:text-slate-300">Workout entries · history view</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-900 dark:text-white">{weeklyActivity.sessions} <span className="text-xs font-medium text-slate-500">sessions</span></p></div>
-        {weeklyActivity.recordedCalories > 0 && <div className="text-right"><p className="text-xs font-medium text-slate-600 dark:text-slate-300">Recorded burn</p><p className="mt-1 text-xl font-semibold tabular-nums text-slate-900 dark:text-white">{weeklyActivity.recordedCalories.toLocaleString()} <span className="text-xs font-medium text-slate-500">kcal</span></p></div>}
+      <div className="relative mt-4 flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-800">
+        <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+          Personal wellness metrics for daily habits.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-weight-checkin'))}
+          className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0"
+        >
+          <Scale size={13} />
+          <span>Log Weight</span>
+        </button>
       </div>
-      <p className="relative mt-3 text-[11px] leading-relaxed text-slate-500">Activity reflects workout entries you logged. It doesn’t estimate weight change or food intake.</p>
     </section>
   );
 }

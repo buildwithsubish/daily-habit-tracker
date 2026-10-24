@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const userId = requireAuth(request);
     const data = await request.json();
 
-    const { name, category, type, steps, targetPerDay = 1, schedule, description, descriptionEnabled, dynamicChecklist, checklistPrompt, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities } = data;
+    const { name, category, type, steps, targetPerDay = 1, schedule, description, descriptionEnabled, dynamicChecklist, checklistPrompt, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities, sendRemainder } = data;
 
     if (!name || !category || !type || !steps) {
       return NextResponse.json(
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       reminderInterval: reminderInterval || 5,
       maxReminders: maxReminders || 3,
       reminderMessages: reminderMessages || defaultMessages,
-      sendRemainder: false,
+      sendRemainder: sendRemainder !== undefined ? Boolean(sendRemainder) : false,
       activityLoggingEnabled: activityLoggingEnabled || false,
       advancedMode: advancedMode || false,
       subActivities: subActivities || [],

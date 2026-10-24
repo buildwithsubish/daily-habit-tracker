@@ -1,60 +1,69 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, CheckCircle2, AlertCircle, Mail, Lock } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
+  Mail,
+  Lock,
+  Shield,
+  KeyRound,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Smartphone,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import ButtonLoader from '@/components/ButtonLoader';
-import BrandMark from '@/components/BrandMark';
 
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/dashboard';
+
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [isEmailFocused, setIsEmailFocused] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [shake, setShake] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  // Floating label focus states
+  const [isIdentifierFocused, setIsIdentifierFocused] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
-    setEmailError('');
-    setPasswordError('');
-    
-    let isValid = true;
 
     if (!identifier.trim()) {
-      setEmailError('Email or username is required');
-      isValid = false;
-    } else {
-      const isEmail = identifier.includes('@');
-      if (isEmail && !validateEmail(identifier)) {
-        setEmailError('Please enter a valid email address');
-        isValid = false;
-      }
+      setError('Email or username is required');
+      triggerShake();
+      return;
     }
 
-    if (!password.trim()) {
-      setPasswordError('Password is required');
-      isValid = false;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      isValid = false;
+    if (!password) {
+      setError('Password is required');
+      triggerShake();
+      return;
     }
 
-    if (!isValid) {
+    if (showTwoFactor && (!twoFactorCode.trim() || !/^\d{6}$/.test(twoFactorCode))) {
+      setError('Please enter a valid 6-digit verification code');
+      triggerShake();
       return;
     }
 
@@ -64,263 +73,272 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password }),
+        credentials: 'include',
+        body: JSON.stringify({
+          identifier: identifier.trim(),
+          password,
+          keepSignedIn,
+          ...(showTwoFactor ? { twoFactorCode: twoFactorCode.trim() } : {}),
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
+        if (data.requiresTwoFactor) {
+          setShowTwoFactor(true);
+          setLoading(false);
+          return;
+        }
+
         setSuccess(true);
-        setTimeout(() => router.push('/dashboard'), 1000);
+        setTimeout(() => {
+          router.push(redirect);
+          router.refresh();
+        }, 500);
       } else {
-        setError(data.error || 'Invalid credentials. Please try again.');
+        triggerShake();
+        setError(data.error || 'Invalid email or password');
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch {
+      triggerShake();
+      setError('Network connection error. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Gradient Orbs */}
-        <motion.div
-          className="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl"
-          animate={{
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-500/10 rounded-full blur-3xl"
-          animate={{
-            x: [0, -50, 0],
-            y: [0, -30, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-72 h-72 bg-purple-400/10 dark:bg-purple-500/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      </div>
+    <div className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-[#090A0F] text-[#F8FAFC] selection:bg-[#10B981]/30 selection:text-[#10B981] overflow-hidden">
+      {/* Background Neon Ambient Glows */}
+      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-[#8B5CF6]/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-[#10B981]/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
 
-      {/* Main Content */}
+      {/* Main Glassmorphic Card with Subtle Shake Animation on Error */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md relative z-10"
+        animate={shake ? { x: [-12, 12, -8, 8, -4, 4, 0] } : { x: 0 }}
+        transition={{ duration: 0.5, ease: 'easeInOut' }}
+        className="relative z-10 w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#12141D]/90 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl shadow-black/80"
       >
-        {/* Glassmorphism Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border border-white/20 dark:border-slate-700/50 rounded-3xl shadow-2xl shadow-slate-900/10 dark:shadow-black/50 overflow-hidden"
-        >
-          {/* Subtle gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/5 pointer-events-none" />
-          
-          <div className="relative p-8 sm:p-10 lg:p-12">
-            {/* Header */}
+        {/* Header with Brand Icon */}
+        <div className="text-center">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#10B981] to-[#8B5CF6] p-0.5 shadow-lg shadow-[#10B981]/20">
+            <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-[#12141D]">
+              <Sparkles className="h-6 w-6 text-[#10B981]" />
+            </div>
+          </div>
+          <h1 className="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+            {showTwoFactor ? 'Two-Factor Check' : 'Welcome back'}
+          </h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-[#94A3B8]">
+            {showTwoFactor
+              ? 'Enter the 6-digit security code from your authenticator'
+              : 'Sign in to access your habit streaks & analytics'}
+          </p>
+        </div>
+
+        {/* Status Messages */}
+        <AnimatePresence mode="wait">
+          {error && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-center mb-8 flex flex-col items-center"
+              exit={{ opacity: 0, y: -8 }}
+              className="mt-4 flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-400"
             >
-              <div className="mb-6">
-                <BrandMark href="/" />
-              </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
-                Welcome Back
-              </h1>
-              <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-medium">
-                Sign in to continue tracking your habits
-              </p>
+              <AlertCircle size={16} className="shrink-0 text-rose-400" />
+              <span>{error}</span>
             </motion.div>
+          )}
 
-
-            {/* Error Message */}
-            <AnimatePresence mode="wait">
-              {(error || emailError || passwordError) && (
-                <motion.div
-                  key="error"
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
-                  className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl flex items-start gap-3"
-                >
-                  <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700 dark:text-red-300 font-medium flex-1">
-                    {error || emailError || passwordError}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Form */}
-            <motion.form
-              initial={{ opacity: 0, y: 10 }}
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-              onSubmit={handleSubmit}
-              className="space-y-5"
+              className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400 font-medium"
             >
-              {/* Email Input */}
-              <div className="space-y-2">
+              <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+              <span>Secure authentication verified. Redirecting…</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4" autoComplete="on">
+          {!showTwoFactor ? (
+            <>
+              {/* Floating Label Input: Email / Username */}
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#94A3B8]">
+                  <Mail size={17} />
+                </div>
+                <input
+                  id="identifier"
+                  type="text"
+                  required
+                  autoComplete="username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  onFocus={() => setIsIdentifierFocused(true)}
+                  onBlur={() => setIsIdentifierFocused(false)}
+                  className="peer h-13 w-full rounded-2xl border border-white/[0.08] bg-[#090A0F]/60 pl-10 pr-4 pt-4 pb-1 text-sm text-white placeholder-transparent outline-none transition duration-200 focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/50"
+                  placeholder="Email or Username"
+                />
                 <label
                   htmlFor="identifier"
-                  className={`block text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors ${
-                    isEmailFocused ? 'text-blue-600 dark:text-blue-400' : ''
+                  className={`pointer-events-none absolute left-10 transition-all duration-200 ${
+                    isIdentifierFocused || identifier
+                      ? 'top-1.5 text-[10px] font-semibold text-[#10B981]'
+                      : 'top-3.5 text-xs text-[#94A3B8]'
                   }`}
                 >
                   Email or Username
                 </label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <input
-                    id="identifier"
-                    type="text"
-                    value={identifier}
-                    onChange={(e) => {
-                      setIdentifier(e.target.value);
-                      setEmailError('');
-                      setError('');
-                    }}
-                    onFocus={() => setIsEmailFocused(true)}
-                    onBlur={() => setIsEmailFocused(false)}
-                    required
-                    placeholder="name@example.com"
-                    className={`w-full pl-12 pr-4 py-3.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-2 rounded-xl outline-none transition-all duration-200 font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
-                      emailError
-                        ? 'border-red-300 dark:border-red-800 focus:border-red-500 dark:focus:border-red-600'
-                        : isEmailFocused
-                        ? 'border-blue-500 dark:border-blue-500 shadow-lg shadow-blue-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
-                    autoComplete="email"
-                    autoFocus
-                  />
-                </div>
               </div>
 
-              {/* Password Input */}
-              <div className="space-y-2">
+              {/* Floating Label Input: Password */}
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#94A3B8]">
+                  <Lock size={17} />
+                </div>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setIsPasswordFocused(true)}
+                  onBlur={() => setIsPasswordFocused(false)}
+                  className="peer h-13 w-full rounded-2xl border border-white/[0.08] bg-[#090A0F]/60 pl-10 pr-11 pt-4 pb-1 text-sm text-white placeholder-transparent outline-none transition duration-200 focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]/50"
+                  placeholder="Password"
+                />
                 <label
                   htmlFor="password"
-                  className={`block text-sm font-semibold text-slate-700 dark:text-slate-300 transition-colors ${
-                    isPasswordFocused ? 'text-blue-600 dark:text-blue-400' : ''
+                  className={`pointer-events-none absolute left-10 transition-all duration-200 ${
+                    isPasswordFocused || password
+                      ? 'top-1.5 text-[10px] font-semibold text-[#10B981]'
+                      : 'top-3.5 text-xs text-[#94A3B8]'
                   }`}
                 >
                   Password
                 </label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setPasswordError('');
-                      setError('');
-                    }}
-                    onFocus={() => setIsPasswordFocused(true)}
-                    onBlur={() => setIsPasswordFocused(false)}
-                    required
-                    placeholder="Enter your password"
-                    className={`w-full pl-12 pr-12 py-3.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-2 rounded-xl outline-none transition-all duration-200 font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
-                      passwordError
-                        ? 'border-red-300 dark:border-red-800 focus:border-red-500 dark:focus:border-red-600'
-                        : isPasswordFocused
-                        ? 'border-blue-500 dark:border-blue-500 shadow-lg shadow-blue-500/20'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                    }`}
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-[#94A3B8] hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
               </div>
 
-              {/* Submit Button */}
-              <motion.button
-                type="submit"
-                disabled={loading || success}
-                whileHover={!loading && !success ? { scale: 1.02, y: -2 } : {}}
-                whileTap={!loading && !success ? { scale: 0.98 } : {}}
-                className={`w-full py-3.5 px-6 font-semibold rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                  success
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-emerald-500/30'
-                    : loading
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-blue-500/30 cursor-wait'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-500/30 dark:shadow-blue-500/20'
-                }`}
-              >
-                {success ? (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-                    className="flex items-center gap-2"
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Signed In</span>
-                  </motion.div>
-                ) : (
-                  <ButtonLoader loading={loading} text="Sign In" loadingText="Signing in..." />
-                )}
-              </motion.button>
-
-              {/* Sign Up Link */}
-              <p className="text-center text-sm text-slate-600 dark:text-slate-400 pt-4">
-                Don't have an account?{' '}
+              {/* Keep Me Signed In & Forgot Password */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={keepSignedIn}
+                    onChange={(e) => setKeepSignedIn(e.target.checked)}
+                    className="h-4 w-4 rounded border-white/20 bg-[#090A0F] text-[#10B981] focus:ring-[#10B981] focus:ring-offset-[#12141D]"
+                  />
+                  <span className="text-[#94A3B8] hover:text-white transition">Keep me signed in</span>
+                </label>
                 <Link
-                  href="/register"
-                  className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                  href="/reset-password"
+                  className="text-xs font-semibold text-[#8B5CF6] hover:text-violet-400 transition"
                 >
-                  Sign up
+                  Forgot password?
                 </Link>
-              </p>
-            </motion.form>
-          </div>
-        </motion.div>
+              </div>
+            </>
+          ) : (
+            /* Step-Up 2FA View */
+            <div className="space-y-4">
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-[#10B981]">
+                  <Smartphone size={18} />
+                </div>
+                <input
+                  type="text"
+                  maxLength={6}
+                  pattern="\d{6}"
+                  autoFocus
+                  required
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="000000"
+                  className="h-14 w-full rounded-2xl border border-white/[0.08] bg-[#090A0F]/80 pl-11 pr-4 text-center font-mono text-xl font-bold tracking-[0.3em] text-white outline-none focus:border-[#10B981] focus:ring-1 focus:ring-[#10B981]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTwoFactor(false)}
+                className="w-full text-center text-xs text-[#94A3B8] hover:text-white transition"
+              >
+                ← Back to credentials
+              </button>
+            </div>
+          )}
+
+          {/* Invisible Bot Protection Placeholder (Turnstile / reCAPTCHA v3) */}
+          <div id="cf-turnstile-container" className="hidden" aria-hidden="true" />
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading || success}
+            className="group relative mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#10B981] to-[#059669] px-6 text-sm font-bold text-white shadow-lg shadow-[#10B981]/25 transition duration-200 hover:from-[#059669] hover:to-[#047857] hover:shadow-[#10B981]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#10B981] disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Verifying Credentials…
+              </span>
+            ) : showTwoFactor ? (
+              <>
+                Confirm 2FA Code <ArrowRight size={16} />
+              </>
+            ) : (
+              <>
+                Sign In to Dashboard <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <div className="mt-6 border-t border-white/[0.06] pt-4 text-center text-xs text-[#94A3B8]">
+          Don&apos;t have an account?{' '}
+          <Link href="/register" className="font-bold text-[#10B981] hover:underline">
+            Create account
+          </Link>
+        </div>
+
+        {/* Security Badge */}
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-[#94A3B8]/60">
+          <ShieldCheck size={13} className="text-[#10B981]" />
+          <span>Meta/X Dual-Token __Host- Cookie Architecture</span>
+        </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#090A0F] flex items-center justify-center text-[#94A3B8] text-xs">
+          Loading secure portal…
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

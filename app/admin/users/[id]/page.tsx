@@ -21,6 +21,7 @@ interface UserDetails {
     createdAt: string;
     timeZone: string;
     notificationPreferences: any;
+    isActive?: boolean;
   };
   habits: Array<{
     id: string;
@@ -60,6 +61,78 @@ export default function UserDetailsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMessage, setResetMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Destructive Action Safeguards State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const getCsrfToken = () => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(new RegExp('(^| )admin_csrf_token=([^;]+)'));
+    return match ? decodeURIComponent(match[2]) : '';
+  };
+
+  const handleToggleSuspend = async () => {
+    if (!data) return;
+    const isCurrentlyActive = data.user.isActive !== false;
+    const nextAction = isCurrentlyActive ? 'suspend' : 'unsuspend';
+    
+    if (isCurrentlyActive) {
+      const confirmPrompt = window.confirm(
+        `Are you sure you want to suspend user ${data.user.email}? They will be blocked from logging in.`
+      );
+      if (!confirmPrompt) return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          action: nextAction,
+          confirmation: data.user.email,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to update user status');
+
+      setActionMessage({ type: 'success', text: result.message });
+      await fetchUserDetails();
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err.message || 'Status update failed' });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!data || deleteConfirmation !== data.user.email) return;
+    setDeleteLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          confirmation: deleteConfirmation,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to delete user');
+
+      alert(`User ${data.user.email} has been permanently deleted.`);
+      router.push('/admin/users');
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err.message || 'Deletion failed' });
+      setDeleteLoading(false);
+    }
+  };
   
   useEffect(() => {
     fetchUserDetails();
@@ -165,16 +238,44 @@ export default function UserDetailsPage() {
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
               <Shield className="text-red-500" size={20} />
               <div className="flex-1">
-                <p className="text-xs text-gray-500">Password Management</p>
-                <button
-                  onClick={() => setShowResetModal(true)}
-                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold text-sm transition-colors"
-                >
-                  Reset User Password
-                </button>
+                <p className="text-xs text-gray-500">Credentials & Security</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowResetModal(true)}
+                    className="px-3 py-1.5 bg-indigo-700 text-white rounded-lg hover:bg-indigo-800 font-semibold text-xs transition-colors"
+                  >
+                    Reset Password
+                  </button>
+                  <button
+                    onClick={handleToggleSuspend}
+                    className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors ${
+                      data.user.isActive === false
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white'
+                    }`}
+                  >
+                    {data.user.isActive === false ? 'Unsuspend Account' : 'Suspend Account'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDeleteConfirmation('');
+                      setShowDeleteModal(true);
+                    }}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-xs transition-colors"
+                  >
+                    Permanently Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          {actionMessage && (
+            <div className={`mt-4 p-3 rounded-lg text-xs font-semibold ${
+              actionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}>
+              {actionMessage.text}
+            </div>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -381,6 +482,60 @@ export default function UserDetailsPage() {
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {resetLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Destructive Action Safeguard Modal: Permanent User Deletion */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rose-200">
+              <div className="flex items-center gap-3 text-rose-600 mb-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 font-bold text-lg">⚠️</span>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Confirm Permanent Deletion</h3>
+                  <p className="text-xs text-rose-700 font-medium">Destructive & Irreversible Action</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                This will permanently delete account <strong className="font-mono text-slate-900">{data.user.email}</strong> and purge all habits, progress entries, and historical logs.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Type <span className="font-mono font-bold text-rose-700">{data.user.email}</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmation}
+                  onChange={(e) => setDeleteConfirmation(e.target.value)}
+                  placeholder="Enter user email exactly"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-rose-500 font-mono"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteConfirmation('');
+                  }}
+                  disabled={deleteLoading}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-xs font-semibold disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteUser}
+                  disabled={deleteConfirmation !== data.user.email || deleteLoading}
+                  className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {deleteLoading ? 'Purging Data…' : 'Permanently Delete User'}
                 </button>
               </div>
             </div>

@@ -76,7 +76,7 @@ export default function PresetsPage() {
     }
   };
 
-  const categories = ['All', 'Health', 'Fitness', 'Productivity', 'Mindfulness', 'Growth'];
+  const categories = ['All', 'Fitness', 'Diet', 'Health', 'Productivity', 'Mindfulness', 'Growth'];
   const filteredPresets = activeCategory === 'All'
     ? presets
     : presets.filter(p => p.category === activeCategory);
@@ -85,6 +85,7 @@ export default function PresetsPage() {
     switch (category) {
       case 'Health': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
       case 'Fitness': return 'bg-orange-500/10 text-orange-600 border-orange-500/20';
+      case 'Diet': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
       case 'Productivity': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'Mindfulness': return 'bg-purple-500/10 text-purple-600 border-purple-500/20';
       case 'Growth': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
@@ -229,7 +230,7 @@ export default function PresetsPage() {
                     {preset.description || `Optimized routines for ${preset.name.toLowerCase()}.`}
                   </p>
 
-                  <div className="flex items-center justify-between pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-8 border-t border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
                         <Trophy size={16} className="text-indigo-600 dark:text-indigo-400" />
@@ -239,27 +240,29 @@ export default function PresetsPage() {
                       </span>
                     </div>
 
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleApplyPreset(preset.name, preset._id)}
-                      disabled={applyingId === preset._id || appliedId === preset._id}
-                      className={`px-8 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-2 ${
-                        appliedId === preset._id
-                          ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-xl shadow-emerald-500/30'
-                          : applyingId === preset._id
-                          ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-xl shadow-lg shadow-indigo-500/30'
-                      }`}
-                    >
-                      {appliedId === preset._id ? (
-                        <><Check size={16} /> Activated</>
-                      ) : applyingId === preset._id ? (
-                        <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>Apply Protocol <ChevronRight size={14} /></>
-                      )}
-                    </motion.button>
+                    <div className="flex items-center gap-2">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleApplyPreset(preset.name, preset._id)}
+                        disabled={applyingId === preset._id || appliedId === preset._id}
+                        className={`px-6 py-3.5 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] transition-all flex items-center gap-2 ${
+                          appliedId === preset._id
+                            ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-xl shadow-emerald-500/30'
+                            : applyingId === preset._id
+                            ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
+                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-xl shadow-lg shadow-indigo-500/30'
+                        }`}
+                      >
+                        {appliedId === preset._id ? (
+                          <><Check size={16} /> Activated</>
+                        ) : applyingId === preset._id ? (
+                          <div className="w-4 h-4 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>Apply Protocol <ChevronRight size={14} /></>
+                        )}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

@@ -32,8 +32,18 @@ export interface User {
   };
   reminderEnabled?: boolean;
   reminderTime?: string;
+  weight?: number;
+  lastWeightUpdate?: string | null;
+  weightHistory?: WeightEntry[];
   celebratedAchievements: string[];
   createdAt: string;
+}
+
+export interface WeightEntry {
+  weight: number;
+  date: string; // 'YYYY-MM-DD'
+  loggedAt?: string;
+  note?: string;
 }
 
 
@@ -185,7 +195,7 @@ export interface MotivationTip {
 }
 
 export type AchievementTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'Legendary';
-export type AchievementCategory = 'Streak' | 'Completion' | 'Time-Based' | 'Diversity' | 'Consistency' | 'Milestone & Special';
+export type AchievementCategory = 'Streak' | 'Completion' | 'Time-Based' | 'Diversity' | 'Consistency' | 'Milestone & Special' | 'Fitness & Gym';
 
 export interface Achievement {
   id: string;

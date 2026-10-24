@@ -5,6 +5,7 @@ import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
 import MessageLog from '@/lib/models/MessageLog';
 import AuditLog from '@/lib/models/AuditLog';
+import AdminSession from '@/lib/models/AdminSession';
 import { requireAdmin } from '@/lib/admin-middleware';
 import mongoose from 'mongoose';
 
@@ -134,6 +135,21 @@ export async function GET(request: NextRequest) {
       respondedAt: { $exists: true } 
     });
     
+    // System Health & Security Metrics
+    const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [activeAdminSessions, recentFailedLogins, totalLogs24h, failedLogs24h] = await Promise.all([
+      AdminSession.countDocuments({ isRevoked: false, expiresAt: { $gt: new Date() } }),
+      AuditLog.countDocuments({
+        category: 'admin_auth',
+        action: { $in: ['login_failed', 'login_blocked', 'login_blocked_ip', 'login_failed_2fa'] },
+        createdAt: { $gte: past24h },
+      }),
+      AuditLog.countDocuments({ createdAt: { $gte: past24h } }),
+      AuditLog.countDocuments({ createdAt: { $gte: past24h }, success: false }),
+    ]);
+
+    const apiErrorRate = totalLogs24h > 0 ? Math.round((failedLogs24h / totalLogs24h) * 1000) / 10 : 0;
+
     // Audit Logs
     const auditLogs = await AuditLog.find({})
       .sort({ createdAt: -1 })
@@ -149,6 +165,16 @@ export async function GET(request: NextRequest) {
       completedLogs,
       completionRate: Math.round(completionRate * 100) / 100,
       recentUsers,
+      activeAdminSessions,
+      recentFailedLogins,
+      apiErrorRate,
+      systemHealth: {
+        status: recentFailedLogins > 10 ? 'warning' : 'healthy',
+        activeSessions: activeAdminSessions,
+        failedLoginAlerts24h: recentFailedLogins,
+        errorRatePercent: apiErrorRate,
+        uptimeSeconds: Math.floor(process.uptime()),
+      },
       habitsByCategory: habitsByCategory.map(h => ({
         category: h._id,
         count: h.count,

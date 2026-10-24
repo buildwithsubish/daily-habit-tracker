@@ -1,4 +1,5 @@
-import { isStrongPassword, isValidEmail, sanitizeInput } from './security';
+import { isValidEmail, sanitizeInput } from './security';
+import { validateAdminPasswordComplexity } from './password-policy';
 
 export interface AdminSetupInput {
   email?: string;
@@ -40,9 +41,11 @@ export function validateAdminSetupInput(
 
   if (!password) {
     errors.password = 'Password is required';
-  } else if (!isStrongPassword(password)) {
-    errors.password =
-      'Password must be at least 8 characters with uppercase, lowercase, and a number';
+  } else {
+    const passwordCheck = validateAdminPasswordComplexity(password);
+    if (!passwordCheck.valid) {
+      errors.password = passwordCheck.errors[0];
+    }
   }
 
   if (confirmPassword !== password) {

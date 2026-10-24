@@ -94,7 +94,7 @@ export async function PUT(
     const { id: habitId } = await params;
     const data = await request.json();
 
-    const { name, category, type, steps, targetPerDay, schedule, order, whatsappEnabled, whatsappFrequency, whatsappTime, active, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities, hidden } = data;
+    const { name, category, type, steps, targetPerDay, schedule, order, whatsappEnabled, whatsappFrequency, whatsappTime, active, inactiveAlertDays, reminderEnabled, reminderTime, reminderInterval, maxReminders, reminderMessages, activityLoggingEnabled, advancedMode, subActivities, hidden, sendRemainder } = data;
 
     // Verify ownership
     const existing = await Habit.findOne({
@@ -131,6 +131,7 @@ export async function PUT(
     if (reminderInterval !== undefined) updateData.reminderInterval = reminderInterval;
     if (maxReminders !== undefined) updateData.maxReminders = maxReminders;
     if (reminderMessages !== undefined) updateData.reminderMessages = reminderMessages;
+    if (sendRemainder !== undefined) updateData.sendRemainder = sendRemainder;
     if (activityLoggingEnabled !== undefined) updateData.activityLoggingEnabled = activityLoggingEnabled;
     if (advancedMode !== undefined) updateData.advancedMode = advancedMode;
     if (subActivities !== undefined) updateData.subActivities = subActivities;

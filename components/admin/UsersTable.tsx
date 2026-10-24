@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, ArrowRight, Search, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, Users, Download, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 
 interface AdminUser {
@@ -23,16 +23,41 @@ interface UserPage {
 
 export function UsersTable() {
   const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, isFetching, refetch } = useQuery<UserPage>({
-    queryKey: ['admin-users', search, page],
+    queryKey: ['admin-users', search, status, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ search, page: String(page), limit: '20' });
+      const params = new URLSearchParams({ search, page: String(page), limit: '20', status });
       const response = await fetch(`/api/admin/users?${params}`, { cache: 'no-store' });
       if (!response.ok) throw new Error('Could not load users');
       return response.json();
     },
   });
+
+  const exportUsersCSV = () => {
+    if (!data?.users?.length) return;
+    const headers = ['User ID', 'Email', 'Username', 'Joined Date', 'Habit Count', 'Completion Rate', 'Status'];
+    const rows = data.users.map((u) => [
+      u.id,
+      u.email,
+      u.username || '',
+      new Date(u.createdAt).toISOString(),
+      u.stats.habitCount,
+      `${u.stats.completionRate}%`,
+      u.isActive ? 'Active' : 'Inactive',
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `users-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return <section className="space-y-4">
     <div className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="User totals">
@@ -44,8 +69,47 @@ export function UsersTable() {
     </div>
 
     <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-      <label className="relative block w-full sm:max-w-md"><span className="sr-only">Search users by name or email</span><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17}/><Input value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Search name or email…" className="h-11 pl-10"/></label>
-      <span className="text-xs text-slate-500" aria-live="polite">{isFetching ? 'Updating…' : data ? `${data.pagination.total.toLocaleString()} users found` : ' '}</span>
+      <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <label className="relative block w-full sm:max-w-md">
+          <span className="sr-only">Search users by name or email</span>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={17} />
+          <Input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search name or email…"
+            className="h-11 pl-10"
+          />
+        </label>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as any);
+            setPage(1);
+          }}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
+        </select>
+      </div>
+
+      <div className="flex items-center justify-between sm:justify-end gap-3">
+        <span className="text-xs text-slate-500" aria-live="polite">
+          {isFetching ? 'Updating…' : data ? `${data.pagination.total.toLocaleString()} users found` : ' '}
+        </span>
+        <button
+          type="button"
+          onClick={exportUsersCSV}
+          disabled={!data?.users?.length}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <Download size={14} /> Export CSV
+        </button>
+      </div>
     </div>
 
     {isLoading && <div className="space-y-2" aria-label="Loading users">{[1, 2, 3, 4].map(row => <div key={row} className="h-20 animate-pulse rounded-xl bg-slate-200"/>)}</div>}

@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import type { AdminRole } from './models/Admin';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +15,9 @@ export function getAdminJwtSecret(): string {
 export interface AdminTokenPayload {
   adminId: string;
   email?: string;
-  role?: 'admin' | 'super_admin';
+  role?: AdminRole;
+  sessionId?: string;
+  sessionToken?: string;
   twoFactorVerified?: boolean;
   passwordResetRequired?: boolean;
   type: 'admin';
@@ -22,7 +25,7 @@ export interface AdminTokenPayload {
   exp?: number;
 }
 
-// Enhanced password hashing with maximum security (15 rounds for admin)
+// Enhanced password hashing with maximum security (bcrypt cost factor 12)
 export async function hashAdminPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
@@ -35,7 +38,9 @@ export function generateAdminToken(
   adminId: string,
   options?: {
     email?: string;
-    role?: 'admin' | 'super_admin';
+    role?: AdminRole;
+    sessionId?: string;
+    sessionToken?: string;
     twoFactorVerified?: boolean;
     passwordResetRequired?: boolean;
   }
@@ -45,12 +50,14 @@ export function generateAdminToken(
       adminId,
       email: options?.email,
       role: options?.role || 'admin',
+      sessionId: options?.sessionId,
+      sessionToken: options?.sessionToken,
       twoFactorVerified: options?.twoFactorVerified || false,
       passwordResetRequired: options?.passwordResetRequired || false,
       type: 'admin'
     },
     getAdminJwtSecret(),
-    { expiresIn: '24h' }
+    { expiresIn: '15m' } // 15-minute access token for hardened security
   );
 }
 

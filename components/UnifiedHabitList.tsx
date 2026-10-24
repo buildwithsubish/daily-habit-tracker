@@ -198,6 +198,7 @@ export default function UnifiedHabitList({
           <TrackHabitDrawer
             habit={activityModal.habit}
             initialAdvancedMode={globalAdvancedMode}
+            selectedDate={selectedDate}
             onConfirm={handleActivityConfirm}
             onCancel={() => setActivityModal(null)}
           />
@@ -304,6 +305,21 @@ export default function UnifiedHabitList({
 
                   {/* Keep expansion independent from completion. */}
                   <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+                    {(habit.advancedMode || habit.activityLoggingEnabled || globalAdvancedMode) && (
+                      <button
+                        type="button"
+                        title="Open deep tracking & workout logging"
+                        aria-label={`Open deep logging for ${habit.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivityModal({ habit });
+                        }}
+                        className="p-2 sm:p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors touch-button"
+                      >
+                        <Zap size={14} className="fill-indigo-500/20" />
+                      </button>
+                    )}
+
                     {habit.type === 'multi-step' && (
                       <span className="px-0.5 text-[10px] font-black uppercase tracking-wide text-gray-500 dark:text-gray-400 sm:tracking-widest">
                         {stepCompleted.length}/{habit.steps.length}

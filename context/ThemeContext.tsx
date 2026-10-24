@@ -31,48 +31,67 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("themeMode") as ThemeMode | null;
-    if (saved && ["light", "dark", "system"].includes(saved)) {
-      setModeState(saved);
+    let saved = localStorage.getItem("themeMode") as ThemeMode | null;
+    if (!saved) {
+      const match = document.cookie.match(/(^|;)\s*themeMode\s*=\s*([^;]+)/);
+      if (match && ["light", "dark", "system"].includes(match[2])) {
+        saved = match[2] as ThemeMode;
+      }
     }
+    const activeMode = (saved && ["light", "dark", "system"].includes(saved)) ? saved : "system";
+    setModeState(activeMode);
+    
+    // Check actual DOM class set by blocking head script
+    const currentIsDark = document.documentElement.classList.contains("dark");
+    setIsDarkMode(currentIsDark);
   }, []);
 
-  const applyTheme = useCallback((dark: boolean) => {
+  const applyTheme = useCallback((targetMode: ThemeMode) => {
+    const isDark = resolveIsDark(targetMode);
     const root = document.documentElement;
-    if (dark) {
+    if (isDark) {
       root.classList.add("dark");
+      root.style.colorScheme = "dark";
     } else {
       root.classList.remove("dark");
+      root.style.colorScheme = "light";
     }
-    setIsDarkMode(dark);
+    setIsDarkMode(isDark);
+    try {
+      localStorage.setItem("themeMode", targetMode);
+      document.cookie = `themeMode=${targetMode}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {}
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const isDark = resolveIsDark(mode);
-    applyTheme(isDark);
-    localStorage.setItem("themeMode", mode);
-  }, [mode, applyTheme, mounted]);
+  const setMode = useCallback((newMode: ThemeMode) => {
+    setModeState(newMode);
+    applyTheme(newMode);
+  }, [applyTheme]);
+
+  const toggleDarkMode = useCallback(() => {
+    setMode(isDarkMode ? "light" : "dark");
+  }, [isDarkMode, setMode]);
 
   useEffect(() => {
     if (!mounted || mode !== "system") return;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => applyTheme(e.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      const root = document.documentElement;
+      if (e.matches) {
+        root.classList.add("dark");
+        root.style.colorScheme = "dark";
+      } else {
+        root.classList.remove("dark");
+        root.style.colorScheme = "light";
+      }
+      setIsDarkMode(e.matches);
+    };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, [mode, applyTheme, mounted]);
-
-  const toggleDarkMode = useCallback(() => {
-    setModeState((prev) => resolveIsDark(prev) ? "light" : "dark");
-  }, []);
-
-  if (!mounted) {
-    // Prevent hydration mismatch by rendering invisible content or fallback
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
+  }, [mode, mounted]);
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, mode, setMode: setModeState, toggleDarkMode }}>
+    <ThemeContext.Provider value={{ isDarkMode, mode, setMode, toggleDarkMode }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -80,6 +99,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) throw new Error("useTheme must be used within ThemeProvider");
+  if (!context) {
+    return {
+      isDarkMode: false,
+      mode: 'system' as ThemeMode,
+      setMode: () => {},
+      toggleDarkMode: () => {},
+    };
+  }
   return context;
 };

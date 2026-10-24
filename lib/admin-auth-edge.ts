@@ -1,7 +1,9 @@
 export interface AdminTokenPayload {
   adminId: string;
   email?: string;
-  role?: 'admin' | 'super_admin';
+  role?: 'super_admin' | 'admin' | 'manager' | 'editor' | 'viewer';
+  sessionId?: string;
+  sessionToken?: string;
   twoFactorVerified?: boolean;
   passwordResetRequired?: boolean;
   type: 'admin';

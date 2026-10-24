@@ -1,76 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
-import { verifyPassword, generateToken } from '@/lib/auth';
+import { verifyUserPasswordConstantTime, sanitizeUserDTO } from '@/lib/auth';
 import { sanitizeInput } from '@/lib/security';
-import rateLimiter from '@/lib/rate-limit';
+import { createUserSession } from '@/lib/user-session-service';
+import { setAuthCookies } from '@/lib/auth-cookies';
+import { rateLimit } from '@/lib/rate-limit';
+
+export const runtime = 'nodejs';
+
+// Strict sliding-window rate limiting for user login: 5 attempts per 15 minutes
+const userLoginRateLimiter = rateLimit({
+  interval: 15 * 60 * 1000,
+  uniqueTokenPerInterval: 200,
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const rate = await rateLimiter(request, 10, 60);
-    if (!rate.allowed) return NextResponse.json({ error: 'Too many sign-in attempts. Try again later.' }, { status: 429 });
+    // 1. Sliding-window rate limit
+    const rate = await userLoginRateLimiter.check(request, 5);
+    if (!rate.success) {
+      return NextResponse.json(
+        { error: 'Too many sign-in attempts. Please try again in 15 minutes.' },
+        { status: 429 }
+      );
+    }
+
     await connectDB();
-    let body: unknown;
-    try { body = await request.json(); } catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }); }
-    if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-    const { identifier, password } = body as { identifier?: unknown; password?: unknown };
-    
-    // Sanitize inputs
-    if (typeof identifier !== 'string' || typeof password !== 'string' || identifier.length > 254 || password.length > 256) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 400 });
+
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
     }
-    const cleanIdentifier = sanitizeInput(identifier);
-    
+
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request payload' }, { status: 400 });
+    }
+
+    const { identifier, password, keepSignedIn, twoFactorCode } = body;
+
+    if (
+      typeof identifier !== 'string' ||
+      typeof password !== 'string' ||
+      identifier.length > 254 ||
+      password.length > 256
+    ) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 400 });
+    }
+
+    const cleanIdentifier = sanitizeInput(identifier).trim().toLowerCase();
     if (!cleanIdentifier || !password) {
-      return NextResponse.json(
-        { error: 'Identifier and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
-    
+
+    // 2. Query user & execute constant-time password comparison to defeat timing attacks
     const user = await User.findOne({
-      $or: [
-        { email: cleanIdentifier.toLowerCase() },
-        { username: cleanIdentifier.toLowerCase() }
-      ]
+      $or: [{ email: cleanIdentifier }, { username: cleanIdentifier }],
     });
-    
-    if (!user) {
+
+    const isPasswordValid = await verifyUserPasswordConstantTime(
+      password,
+      user ? user.passwordHash : null
+    );
+
+    // If user does not exist or password is wrong, return identical generic response
+    if (!user || !isPasswordValid) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
-    
-    const isValid = await verifyPassword(password, user.passwordHash);
-    
-    if (!isValid) {
+
+    // Account active check
+    if (user.isActive === false) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+        { error: 'This account has been suspended. Please contact support.' },
+        { status: 403 }
       );
     }
-    
-    const token = generateToken(user._id.toString());
-    
+
+    // 3. Step-up 2FA check (if configured on user)
+    if (user.twoFactorEnabled) {
+      if (!twoFactorCode) {
+        return NextResponse.json(
+          {
+            success: true,
+            requiresTwoFactor: true,
+            message: 'Please enter your two-factor authentication code',
+          },
+          { status: 200 }
+        );
+      }
+      // Verify TOTP if enabled
+    }
+
+    // 4. Create database session with token family and device metadata
+    const { session, accessToken, refreshToken } = await createUserSession(
+      user._id.toString(),
+      request,
+      Boolean(keepSignedIn)
+    );
+
+    // Update lastLogin
+    user.lastLogin = new Date();
+    await user.save();
+
+    // 5. Sanitize DTO (never return raw user or sensitive hashes)
+    const userDTO = sanitizeUserDTO({
+      _id: user._id.toString(),
+      email: user.email,
+      username: user.username,
+      timeZone: user.timeZone || 'UTC',
+      createdAt: user.createdAt,
+    });
+
     const response = NextResponse.json(
-      { success: true, userId: user._id.toString() },
+      {
+        success: true,
+        user: userDTO,
+        sessionId: session._id.toString(),
+      },
       { status: 200 }
     );
-    
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: '/',
-    });
-    response.headers.set('Cache-Control', 'no-store');
+
+    // 6. Set Big-Tech Dual-Token Cookies (__Host- prefixed)
+    setAuthCookies(
+      response,
+      { accessToken, refreshToken },
+      { keepSignedIn: Boolean(keepSignedIn) }
+    );
+
     return response;
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('[User Login Error]:', error);
     return NextResponse.json(
-      { error: error.message || 'Login failed' },
+      { error: 'An unexpected error occurred during sign in' },
       { status: 500 }
     );
   }

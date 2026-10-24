@@ -42,6 +42,9 @@ export default function EditHabitPage() {
     activityLoggingEnabled: false,
     advancedMode: false,
     subActivities: [] as Array<{ name: string; type: string }>,
+    reminderEnabled: false,
+    reminderTime: '08:00',
+    sendRemainder: false,
   });
   const [selectedWorkout, setSelectedWorkout] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'basic' | 'schedule' | 'advanced'>('basic');
@@ -71,6 +74,9 @@ export default function EditHabitPage() {
           activityLoggingEnabled: data.habit?.activityLoggingEnabled || false,
           advancedMode: data.habit?.advancedMode || false,
           subActivities: data.habit?.subActivities || [],
+          reminderEnabled: data.habit?.reminderEnabled || false,
+          reminderTime: data.habit?.reminderTime || '08:00',
+          sendRemainder: data.habit?.sendRemainder || false,
         });
       } else {
         toast.error('Habit not found');
@@ -204,6 +210,9 @@ export default function EditHabitPage() {
           activityLoggingEnabled: formData.activityLoggingEnabled,
           advancedMode: formData.advancedMode,
           subActivities: formData.subActivities,
+          reminderEnabled: formData.reminderEnabled,
+          reminderTime: formData.reminderTime,
+          sendRemainder: formData.sendRemainder,
         })
       });
 
@@ -260,8 +269,7 @@ export default function EditHabitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-indigo-950 pb-20 pt-6">
-      <div className="premium-container">
+    <div className="w-full max-w-4xl mx-auto space-y-6 pb-16">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <button
@@ -672,6 +680,61 @@ export default function EditHabitPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Habit Reminder & Notifications */}
+                  <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${formData.reminderEnabled ? 'bg-indigo-600 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500'}`}>
+                          <Bell size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                            Habit Reminder Alert
+                          </h4>
+                          <p className="text-xs text-zinc-500">
+                            Play device notification alert for this habit
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, reminderEnabled: !formData.reminderEnabled })}
+                        className={`relative w-12 h-7 rounded-full transition-colors ${formData.reminderEnabled ? 'bg-indigo-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                      >
+                        <motion.div
+                          animate={{ x: formData.reminderEnabled ? 22 : 3 }}
+                          className="absolute top-1 left-0.5 w-5 h-5 bg-white rounded-full shadow-md"
+                        />
+                      </button>
+                    </div>
+
+                    {formData.reminderEnabled && (
+                      <div className="space-y-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                        <div className="flex items-center justify-between gap-3">
+                          <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                            <Clock size={14} className="text-indigo-500" />
+                            Reminder Time
+                          </label>
+                          <input
+                            type="time"
+                            value={formData.reminderTime}
+                            onChange={(e) => setFormData({ ...formData, reminderTime: e.target.value })}
+                            className="input-modern !py-1.5 !px-3 text-xs font-bold max-w-[140px]"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer pt-1">
+                          <input
+                            type="checkbox"
+                            checked={formData.sendRemainder}
+                            onChange={(e) => setFormData({ ...formData, sendRemainder: e.target.checked })}
+                            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span>Keep reminding until completed today</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -913,7 +976,6 @@ export default function EditHabitPage() {
             </motion.button>
           </div>
         </motion.form>
-      </div>
     </div>
   );
 }

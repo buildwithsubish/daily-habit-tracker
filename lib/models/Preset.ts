@@ -13,24 +13,11 @@ const PresetSchema = new Schema<Preset>({
   type: {
     type: String,
     required: true,
-    enum: [
-      'morning-routine',
-      'daily-exercise',
-      'better-sleep',
-      'productivity',
-      'mindfulness',
-      'healthy-eating',
-      'learning',
-      'financial',
-      'social',
-      'weekend-reset'
-    ],
     unique: true,
   },
   category: {
     type: String,
-    enum: ['Health', 'Fitness', 'Productivity', 'Mindfulness', 'Growth', 'Diet', 'Finance', 'Social'],
-    default: 'Health',
+    default: 'Fitness',
   },
   structure: {
     type: Schema.Types.Mixed,

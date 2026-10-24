@@ -4,22 +4,31 @@
 
 /* ===== Design Tokens ===== */
 :root {
-  --background: 255, 255, 255;
-  --foreground: 17, 24, 39; /* gray-900 */
+  --background: 248, 250, 252; /* slate-50 */
+  --foreground: 15, 23, 42; /* slate-900 */
   --card: 255, 255, 255;
-  --card-border: 229, 231, 235; /* gray-200 */
+  --card-border: 226, 232, 240; /* slate-200 */
   --primary: 79, 70, 229; /* indigo-600 */
-  --muted: 107, 114, 128; /* gray-500 */
+  --muted: 100, 116, 139; /* slate-500 */
+}
+
+.dark {
+  --background: 9, 10, 15; /* #090A0F */
+  --foreground: 248, 250, 252; /* slate-50 */
+  --card: 18, 20, 29; /* #12141D */
+  --card-border: 39, 45, 69;
+  --primary: 99, 102, 241; /* indigo-500 */
+  --muted: 148, 163, 184; /* slate-400 */
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: 3, 7, 18; /* slate-950 */
-    --foreground: 243, 244, 246; /* gray-100 */
-    --card: 17, 24, 39; /* gray-900 */
-    --card-border: 31, 41, 55; /* gray-800 */
-    --primary: 99, 102, 241; /* indigo-500 */
-    --muted: 156, 163, 175; /* gray-400 */
+  :root:not(.light) {
+    --background: 9, 10, 15;
+    --foreground: 248, 250, 252;
+    --card: 18, 20, 29;
+    --card-border: 39, 45, 69;
+    --primary: 99, 102, 241;
+    --muted: 148, 163, 184;
   }
 }
 
@@ -32,7 +41,7 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     min-height: 100vh;
-    @apply transition-colors duration-300 font-sans text-sm;
+    @apply font-sans text-sm;
   }
 
   h1 {
@@ -167,18 +176,200 @@
   @apply relative px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm uppercase tracking-widest shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/40 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
+/* ===== Hardware-Accelerated Micro-Animations & Cross-Platform Utilities ===== */
+@keyframes shimmerWave {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes ambientFloatSlow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(15px, -15px, 0) scale(1.04); }
+}
+
+@keyframes entranceStagger {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-entrance {
+  animation: entranceStagger 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-ambient-float {
+  animation: ambientFloatSlow 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.shimmer-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(148, 163, 184, 0.15);
+}
+
+.dark .shimmer-skeleton {
+  background-color: rgba(51, 65, 85, 0.35);
+}
+
+.shimmer-skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmerWave 1.6s infinite ease-in-out;
+}
+
+.dark .shimmer-skeleton::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+/* Touch & Mobile Optimization for Android & iOS */
+button, [role="button"], a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Safe Hover only on fine pointer devices (laptops/desktops), prevents sticky hover on mobile */
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.active-press {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.active-press:active {
+  transform: scale(0.96);
+}
+
 /* ===== Reduced Motion ===== */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
-  .animate-shimmer {
-    animation: none;
+  .animate-shimmer,
+  .animate-entrance,
+  .animate-ambient-float {
+    animation: none !important;
+    transform: none !important;
   }
 
   .card,
   .modern-card,
   .button-primary,
-  .button-secondary {
-    transition: none;
+  .button-secondary,
+  .hover-lift,
+  .active-press {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+/* ===== A4 Document Preview & PDF Print Engine ===== */
+.a4-document-sheet {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 14mm 14mm 14mm;
+  margin: 0 auto 28px auto;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 20px;
+}
+
+.dark .a4-document-sheet {
+  background: #12141d;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7);
+}
+
+@page {
+  size: A4 portrait;
+  margin: 10mm 10mm 10mm 10mm;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  header, nav, .print-hidden, [role="navigation"] {
+    display: none !important;
+  }
+
+  .a4-document-sheet,
+  .dark .a4-document-sheet {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 0 10mm 0 !important;
+    max-width: none !important;
+    min-height: 270mm !important;
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .a4-document-sheet:last-child,
+  .dark .a4-document-sheet:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  svg {
+    max-width: 100% !important;
   }
 }

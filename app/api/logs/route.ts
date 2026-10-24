@@ -159,26 +159,57 @@ export async function POST(request: NextRequest) {
     if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1_000_000)) {
       return NextResponse.json({ error: 'Value must be a non-negative number' }, { status: 400 });
     }
+    let sanitizedWorkoutData = workoutData;
     if (workoutData !== undefined && workoutData !== null) {
-      if (typeof workoutData !== 'object' || Array.isArray(workoutData) || !Array.isArray(workoutData.exercises) || workoutData.exercises.length > 100) {
+      if (typeof workoutData !== 'object' || Array.isArray(workoutData)) {
         return NextResponse.json({ error: 'Invalid workout details' }, { status: 400 });
       }
-      if (!['low', 'medium', 'high'].includes(workoutData.intensity) ||
-        (workoutData.totalDuration !== undefined && (!Number.isFinite(workoutData.totalDuration) || workoutData.totalDuration < 0 || workoutData.totalDuration > 1440)) ||
-        (workoutData.caloriesBurned !== undefined && (!Number.isFinite(workoutData.caloriesBurned) || workoutData.caloriesBurned < 0 || workoutData.caloriesBurned > 20_000)) ||
-        workoutData.exercises.some((exercise: any) => !exercise || typeof exercise.name !== 'string' || exercise.name.length > 120 || !Array.isArray(exercise.sets) || exercise.sets.length > 100)) {
-        return NextResponse.json({ error: 'Invalid workout details' }, { status: 400 });
+      const rawExercises = Array.isArray(workoutData.exercises) ? workoutData.exercises : [];
+      const cleanExercises = rawExercises
+        .filter((ex: any) => ex && typeof ex === 'object')
+        .map((ex: any, idx: number) => ({
+          name: typeof ex.name === 'string' && ex.name.trim() ? ex.name.trim().slice(0, 120) : `Exercise ${idx + 1}`,
+          sets: Array.isArray(ex.sets)
+            ? ex.sets.map((s: any) => ({
+                completed: Boolean(s.completed),
+                reps: Number.isFinite(Number(s.reps)) ? Math.max(0, Number(s.reps)) : 0,
+                weight: Number.isFinite(Number(s.weight)) ? Math.max(0, Number(s.weight)) : 0,
+                duration: Number.isFinite(Number(s.duration)) ? Math.max(0, Number(s.duration)) : undefined,
+              }))
+            : [{ completed: true, reps: 10, weight: 0 }],
+          notes: typeof ex.notes === 'string' ? ex.notes.slice(0, 300) : undefined,
+        }));
+
+      sanitizedWorkoutData = {
+        intensity: ['low', 'medium', 'high'].includes(workoutData.intensity) ? workoutData.intensity : 'medium',
+        totalDuration: Number.isFinite(Number(workoutData.totalDuration)) ? Math.min(1440, Math.max(0, Number(workoutData.totalDuration))) : 45,
+        caloriesBurned: Number.isFinite(Number(workoutData.caloriesBurned)) ? Math.min(20000, Math.max(0, Number(workoutData.caloriesBurned))) : 200,
+        goal: ['weight-loss', 'maintain', 'weight-gain'].includes(workoutData.goal) ? workoutData.goal : 'maintain',
+        exercises: cleanExercises,
+      };
+
+      if (JSON.stringify(sanitizedWorkoutData).length > 50_000) {
+        return NextResponse.json({ error: 'Workout details are too large' }, { status: 413 });
       }
-      if (JSON.stringify(workoutData).length > 50_000) return NextResponse.json({ error: 'Workout details are too large' }, { status: 413 });
     }
+
     if (activityNote !== undefined && (typeof activityNote !== 'string' || activityNote.length > 2_000)) {
       return NextResponse.json({ error: 'Activity note must be 2,000 characters or fewer' }, { status: 400 });
     }
-    if (subActivities !== undefined && (!Array.isArray(subActivities) || subActivities.length > 100 || subActivities.some(item =>
-      !item || typeof item.name !== 'string' || item.name.length > 120 || !['text', 'number', 'reps', 'duration', 'kg'].includes(item.type) ||
-      (typeof item.value !== 'string' && typeof item.value !== 'number') || String(item.value).length > 500
-    ))) {
-      return NextResponse.json({ error: 'Invalid activity details' }, { status: 400 });
+
+    let sanitizedSubActivities: any[] | undefined = undefined;
+    if (subActivities !== undefined) {
+      if (!Array.isArray(subActivities) || subActivities.length > 100) {
+        return NextResponse.json({ error: 'Invalid activity details' }, { status: 400 });
+      }
+      sanitizedSubActivities = subActivities
+        .filter(item => item && typeof item === 'object')
+        .map(item => {
+          const name = typeof item.name === 'string' ? item.name.trim().slice(0, 120) : 'Activity';
+          const type = ['text', 'number', 'reps', 'duration', 'kg'].includes(item.type) ? item.type : 'text';
+          const value = item.value !== undefined && item.value !== null ? String(item.value).slice(0, 500) : '';
+          return { name, type, value };
+        });
     }
     if (customFields !== undefined && (typeof customFields !== 'object' || customFields === null || Array.isArray(customFields) || Object.keys(customFields).length > 30)) {
       return NextResponse.json({ error: 'Invalid custom fields' }, { status: 400 });
@@ -205,7 +236,7 @@ export async function POST(request: NextRequest) {
       completedAt: completed ? new Date() : null,
     };
     if (value !== undefined) updateData.value = completed ? value : null;
-    if (workoutData !== undefined) updateData.workoutData = completed ? workoutData : null;
+    if (workoutData !== undefined) updateData.workoutData = completed ? sanitizedWorkoutData : null;
     if (customFields !== undefined) updateData.customFields = completed ? customFields : null;
     
     // Only set activityNote if provided
@@ -215,7 +246,7 @@ export async function POST(request: NextRequest) {
 
     // Only set subActivities if provided
     if (subActivities !== undefined) {
-      updateData.subActivities = subActivities || [];
+      updateData.subActivities = completed ? (sanitizedSubActivities || []) : [];
     }
     if (!completed) {
       updateData.activityNote = null;

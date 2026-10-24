@@ -151,8 +151,16 @@ export async function PATCH(request: NextRequest) {
     await connectDB();
     const admin = requireAdmin(request);
 
+    // Enforce RBAC: Viewers and Editors cannot mutate users
+    if (!['super_admin', 'admin', 'manager'].includes(admin.role)) {
+      return NextResponse.json(
+        { error: 'Forbidden: Insufficient privileges to mutate users' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
-    const { userIds, action } = body;
+    const { userIds, action, confirmation } = body;
 
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return NextResponse.json({ error: 'User IDs required' }, { status: 400 });
@@ -168,6 +176,25 @@ export async function PATCH(request: NextRequest) {
       updateData = { isActive: false };
       actionDescription = 'deactivated';
     } else if (action === 'delete') {
+      // Destructive safeguard: Only super_admin and admin can delete users
+      if (!['super_admin', 'admin'].includes(admin.role)) {
+        return NextResponse.json(
+          { error: 'Forbidden: Only administrators can permanently delete user accounts' },
+          { status: 403 }
+        );
+      }
+
+      // Secondary confirmation safeguard
+      if (confirmation !== 'DELETE' && confirmation !== 'CONFIRM_BULK_DELETE') {
+        return NextResponse.json(
+          {
+            error:
+              'Secondary confirmation failed. Type "CONFIRM_BULK_DELETE" to confirm permanent deletion.',
+          },
+          { status: 400 }
+        );
+      }
+
       // Delete users and all their data
       for (const userId of userIds) {
         const objectId = new mongoose.Types.ObjectId(userId);
@@ -180,9 +207,11 @@ export async function PATCH(request: NextRequest) {
       
       void writeAuditLogFromRequest(request, {
         adminId: admin.adminId,
+        targetResourceId: userIds.join(','),
         action: AUDIT_ACTIONS.BULK_DELETE_USERS,
         category: 'user_management',
-        details: `Deleted ${userIds.length} users`,
+        details: `Deleted ${userIds.length} users with secondary confirmation safeguard verified.`,
+        metadata: { count: userIds.length, userIds },
         success: true,
       });
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Habit } from '@/types';
-import { X, Sparkles, Target, Zap, FileText, Calendar, Loader2, Plus, Trash2 } from 'lucide-react';
+import { X, Sparkles, Target, Zap, FileText, Calendar, Loader2, Plus, Trash2, Bell, Clock, ListChecks, ArrowUp, ArrowDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -37,6 +37,7 @@ const weekDays = [
 
 export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: EditHabitModalProps) {
   const [loading, setLoading] = useState(false);
+  const [newStepText, setNewStepText] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     category: 'Health',
@@ -48,10 +49,14 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
     advancedMode: false,
     subActivities: [] as Array<{ name: string; type: string }>,
     schedule: { weekdays: true, weekends: true, custom: [] as number[] },
+    reminderEnabled: false,
+    reminderTime: '08:00',
+    sendRemainder: false,
   });
 
   useEffect(() => {
     if (habit && isOpen) {
+      setNewStepText('');
       setFormData({
         name: habit.name || '',
         category: habit.category || 'Health',
@@ -71,6 +76,9 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
           weekends: habit.schedule?.weekends ?? true,
           custom: habit.schedule?.custom ?? [],
         },
+        reminderEnabled: habit.reminderEnabled || false,
+        reminderTime: habit.reminderTime || '08:00',
+        sendRemainder: habit.sendRemainder || false,
       });
     }
   }, [habit, isOpen]);
@@ -94,6 +102,36 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
     const newSteps = [...formData.steps];
     newSteps[index] = { ...newSteps[index], name };
     setFormData({ ...formData, steps: newSteps });
+  };
+
+  const handleAddStepFromInput = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = newStepText.trim();
+    if (!trimmed) return;
+    const valid = formData.steps.filter(s => s.name.trim().length > 0);
+    setFormData({
+      ...formData,
+      steps: [...valid, { name: trimmed, order: valid.length }]
+    });
+    setNewStepText('');
+  };
+
+  const moveStepUp = (index: number) => {
+    if (index <= 0) return;
+    const newSteps = [...formData.steps];
+    const temp = newSteps[index];
+    newSteps[index] = newSteps[index - 1];
+    newSteps[index - 1] = temp;
+    setFormData({ ...formData, steps: newSteps.map((s, i) => ({ ...s, order: i })) });
+  };
+
+  const moveStepDown = (index: number) => {
+    if (index >= formData.steps.length - 1) return;
+    const newSteps = [...formData.steps];
+    const temp = newSteps[index];
+    newSteps[index] = newSteps[index + 1];
+    newSteps[index + 1] = temp;
+    setFormData({ ...formData, steps: newSteps.map((s, i) => ({ ...s, order: i })) });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,6 +163,9 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
           schedule: formData.schedule,
           advancedMode: formData.advancedMode,
           subActivities: formData.subActivities,
+          reminderEnabled: formData.reminderEnabled,
+          reminderTime: formData.reminderTime,
+          sendRemainder: formData.sendRemainder,
         })
       });
 
@@ -257,6 +298,88 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
                   <span className={`text-sm font-bold mt-1 ${formData.type === 'multi-step' ? 'text-indigo-700 dark:text-indigo-300' : 'text-zinc-500'}`}>Multi-Step</span>
                 </button>
               </div>
+
+              {/* Multi-Step Checklist Builder */}
+              {formData.type === 'multi-step' && (
+                <div className="p-4 bg-slate-50 dark:bg-zinc-800/40 rounded-2xl border border-slate-200 dark:border-zinc-700/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                      <ListChecks size={14} className="text-indigo-500" />
+                      <span>Checklist Tasks ({formData.steps.filter(s => s.name.trim()).length})</span>
+                    </label>
+                  </div>
+
+                  {/* Add Task Input */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add sub-task & press Enter..."
+                      value={newStepText}
+                      onChange={(e) => setNewStepText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddStepFromInput();
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-xs font-medium text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddStepFromInput()}
+                      className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm active:scale-95 shrink-0"
+                    >
+                      + Add
+                    </button>
+                  </div>
+
+                  {/* Task List */}
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar pt-1">
+                    {formData.steps.map((step, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 p-1.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800"
+                      >
+                        <span className="w-5 h-5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={step.name}
+                          onChange={(e) => updateStep(idx, e.target.value)}
+                          placeholder={`Task ${idx + 1}...`}
+                          className="flex-1 bg-transparent border-0 text-xs font-medium text-slate-900 dark:text-white outline-none"
+                        />
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => moveStepUp(idx)}
+                            disabled={idx === 0}
+                            className={`p-1 rounded ${idx === 0 ? 'text-slate-300 dark:text-zinc-600' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
+                          >
+                            <ArrowUp size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveStepDown(idx)}
+                            disabled={idx === formData.steps.length - 1}
+                            className={`p-1 rounded ${idx === formData.steps.length - 1 ? 'text-slate-300 dark:text-zinc-600' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
+                          >
+                            <ArrowDown size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeStep(idx)}
+                            className="p-1 rounded text-slate-400 hover:text-rose-500"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Advanced Mode Toggle */}
               <div className="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border-2 border-indigo-200 dark:border-indigo-800/30">
@@ -399,6 +522,53 @@ export default function EditHabitModal({ habit, isOpen, onClose, onSuccess }: Ed
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Habit Reminder & Notifications */}
+              <div className="p-4 bg-zinc-50 dark:bg-zinc-800/30 rounded-2xl border border-zinc-200 dark:border-zinc-700 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${formData.reminderEnabled ? 'bg-indigo-500 text-white' : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-500'}`}>
+                      <Bell size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Habit Reminder</p>
+                      <p className="text-[10px] text-zinc-500">Device notification alert</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, reminderEnabled: !formData.reminderEnabled })}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${formData.reminderEnabled ? 'bg-indigo-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-all ${formData.reminderEnabled ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {formData.reminderEnabled && (
+                  <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                        <Clock size={14} className="text-indigo-500" /> Reminder Time
+                      </label>
+                      <input
+                        type="time"
+                        value={formData.reminderTime}
+                        onChange={(e) => setFormData({ ...formData, reminderTime: e.target.value })}
+                        className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-1 text-xs font-bold text-zinc-900 dark:text-zinc-100 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={formData.sendRemainder}
+                        onChange={(e) => setFormData({ ...formData, sendRemainder: e.target.checked })}
+                        className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Keep alert active until checked off (gentle re-alert)</span>
+                    </label>
+                  </div>
+                )}
               </div>
             </form>
           </div>

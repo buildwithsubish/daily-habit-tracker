@@ -11,7 +11,9 @@ export interface WriteAuditLogInput {
   adminId?: string | mongoose.Types.ObjectId | null;
   userId?: string | mongoose.Types.ObjectId | null;
   action: AuditAction | string;
+  actionType?: string;
   category: AuditCategory | string;
+  targetResourceId?: string | null;
   details?: string;
   metadata?: Record<string, unknown>;
   ipAddress?: string;
@@ -71,7 +73,9 @@ export async function writeAuditLog(input: WriteAuditLogInput): Promise<void> {
       adminId: toObjectId(input.adminId),
       userId: toObjectId(input.userId),
       action: input.action,
+      actionType: input.actionType || input.action,
       category: input.category,
+      targetResourceId: input.targetResourceId || null,
       details: input.details,
       metadata,
       ipAddress: input.ipAddress,

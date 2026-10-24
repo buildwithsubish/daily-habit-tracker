@@ -3,7 +3,11 @@ import connectDB from '@/lib/mongodb';
 import User from '@/lib/models/User';
 import Habit from '@/lib/models/Habit';
 import DailyLog from '@/lib/models/DailyLog';
-import { requireAdmin } from '@/lib/admin-middleware';
+import Admin from '@/lib/models/Admin';
+import { requireAdmin, requireAdminWithRole, requireCsrfCheck } from '@/lib/admin-middleware';
+import { verifyAdminPassword } from '@/lib/admin-auth';
+import { writeAuditLogFromRequest } from '@/lib/audit-log';
+import { AUDIT_ACTIONS, AUDIT_CATEGORY } from '@/lib/audit-log-constants';
 import { resolveUserPhone } from '@/lib/pii';
 import { maskPhoneNumber } from '@/lib/security';
 import mongoose from 'mongoose';
@@ -206,7 +210,44 @@ export async function PUT(
     const { id: userId } = await params;
     const userIdObj = new mongoose.Types.ObjectId(userId);
     const body = await request.json();
-    const { preferredTheme, whatsappAction, scheduleSettings } = body;
+    const { preferredTheme, whatsappAction, scheduleSettings, action, confirmation, adminPassword } = body;
+
+    // Handle account suspension / activation
+    if (action === 'suspend' || action === 'unsuspend' || typeof body.isActive === 'boolean') {
+      const auth = requireAdminWithRole(request, ['super_admin', 'admin', 'manager']);
+      const targetUser = await User.findById(userIdObj);
+      if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      const newStatus = action === 'suspend' ? false : action === 'unsuspend' ? true : body.isActive;
+
+      // Destructive safeguard: If suspending an account, require secondary confirmation
+      if (newStatus === false && confirmation !== targetUser.email && confirmation !== 'SUSPEND') {
+        return NextResponse.json(
+          { error: `Secondary confirmation required. Type the user's email (${targetUser.email}) to suspend this account.` },
+          { status: 400 }
+        );
+      }
+
+      targetUser.isActive = newStatus;
+      await targetUser.save();
+
+      void writeAuditLogFromRequest(request, {
+        adminId: auth.adminId,
+        targetResourceId: targetUser._id.toString(),
+        userId: targetUser._id,
+        action: newStatus ? AUDIT_ACTIONS.USER_UNSUSPEND : AUDIT_ACTIONS.USER_SUSPEND,
+        category: AUDIT_CATEGORY.USER_MANAGEMENT,
+        details: `User ${targetUser.email} was ${newStatus ? 'unsuspended/activated' : 'suspended/deactivated'}.`,
+        metadata: { targetEmail: targetUser.email, newStatus },
+        success: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `User has been ${newStatus ? 'activated' : 'suspended'} successfully.`,
+        isActive: targetUser.isActive,
+      });
+    }
 
     // Handle schedule settings update
     if (scheduleSettings) {
@@ -362,5 +403,89 @@ export async function PUT(
       { error: error.message || 'Failed to update user' },
       { status: 500 }
     );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await connectDB();
+    const auth = requireAdminWithRole(request, ['super_admin', 'admin']);
+
+    try {
+      requireCsrfCheck(request);
+    } catch (csrfErr: any) {
+      return NextResponse.json({ error: csrfErr.message || 'CSRF validation failed' }, { status: 403 });
+    }
+
+    const { id: userId } = await params;
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+
+    const targetUser = await User.findById(userIdObj);
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    let body: any = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Body might be empty
+    }
+
+    const confirmation = body.confirmation || request.headers.get('x-confirmation');
+    const adminPassword = body.adminPassword;
+
+    // Destructive Action Safeguard: Must match user email OR verify admin password
+    let verifiedSafeguard = false;
+
+    if (confirmation === targetUser.email || confirmation === 'PERMANENTLY_DELETE') {
+      verifiedSafeguard = true;
+    } else if (adminPassword) {
+      const adminDoc = await Admin.findById(auth.adminId);
+      if (adminDoc && (await verifyAdminPassword(adminPassword, adminDoc.passwordHash))) {
+        verifiedSafeguard = true;
+      }
+    }
+
+    if (!verifiedSafeguard) {
+      return NextResponse.json(
+        {
+          error: `Secondary confirmation required. Type the user's email (${targetUser.email}) or enter your admin password to execute permanent deletion.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Permanently remove habits, logs, and user record
+    await Promise.all([
+      Habit.deleteMany({ userId: userIdObj }),
+      DailyLog.deleteMany({ userId: userIdObj }),
+      User.deleteOne({ _id: userIdObj }),
+    ]);
+
+    void writeAuditLogFromRequest(request, {
+      adminId: auth.adminId,
+      targetResourceId: userId,
+      userId: userIdObj,
+      action: AUDIT_ACTIONS.USER_DELETE,
+      category: AUDIT_CATEGORY.USER_MANAGEMENT,
+      details: `Permanently deleted user ${targetUser.email} and all associated habits and logs.`,
+      metadata: { deletedEmail: targetUser.email, deletedUserId: userId },
+      success: true,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `User ${targetUser.email} has been permanently deleted.`,
+    });
+  } catch (error: any) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (message.startsWith('Forbidden')) return NextResponse.json({ error: message }, { status: 403 });
+    if (message === 'Unauthorized') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    console.error('Delete user error:', error);
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
 }
