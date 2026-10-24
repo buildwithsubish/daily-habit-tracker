@@ -60,13 +60,29 @@ export async function POST(request: NextRequest) {
       $or: [{ email: cleanIdentifier }, { username: cleanIdentifier }],
     });
 
+    // Lockout check (rate-limited / failed login lockout)
+    if (user && user.lockUntil && user.lockUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockUntil.getTime() - Date.now()) / (60 * 1000));
+      return NextResponse.json(
+        { error: `Account temporarily locked due to multiple failed attempts. Try again in ${minutesLeft} minute${minutesLeft === 1 ? '' : 's'}.` },
+        { status: 423 }
+      );
+    }
+
     const isPasswordValid = await verifyUserPasswordConstantTime(
       password,
       user ? user.passwordHash : null
     );
 
-    // If user does not exist or password is wrong, return identical generic response
+    // If user does not exist or password is wrong, record attempt and return generic response
     if (!user || !isPasswordValid) {
+      if (user) {
+        user.loginAttempts = (user.loginAttempts || 0) + 1;
+        if (user.loginAttempts >= 5) {
+          user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15-minute lockout
+        }
+        await user.save();
+      }
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -79,6 +95,12 @@ export async function POST(request: NextRequest) {
         { error: 'This account has been suspended. Please contact support.' },
         { status: 403 }
       );
+    }
+
+    // Reset login attempts & lockout on successful password verification
+    if (user.loginAttempts || user.lockUntil) {
+      user.loginAttempts = 0;
+      user.lockUntil = null;
     }
 
     // 3. Step-up 2FA check (if configured on user)

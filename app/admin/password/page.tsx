@@ -181,7 +181,7 @@ export default function AdminPasswordPage() {
                   <p className="text-red-600 text-xs mt-1">{fieldErrors.setupToken}</p>
                 ) : (
                   <p className="text-gray-500 text-xs mt-1">
-                    Set as <code className="text-gray-600">ADMIN_SETUP_TOKEN</code> on the server
+                    Configured securely in your server environment
                   </p>
                 )}
               </div>

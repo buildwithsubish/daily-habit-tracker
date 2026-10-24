@@ -198,7 +198,7 @@ export default function AdminSetupPage() {
             </Link>
           </div>
           <p className="text-xs text-slate-500 mt-6">
-            Recovery requires your server <code className="bg-slate-100 px-1 rounded">ADMIN_SETUP_TOKEN</code>
+            Account recovery requires server administrator authorization.
           </p>
         </div>
       </div>
@@ -308,7 +308,7 @@ export default function AdminSetupPage() {
                 className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
                   fieldErrors.setupToken ? 'border-red-400' : 'border-slate-300'
                 }`}
-                placeholder="ADMIN_SETUP_TOKEN from .env.local"
+                placeholder="Server setup authorization key"
                 disabled={loading}
               />
               {fieldErrors.setupToken && (

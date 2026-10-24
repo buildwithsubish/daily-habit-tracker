@@ -12,18 +12,20 @@ interface AdminUser {
   username: string;
   createdAt: string;
   isActive: boolean;
+  isRateLimited?: boolean;
+  lockRemainingMinutes?: number;
   stats: { habitCount: number; completionRate: string | number; lastActivity: string | null };
 }
 
 interface UserPage {
   users: AdminUser[];
   pagination: { page: number; total: number; totalPages: number };
-  counts: { all: number; active: number; inactive: number };
+  counts: { all: number; active: number; inactive: number; rateLimited?: number };
 }
 
 export function UsersTable() {
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  const [status, setStatus] = useState<'all' | 'active' | 'inactive' | 'rate_limited'>('all');
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, isFetching, refetch } = useQuery<UserPage>({
     queryKey: ['admin-users', search, status, page],
@@ -45,7 +47,7 @@ export function UsersTable() {
       new Date(u.createdAt).toISOString(),
       u.stats.habitCount,
       `${u.stats.completionRate}%`,
-      u.isActive ? 'Active' : 'Inactive',
+      !u.isActive ? 'Suspended' : u.isRateLimited ? `Rate-Limited (${u.lockRemainingMinutes}m)` : 'Active',
     ]);
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -60,11 +62,12 @@ export function UsersTable() {
   };
 
   return <section className="space-y-4">
-    <div className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="User totals">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3" aria-label="User totals">
       {[
         ['All users', data?.counts.all],
         ['Active', data?.counts.active],
-        ['Inactive', data?.counts.inactive],
+        ['Suspended', data?.counts.inactive],
+        ['Rate-Limited', data?.counts.rateLimited ?? 0],
       ].map(([label, value]) => <div key={label} className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:rounded-2xl sm:p-4"><p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">{label}</p><p className="mt-1 text-xl font-bold tabular-nums text-slate-950 dark:text-white sm:text-2xl">{typeof value === 'number' ? value.toLocaleString() : '—'}</p></div>)}
     </div>
 
@@ -93,7 +96,8 @@ export function UsersTable() {
         >
           <option value="all">All statuses</option>
           <option value="active">Active only</option>
-          <option value="inactive">Inactive only</option>
+          <option value="inactive">Suspended only</option>
+          <option value="rate_limited">Rate-limited / Locked</option>
         </select>
       </div>
 
@@ -119,9 +123,9 @@ export function UsersTable() {
 
     {!isLoading && !isError && data?.users.length ? <>
       <ul className="space-y-2 sm:hidden" aria-label="Users">
-        {data.users.map(user => <li key={user.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{user.username !== 'N/A' ? user.username : user.email}</p><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${user.isActive ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800 pt-3 text-xs"><div><p className="text-slate-500 dark:text-slate-400">Habits</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{user.stats.habitCount}</p></div><div><p className="text-slate-500 dark:text-slate-400">Completion</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{user.stats.completionRate}%</p></div><div><p className="text-slate-500 dark:text-slate-400">Joined</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{new Date(user.createdAt).toLocaleDateString()}</p></div></div><Link href={`/admin/users/${user.id}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 px-3 text-sm font-semibold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">View account <ArrowRight size={15} className="ml-2"/></Link></li>)}
+        {data.users.map(user => <li key={user.id} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{user.username !== 'N/A' ? user.username : user.email}</p><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p></div>{!user.isActive ? <span className="shrink-0 rounded-full bg-rose-100 dark:bg-rose-950/60 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-300">Suspended</span> : user.isRateLimited ? <span className="shrink-0 rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-300">🔒 Rate-Limited ({user.lockRemainingMinutes || 0}m)</span> : <span className="shrink-0 rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Active</span>}</div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800 pt-3 text-xs"><div><p className="text-slate-500 dark:text-slate-400">Habits</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{user.stats.habitCount}</p></div><div><p className="text-slate-500 dark:text-slate-400">Completion</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{user.stats.completionRate}%</p></div><div><p className="text-slate-500 dark:text-slate-400">Joined</p><p className="mt-1 font-semibold text-slate-800 dark:text-slate-200">{new Date(user.createdAt).toLocaleDateString()}</p></div></div><Link href={`/admin/users/${user.id}`} className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800 px-3 text-sm font-semibold text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">View account <ArrowRight size={15} className="ml-2"/></Link></li>)}
       </ul>
-      <div className="hidden overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sm:block"><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-950/60 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400"><tr><th scope="col" className="px-4 py-3 font-semibold">User</th><th scope="col" className="px-4 py-3 font-semibold">Joined</th><th scope="col" className="px-4 py-3 font-semibold">Habits</th><th scope="col" className="px-4 py-3 font-semibold">Completion</th><th scope="col" className="px-4 py-3 font-semibold">Status</th><th scope="col" className="px-4 py-3"/></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{data.users.map(user => <tr key={user.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors"><td className="max-w-[260px] px-4 py-3"><p className="truncate font-semibold text-slate-900 dark:text-white">{user.username !== 'N/A' ? user.username : user.email}</p><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p></td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(user.createdAt).toLocaleDateString()}</td><td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">{user.stats.habitCount}</td><td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">{user.stats.completionRate}%</td><td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${user.isActive ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>{user.isActive ? 'Active' : 'Inactive'}</span></td><td className="px-4 py-3 text-right"><Link href={`/admin/users/${user.id}`} className="inline-flex min-h-10 items-center rounded-lg px-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40">View</Link></td></tr>)}</tbody></table></div></div>
+      <div className="hidden overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sm:block"><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-950/60 text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400"><tr><th scope="col" className="px-4 py-3 font-semibold">User</th><th scope="col" className="px-4 py-3 font-semibold">Joined</th><th scope="col" className="px-4 py-3 font-semibold">Habits</th><th scope="col" className="px-4 py-3 font-semibold">Completion</th><th scope="col" className="px-4 py-3 font-semibold">Status</th><th scope="col" className="px-4 py-3"/></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{data.users.map(user => <tr key={user.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors"><td className="max-w-[260px] px-4 py-3"><p className="truncate font-semibold text-slate-900 dark:text-white">{user.username !== 'N/A' ? user.username : user.email}</p><p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{user.email}</p></td><td className="px-4 py-3 text-slate-600 dark:text-slate-400">{new Date(user.createdAt).toLocaleDateString()}</td><td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">{user.stats.habitCount}</td><td className="px-4 py-3 tabular-nums text-slate-700 dark:text-slate-300">{user.stats.completionRate}%</td><td className="px-4 py-3">{!user.isActive ? <span className="rounded-full bg-rose-100 dark:bg-rose-950/60 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-300">Suspended</span> : user.isRateLimited ? <span className="rounded-full bg-amber-100 dark:bg-amber-950/60 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-300">🔒 Rate-Limited ({user.lockRemainingMinutes || 0}m)</span> : <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">Active</span>}</td><td className="px-4 py-3 text-right"><Link href={`/admin/users/${user.id}`} className="inline-flex min-h-10 items-center rounded-lg px-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40">View</Link></td></tr>)}</tbody></table></div></div>
       <div className="flex items-center justify-between gap-3"><p className="text-xs text-slate-500 dark:text-slate-400">Page {data.pagination.page} of {Math.max(data.pagination.totalPages, 1)}</p><div className="flex gap-2"><button onClick={() => setPage(value => Math.max(1, value - 1))} disabled={page <= 1 || isFetching} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"><ArrowLeft size={15}/>Previous</button><button onClick={() => setPage(value => Math.min(data.pagination.totalPages, value + 1))} disabled={page >= data.pagination.totalPages || isFetching} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors">Next<ArrowRight size={15}/></button></div></div>
     </> : null}
   </section>;

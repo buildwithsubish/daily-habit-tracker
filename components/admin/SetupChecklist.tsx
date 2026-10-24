@@ -117,11 +117,10 @@ export function SetupChecklist() {
           ))}
         </ul>
         <p className="text-xs text-slate-400 pt-2">
-          Admin credentials use Option B: create once at{' '}
+          Admin credentials are authenticated securely in MongoDB. Manage administrator credentials at{' '}
           <Link href="/admin/setup" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             /admin/setup
-          </Link>{' '}
-          (production requires <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-700 dark:text-slate-300">ADMIN_SETUP_TOKEN</code>).
+          </Link>.
         </p>
       </CardContent>
     </Card>

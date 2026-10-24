@@ -25,7 +25,7 @@ export async function GET(
 
     // Get user details
     const user = await User.findById(userIdObj)
-      .select('email username createdAt timeZone notificationPreferences whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule')
+      .select('email username createdAt timeZone notificationPreferences whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule isActive lockUntil loginAttempts lastLogin')
       .lean();
 
     if (!user) {
@@ -36,13 +36,16 @@ export async function GET(
       _id: mongoose.Types.ObjectId;
       email: string;
       username?: string;
-
       createdAt: Date;
       timeZone: string;
       notificationPreferences: any;
       whatsappNumber?: string;
       whatsappAutomation?: boolean;
       whatsappVerified?: boolean;
+      isActive?: boolean;
+      lockUntil?: Date | null;
+      loginAttempts?: number;
+      lastLogin?: Date | null;
       pollSchedule?: {
         enabled: boolean;
         time: string;
@@ -143,6 +146,11 @@ export async function GET(
     ]);
 
     const phone = resolveUserPhone(typedUser as any);
+    const isRateLimited = Boolean(typedUser.lockUntil && new Date(typedUser.lockUntil) > new Date());
+    const lockRemainingMinutes = isRateLimited && typedUser.lockUntil
+      ? Math.ceil((new Date(typedUser.lockUntil).getTime() - Date.now()) / 60000)
+      : 0;
+
     return NextResponse.json({
       user: {
         id: typedUser._id.toString(),
@@ -150,6 +158,12 @@ export async function GET(
         username: typedUser.username || 'N/A',
         createdAt: typedUser.createdAt,
         timeZone: typedUser.timeZone,
+        isActive: typedUser.isActive !== false,
+        lockUntil: typedUser.lockUntil ? new Date(typedUser.lockUntil).toISOString() : null,
+        loginAttempts: typedUser.loginAttempts || 0,
+        isRateLimited,
+        lockRemainingMinutes,
+        lastLogin: typedUser.lastLogin || null,
         whatsappNumber: phone ? maskPhoneNumber(phone) : null,
         whatsappAutomation: typedUser.whatsappAutomation,
         whatsappVerified: typedUser.whatsappVerified,
@@ -212,6 +226,35 @@ export async function PUT(
     const body = await request.json();
     const { preferredTheme, whatsappAction, scheduleSettings, action, confirmation, adminPassword } = body;
 
+    // Handle unlocking rate-limited lockout
+    if (action === 'unlock' || action === 'clear_lockout') {
+      const auth = requireAdminWithRole(request, ['super_admin', 'admin', 'manager']);
+      const targetUser = await User.findById(userIdObj);
+      if (!targetUser) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+
+      targetUser.lockUntil = null;
+      targetUser.loginAttempts = 0;
+      await targetUser.save();
+
+      void writeAuditLogFromRequest(request, {
+        adminId: auth.adminId,
+        targetResourceId: targetUser._id.toString(),
+        userId: targetUser._id,
+        action: 'user_unlock',
+        category: AUDIT_CATEGORY.USER_MANAGEMENT,
+        details: `User ${targetUser.email} rate limit lockout was manually cleared by admin.`,
+        metadata: { targetEmail: targetUser.email },
+        success: true,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Rate-limit lockout cleared for ${targetUser.email}. User can log in immediately.`,
+        isRateLimited: false,
+        lockUntil: null,
+      });
+    }
+
     // Handle account suspension / activation
     if (action === 'suspend' || action === 'unsuspend' || typeof body.isActive === 'boolean') {
       const auth = requireAdminWithRole(request, ['super_admin', 'admin', 'manager']);
@@ -229,6 +272,10 @@ export async function PUT(
       }
 
       targetUser.isActive = newStatus;
+      if (newStatus === true) {
+        targetUser.lockUntil = null;
+        targetUser.loginAttempts = 0;
+      }
       await targetUser.save();
 
       void writeAuditLogFromRequest(request, {
@@ -488,4 +535,11 @@ export async function DELETE(
     console.error('Delete user error:', error);
     return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
   }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, context);
 }

@@ -193,7 +193,7 @@ export async function performAdminSetup(
     const admin = await Admin.create({
       email,
       passwordHash,
-      role: 'admin',
+      role: 'super_admin',
       loginAttempts: 0,
       passwordChangedAt: new Date(),
     });
@@ -255,7 +255,7 @@ export async function performAdminSetup(
 export async function createAdminAccount(
   email: string,
   password: string,
-  role: 'admin' | 'super_admin' = 'admin'
+  role: 'admin' | 'super_admin' = 'super_admin'
 ): Promise<{ id: string; email: string }> {
   const normalizedEmail = sanitizeInput(email).toLowerCase().trim();
   if (!isValidEmail(normalizedEmail)) {

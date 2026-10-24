@@ -189,7 +189,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 8. Create Server-Side Session in Database
+    // 8. Ensure at least one active super_admin exists in the system
+    if (admin.role !== 'super_admin') {
+      const superAdminCount = await Admin.countDocuments({ role: 'super_admin', isActive: true });
+      if (superAdminCount === 0) {
+        admin.role = 'super_admin';
+        await admin.save();
+      }
+    }
+
+    // Create Server-Side Session in Database
     const { session, sessionToken } = await createAdminSession(admin._id.toString(), request);
 
     // 9. Generate Tokens

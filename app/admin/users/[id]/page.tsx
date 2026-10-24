@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Shield, Mail, User, Calendar,
   Target, CheckCircle, TrendingUp, Activity,
-  Eye, EyeOff, Clock, BarChart3
+  Eye, EyeOff, Clock, BarChart3, Lock, Unlock, AlertTriangle
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar,
@@ -22,6 +22,11 @@ interface UserDetails {
     timeZone: string;
     notificationPreferences: any;
     isActive?: boolean;
+    isRateLimited?: boolean;
+    lockRemainingMinutes?: number;
+    lockUntil?: string | null;
+    loginAttempts?: number;
+    lastLogin?: string | null;
   };
   habits: Array<{
     id: string;
@@ -98,13 +103,48 @@ export default function UserDetailsPage() {
           confirmation: data.user.email,
         }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to update user status');
+      const text = await res.text();
+      let result: any = {};
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = { error: `Server response error (${res.status})` };
+      }
+      if (!res.ok) throw new Error(result.error || result.message || 'Failed to update user status');
 
-      setActionMessage({ type: 'success', text: result.message });
+      setActionMessage({ type: 'success', text: result.message || `User ${nextAction}ed successfully.` });
       await fetchUserDetails();
     } catch (err: any) {
       setActionMessage({ type: 'error', text: err.message || 'Status update failed' });
+    }
+  };
+
+  const handleUnlockUser = async () => {
+    if (!data) return;
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-csrf-token': getCsrfToken(),
+        },
+        body: JSON.stringify({
+          action: 'unlock',
+        }),
+      });
+      const text = await res.text();
+      let result: any = {};
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = { error: `Server response error (${res.status})` };
+      }
+      if (!res.ok) throw new Error(result.error || result.message || 'Failed to unlock user');
+
+      setActionMessage({ type: 'success', text: result.message || 'User rate-limit lockout cleared.' });
+      await fetchUserDetails();
+    } catch (err: any) {
+      setActionMessage({ type: 'error', text: err.message || 'Unlock failed' });
     }
   };
 
@@ -123,8 +163,14 @@ export default function UserDetailsPage() {
           confirmation: deleteConfirmation,
         }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to delete user');
+      const text = await res.text();
+      let result: any = {};
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = { error: `Server response error (${res.status})` };
+      }
+      if (!res.ok) throw new Error(result.error || result.message || 'Failed to delete user');
 
       alert(`User ${data.user.email} has been permanently deleted.`);
       router.push('/admin/users');
@@ -176,26 +222,41 @@ export default function UserDetailsPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100">
       {/* Header */}
-      <div className="bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Link
                 href="/admin/users"
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/20 rounded-xl transition-colors"
               >
                 <ArrowLeft size={24} />
               </Link>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">User Tracking Details</h1>
-                <p className="text-sm opacity-90">{data.user.email}</p>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold">User Tracking Details</h1>
+                  {!data.user.isActive ? (
+                    <span className="rounded-full bg-rose-500/20 text-rose-100 border border-rose-400/30 px-2.5 py-0.5 text-xs font-bold">
+                      Suspended
+                    </span>
+                  ) : data.user.isRateLimited ? (
+                    <span className="rounded-full bg-amber-500/20 text-amber-100 border border-amber-400/30 px-2.5 py-0.5 text-xs font-bold">
+                      Rate-Limited ({data.user.lockRemainingMinutes || 0}m)
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 px-2.5 py-0.5 text-xs font-bold">
+                      Active
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm opacity-90 mt-0.5">{data.user.email}</p>
               </div>
             </div>
             <Link
               href="/admin/users"
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors font-semibold"
+              className="self-start sm:self-auto px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl transition-colors font-bold text-sm"
             >
               Back to Users
             </Link>
@@ -204,12 +265,55 @@ export default function UserDetailsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6">
+        {/* Rate-Limit Lockout Alert Banner */}
+        {data.user.isRateLimited && (
+          <div className="mb-6 rounded-2xl border border-amber-300 dark:border-amber-900/60 bg-amber-50/90 dark:bg-amber-950/40 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 shrink-0">
+                <Lock size={22} />
+              </div>
+              <div>
+                <h3 className="font-bold text-amber-900 dark:text-amber-200 text-sm sm:text-base flex items-center gap-2">
+                  Account Temporarily Locked Out by Rate Limiter
+                </h3>
+                <p className="text-xs text-amber-800/90 dark:text-amber-300/80 mt-1 leading-relaxed">
+                  This user exceeded repeated sign-in limits ({data.user.loginAttempts || 5} failed attempts). Sign-in is automatically suspended for {data.user.lockRemainingMinutes || 15} more minutes. You can unlock them immediately below.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleUnlockUser}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-amber-600/20 transition-all"
+            >
+              <Unlock size={14} /> Unlock Account Now
+            </button>
+          </div>
+        )}
+
         {/* User Info Card */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 mb-6">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <Shield className="text-indigo-600 dark:text-indigo-400" size={24} />
-            User Information
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Shield className="text-indigo-600 dark:text-indigo-400" size={24} />
+              User Information
+            </h2>
+            <div className="flex items-center gap-2">
+              {!data.user.isActive ? (
+                <span className="rounded-full bg-rose-100 dark:bg-rose-950/60 px-3 py-1 text-xs font-bold text-rose-700 dark:text-rose-300">
+                  Suspended
+                </span>
+              ) : data.user.isRateLimited ? (
+                <span className="rounded-full bg-amber-100 dark:bg-amber-950/60 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
+                  <Lock size={12} /> Rate-Limited ({data.user.lockRemainingMinutes || 0}m left)
+                </span>
+              ) : (
+                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  Active
+                </span>
+              )}
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
               <Mail className="text-blue-500" size={20} />
@@ -256,6 +360,14 @@ export default function UserDetailsPage() {
                   >
                     {data.user.isActive === false ? 'Unsuspend Account' : 'Suspend Account'}
                   </button>
+                  {data.user.isRateLimited && (
+                    <button
+                      onClick={handleUnlockUser}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs transition-colors shadow-xs flex items-center gap-1"
+                    >
+                      <Unlock size={13} /> Clear Lockout
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setDeleteConfirmation('');
@@ -559,7 +671,14 @@ export default function UserDetailsPage() {
         body: JSON.stringify({ newPassword }),
       });
 
-      const result = await res.json();
+      const text = await res.text();
+      let result: any = {};
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        result = { error: `Server response error (${res.status})` };
+      }
+
       if (res.ok) {
         setResetMessage({ type: 'success', text: '✅ Password reset successfully!' });
         setTimeout(() => {
@@ -568,7 +687,7 @@ export default function UserDetailsPage() {
           setResetMessage(null);
         }, 2000);
       } else {
-        setResetMessage({ type: 'error', text: result.error || 'Failed to reset password' });
+        setResetMessage({ type: 'error', text: result.error || result.message || 'Failed to reset password' });
       }
     } catch (error) {
       setResetMessage({ type: 'error', text: 'Error resetting password' });

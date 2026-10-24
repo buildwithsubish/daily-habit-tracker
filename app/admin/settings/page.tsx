@@ -18,6 +18,9 @@ import {
   Check,
   ShieldAlert,
   ExternalLink,
+  Eye,
+  EyeOff,
+  Lock,
 } from 'lucide-react';
 
 type AdminStatus = {
@@ -70,6 +73,17 @@ export default function AdminSettingsPage() {
   const [twoFactorBusy, setTwoFactorBusy] = useState(false);
   const [twoFactorMessage, setTwoFactorMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [showSecretKey, setShowSecretKey] = useState(false);
+
+  const toggleRevealSecret = () => {
+    setShowSecretKey(prev => {
+      const next = !prev;
+      if (next) {
+        setTimeout(() => setShowSecretKey(false), 20000);
+      }
+      return next;
+    });
+  };
 
   // Sessions state
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
@@ -320,8 +334,8 @@ export default function AdminSettingsPage() {
             tone="good"
           />
           <StatusRow
-            label="Session Token Duration"
-            value="15 Minutes"
+            label="Session Duration"
+            value="15 Minutes (Sliding)"
             tone="good"
           />
         </dl>
@@ -427,26 +441,51 @@ export default function AdminSettingsPage() {
 
               <div className="flex-1 space-y-3 w-full">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Can't scan the code? Enter key manually:
-                  </span>
-                  <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2.5">
-                    <code className="break-all font-mono text-sm font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
-                      {twoFactorSecret}
-                    </code>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Can't scan the code? Manual Setup Key:
+                    </span>
                     <button
                       type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(twoFactorSecret);
-                        setCopiedSecret(true);
-                        setTimeout(() => setCopiedSecret(false), 2000);
-                      }}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={toggleRevealSecret}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
-                      {copiedSecret ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={14} />}
-                      {copiedSecret ? 'Copied' : 'Copy'}
+                      {showSecretKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                      {showSecretKey ? 'Hide Key' : 'Reveal Key'}
                     </button>
                   </div>
+                  <div className="mt-1 flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2.5">
+                    <code className="break-all font-mono text-xs sm:text-sm font-bold tracking-widest text-indigo-600 dark:text-indigo-400">
+                      {showSecretKey ? twoFactorSecret : '••••••••••••••••••••••••••••••••'}
+                    </code>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={toggleRevealSecret}
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        title={showSecretKey ? 'Hide key' : 'Reveal key'}
+                        aria-label={showSecretKey ? 'Hide key' : 'Reveal key'}
+                      >
+                        {showSecretKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(twoFactorSecret);
+                          setCopiedSecret(true);
+                          setTimeout(() => setCopiedSecret(false), 2000);
+                        }}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        {copiedSecret ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={14} />}
+                        {copiedSecret ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <Lock size={11} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    Key is masked for screen privacy. Click copy to transfer directly to your authenticator.
+                  </p>
                 </div>
 
                 {otpauthUri && (

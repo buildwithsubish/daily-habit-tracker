@@ -9,6 +9,7 @@
     "lint": "next lint",
     "init-admin": "node -e \"require('./lib/init-admin').initAdmin().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "bootstrap-admin": "npx tsx scripts/bootstrap-admin.ts",
+    "promote-super-admin": "npx tsx scripts/promote-super-admin.ts",
     "reset-admin-password": "npx tsx scripts/reset-admin-password.ts",
     "clear-admin": "npx tsx scripts/clear-admin.ts",
     "deploy": "npm run build && npx wrangler pages deploy .next --project-name=daily-habit-flow"

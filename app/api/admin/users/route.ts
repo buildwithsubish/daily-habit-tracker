@@ -34,26 +34,31 @@ export async function GET(request: NextRequest) {
     }
     
     // Status filter
+    const now = new Date();
     if (status === 'active') {
-      query.isActive = true;
-    } else if (status === 'inactive') {
+      query.isActive = { $ne: false };
+      query.$or = [{ lockUntil: null }, { lockUntil: { $lte: now } }];
+    } else if (status === 'inactive' || status === 'suspended') {
       query.isActive = false;
+    } else if (status === 'rate_limited' || status === 'locked') {
+      query.lockUntil = { $gt: now };
     }
 
     const skip = (page - 1) * limit;
     const sortOptions: any = {};
     sortOptions[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    const [users, total, activeCount, inactiveCount] = await Promise.all([
+    const [users, total, activeCount, inactiveCount, rateLimitedCount] = await Promise.all([
       User.find(query)
-        .select('email username createdAt timeZone whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule isActive lastLogin')
+        .select('email username createdAt timeZone whatsappNumber whatsappNumberEncrypted whatsappAutomation whatsappVerified pollSchedule weeklyReportSchedule isActive lastLogin lockUntil loginAttempts')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit)
         .lean(),
       User.countDocuments(query),
-      User.countDocuments({ isActive: true }),
+      User.countDocuments({ isActive: { $ne: false }, $or: [{ lockUntil: null }, { lockUntil: { $lte: now } }] }),
       User.countDocuments({ isActive: false }),
+      User.countDocuments({ lockUntil: { $gt: now } }),
     ]);
 
     type UserLean = { 
@@ -67,6 +72,8 @@ export async function GET(request: NextRequest) {
       whatsappVerified?: boolean;
       isActive: boolean;
       lastLogin?: Date;
+      lockUntil?: Date | null;
+      loginAttempts?: number;
       pollSchedule?: {
         enabled: boolean;
         time: string;
@@ -97,13 +104,22 @@ export async function GET(request: NextRequest) {
           .lean() as unknown as { date?: string } | null;
 
         const phone = resolveUserPhone(user as any);
+        const isRateLimited = Boolean(user.lockUntil && new Date(user.lockUntil) > new Date());
+        const lockRemainingMinutes = isRateLimited && user.lockUntil
+          ? Math.ceil((new Date(user.lockUntil).getTime() - Date.now()) / 60000)
+          : 0;
+
         return {
           id: user._id.toString(),
           email: user.email,
           username: user.username || 'N/A',
           createdAt: user.createdAt,
           lastLogin: user.lastLogin,
-          isActive: user.isActive,
+          isActive: user.isActive !== false,
+          isRateLimited,
+          lockRemainingMinutes,
+          lockUntil: user.lockUntil ? new Date(user.lockUntil).toISOString() : null,
+          loginAttempts: user.loginAttempts || 0,
           timeZone: user.timeZone,
           whatsappNumber: phone ? maskPhoneNumber(phone) : null,
           whatsappAutomation: user.whatsappAutomation,
@@ -133,6 +149,7 @@ export async function GET(request: NextRequest) {
         all: activeCount + inactiveCount,
         active: activeCount,
         inactive: inactiveCount,
+        rateLimited: rateLimitedCount,
       },
     });
   } catch (error: any) {
@@ -169,12 +186,12 @@ export async function PATCH(request: NextRequest) {
     let updateData: any = {};
     let actionDescription = '';
 
-    if (action === 'activate') {
-      updateData = { isActive: true };
-      actionDescription = 'activated';
-    } else if (action === 'deactivate') {
+    if (action === 'activate' || action === 'unsuspend' || action === 'unlock') {
+      updateData = { isActive: true, lockUntil: null, loginAttempts: 0 };
+      actionDescription = action === 'unlock' ? 'unlocked from rate limit' : 'activated';
+    } else if (action === 'deactivate' || action === 'suspend') {
       updateData = { isActive: false };
-      actionDescription = 'deactivated';
+      actionDescription = 'suspended';
     } else if (action === 'delete') {
       // Destructive safeguard: Only super_admin and admin can delete users
       if (!['super_admin', 'admin'].includes(admin.role)) {
