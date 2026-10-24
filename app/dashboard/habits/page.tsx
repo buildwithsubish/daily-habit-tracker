@@ -269,22 +269,40 @@ export default function HabitsPage() {
             <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               My Habits & Routines
             </h1>
-            {/* Mobile-only compact New Habit Button */}
-            <button
-              onClick={() => router.push('/dashboard/habits/new')}
-              className="sm:hidden inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition-all shrink-0"
-            >
-              <Plus size={14} />
-              <span>New</span>
-            </button>
+            {/* Mobile-only action buttons */}
+            <div className="sm:hidden flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => router.push('/presets')}
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold shadow-xs active:scale-95 transition-all"
+              >
+                <Sparkles size={12} />
+                <span>Presets</span>
+              </button>
+              <button
+                onClick={() => router.push('/dashboard/habits/new')}
+                className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+              >
+                <Plus size={13} />
+                <span>New</span>
+              </button>
+            </div>
           </div>
           <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium max-w-2xl leading-relaxed">
             Curate your daily rituals, track unbroken consistency, and drag the <span className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">::</span> handle to prioritize execution order.
           </p>
         </div>
 
-        {/* Desktop Action Button */}
-        <div className="hidden sm:flex items-center gap-3">
+        {/* Desktop Action Buttons */}
+        <div className="hidden sm:flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.push('/presets')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs sm:text-sm font-bold shadow-xs active:scale-95 transition-all touch-button"
+          >
+            <Sparkles size={16} />
+            <span>Browse Presets</span>
+          </button>
           <button
             onClick={() => router.push('/dashboard/habits/new')}
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 active:scale-95 transition-all touch-button"
@@ -447,15 +465,26 @@ export default function HabitsPage() {
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                     {searchQuery 
                       ? 'Try adjusting your search terms or clear the filter.' 
-                      : 'Create a new habit or ritual to start tracking your daily progress.'}
+                      : 'Create a new habit or ritual, or load a ready-made preset template to get started immediately.'}
                   </p>
-                  <button
-                    onClick={() => router.push('/dashboard/habits/new')}
-                    className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
-                  >
-                    <Plus size={14} />
-                    <span>Create Habit</span>
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/presets')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all shadow-xs"
+                    >
+                      <Sparkles size={14} />
+                      <span>Browse Preset Protocols</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push('/dashboard/habits/new')}
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition-all"
+                    >
+                      <Plus size={14} />
+                      <span>Create Habit</span>
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </div>

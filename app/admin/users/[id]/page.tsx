@@ -205,50 +205,50 @@ export default function UserDetailsPage() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6">
         {/* User Info Card */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-scale-in">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Shield className="text-red-600" size={24} />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Shield className="text-indigo-600 dark:text-indigo-400" size={24} />
             User Information
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
               <Mail className="text-blue-500" size={20} />
               <div>
-                <p className="text-xs text-gray-500">Email</p>
-                <p className="font-bold text-gray-900">{data.user.email}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Email</p>
+                <p className="font-bold text-slate-900 dark:text-white">{data.user.email}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <User className="text-green-500" size={20} />
+            <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+              <User className="text-emerald-500" size={20} />
               <div>
-                <p className="text-xs text-gray-500">Username</p>
-                <p className="font-bold text-gray-900">{data.user.username || 'N/A'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Username</p>
+                <p className="font-bold text-slate-900 dark:text-white">{data.user.username || 'N/A'}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
               <Calendar className="text-purple-500" size={20} />
               <div>
-                <p className="text-xs text-gray-500">Joined</p>
-                <p className="font-bold text-gray-900">
+                <p className="text-xs text-slate-500 dark:text-slate-400">Joined</p>
+                <p className="font-bold text-slate-900 dark:text-white">
                   {new Date(data.user.createdAt).toLocaleDateString()}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-              <Shield className="text-red-500" size={20} />
+            <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
+              <Shield className="text-indigo-500" size={20} />
               <div className="flex-1">
-                <p className="text-xs text-gray-500">Credentials & Security</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Credentials & Security</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     onClick={() => setShowResetModal(true)}
-                    className="px-3 py-1.5 bg-indigo-700 text-white rounded-lg hover:bg-indigo-800 font-semibold text-xs transition-colors"
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs transition-colors shadow-xs"
                   >
                     Reset Password
                   </button>
                   <button
                     onClick={handleToggleSuspend}
-                    className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors shadow-xs ${
                       data.user.isActive === false
                         ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                         : 'bg-amber-600 hover:bg-amber-700 text-white'
@@ -261,7 +261,7 @@ export default function UserDetailsPage() {
                       setDeleteConfirmation('');
                       setShowDeleteModal(true);
                     }}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-semibold text-xs transition-colors"
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold text-xs transition-colors shadow-xs"
                   >
                     Permanently Delete
                   </button>
@@ -271,7 +271,7 @@ export default function UserDetailsPage() {
           </div>
           {actionMessage && (
             <div className={`mt-4 p-3 rounded-lg text-xs font-semibold ${
-              actionMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+              actionMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50'
             }`}>
               {actionMessage.text}
             </div>
@@ -280,100 +280,99 @@ export default function UserDetailsPage() {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500 animate-scale-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 border-l-4 border-l-blue-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-semibold">Total Habits</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{data.statistics.totalHabits}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">Total Habits</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{data.statistics.totalHabits}</p>
               </div>
-              <Target className="text-blue-500" size={40} />
+              <Target className="text-blue-500" size={36} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500 animate-scale-in animation-delay-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 border-l-4 border-l-emerald-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-semibold">Total Logs</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{data.statistics.totalLogs}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">Total Logs</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{data.statistics.totalLogs}</p>
               </div>
-              <Activity className="text-green-500" size={40} />
+              <Activity className="text-emerald-500" size={36} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500 animate-scale-in animation-delay-400">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 border-l-4 border-l-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-semibold">Completed</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{data.statistics.completedLogs}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">Completed</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{data.statistics.completedLogs}</p>
               </div>
-              <CheckCircle className="text-purple-500" size={40} />
+              <CheckCircle className="text-purple-500" size={36} />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-orange-500 animate-scale-in animation-delay-600">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5 border-l-4 border-l-amber-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 font-semibold">Completion Rate</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{data.statistics.completionRate}%</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-semibold">Completion Rate</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white mt-2">{data.statistics.completionRate}%</p>
               </div>
-              <TrendingUp className="text-orange-500" size={40} />
+              <TrendingUp className="text-amber-500" size={36} />
             </div>
           </div>
         </div>
 
         {/* Activity Chart */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-scale-in min-h-[320px] w-full min-w-0">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <BarChart3 className="text-red-600" size={24} />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 mb-6 min-h-[320px] w-full min-w-0">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <BarChart3 className="text-indigo-600 dark:text-indigo-400" size={24} />
             Activity Over Time
           </h2>
           <ResponsiveContainer width="100%" height={300} minWidth={0} minHeight={0} initialDimension={{ width: 320, height: 300 }}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+              <XAxis dataKey="date" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f8fafc', borderRadius: 12 }} />
               <Legend />
-              <Line type="monotone" dataKey="total" stroke="#0284c7" strokeWidth={2} name="Total" />
+              <Line type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={2} name="Total" />
               <Line type="monotone" dataKey="completed" stroke="#10b981" strokeWidth={2} name="Completed" />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Habits List */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-scale-in">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Target className="text-red-600" size={24} />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 mb-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Target className="text-indigo-600 dark:text-indigo-400" size={24} />
             User Habits ({data.habits.length})
           </h2>
           <div className="space-y-3">
             {data.habits.map((habit, index) => (
               <div
                 key={habit.id}
-                className="p-4 border-2 border-gray-200 rounded-lg hover:border-red-300 transition-all hover-lift animate-fade-in-up"
-                style={{ animationDelay: `${index * 50}ms` }}
+                className="p-4 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 transition-all shadow-2xs"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-bold text-gray-900">{habit.name}</h3>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      <h3 className="font-bold text-slate-900 dark:text-white">{habit.name}</h3>
+                      <span className="text-xs bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md font-semibold">
                         {habit.category}
                       </span>
                       {habit.hidden && (
-                        <span className="flex items-center gap-1 text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-red-100">
+                        <span className="flex items-center gap-1 text-[10px] bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-amber-200 dark:border-amber-900/60">
                           <EyeOff size={10} /> Hidden
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                       <span className="flex items-center gap-1">
-                        <Clock size={14} />
-                        Current Streak: <strong className="text-gray-900">{habit.streak.current} days</strong>
+                        <Clock size={14} className="text-indigo-500" />
+                        Current Streak: <strong className="text-slate-800 dark:text-slate-200">{habit.streak.current} days</strong>
                       </span>
                       <span className="flex items-center gap-1">
-                        <TrendingUp size={14} />
-                        Longest: <strong className="text-gray-900">{habit.streak.longest} days</strong>
+                        <TrendingUp size={14} className="text-emerald-500" />
+                        Longest: <strong className="text-slate-800 dark:text-slate-200">{habit.streak.longest} days</strong>
                       </span>
                     </div>
                   </div>
@@ -384,45 +383,45 @@ export default function UserDetailsPage() {
         </div>
 
         {/* Recent Logs */}
-        <div className="bg-white rounded-xl shadow-md p-6 animate-scale-in">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Activity className="text-red-600" size={24} />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Activity className="text-indigo-600 dark:text-indigo-400" size={24} />
             Recent Activity Logs
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-950/60 text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Habit</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Completed At</th>
+                  <th className="text-left py-3 px-4">Date</th>
+                  <th className="text-left py-3 px-4">Habit</th>
+                  <th className="text-left py-3 px-4">Status</th>
+                  <th className="text-left py-3 px-4">Completed At</th>
                 </tr>
               </thead>
-              <tbody>
-                {data.logs.slice(0, 20).map((log, index) => {
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {data.logs.slice(0, 20).map((log) => {
                   const habit = data.habits.find(h => h.id === log.habitId);
                   return (
-                    <tr key={log.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-700">
+                    <tr key={log.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
                         {new Date(log.date).toLocaleDateString()}
                       </td>
-                      <td className="py-3 px-4 font-medium text-gray-900">
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
                         {habit?.name || 'Unknown'}
                       </td>
                       <td className="py-3 px-4">
                         {log.completed ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-semibold">
-                            <CheckCircle size={14} />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-bold border border-emerald-200 dark:border-emerald-900/60">
+                            <CheckCircle size={13} />
                             Completed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded text-sm font-semibold">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-full text-xs font-semibold">
                             Pending
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-gray-600 text-sm">
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 text-xs">
                         {log.completedAt
                           ? new Date(log.completedAt).toLocaleString()
                           : 'N/A'}
@@ -437,18 +436,19 @@ export default function UserDetailsPage() {
 
         {/* Reset Password Modal */}
         {showResetModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Reset User Password</h3>
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Reset User Password</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Set a temporary or updated password for {data.user.email}.</p>
 
               {resetMessage && (
-                <div className={`mb-4 p-3 rounded-lg ${resetMessage.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                <div className={`mb-4 p-3 rounded-xl text-xs font-bold ${resetMessage.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'}`}>
                   {resetMessage.text}
                 </div>
               )}
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   New Password
                 </label>
                 <input
@@ -456,30 +456,28 @@ export default function UserDetailsPage() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password (min 6 characters)"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <p className="text-xs text-gray-500 mb-4">
-                The user will need to login with this new password.
-              </p>
-
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowResetModal(false);
                     setNewPassword('');
                     setResetMessage(null);
                   }}
                   disabled={resetLoading}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleResetPassword}
                   disabled={!newPassword || newPassword.length < 6 || resetLoading}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors shadow-md shadow-indigo-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {resetLoading ? 'Resetting...' : 'Reset Password'}
                 </button>
@@ -491,29 +489,29 @@ export default function UserDetailsPage() {
         {/* Destructive Action Safeguard Modal: Permanent User Deletion */}
         {showDeleteModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rose-200">
-              <div className="flex items-center gap-3 text-rose-600 mb-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 font-bold text-lg">⚠️</span>
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rose-200 dark:border-rose-900/60">
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400 mb-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 dark:bg-rose-950/60 font-bold text-lg">⚠️</span>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Confirm Permanent Deletion</h3>
-                  <p className="text-xs text-rose-700 font-medium">Destructive & Irreversible Action</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Permanent Deletion</h3>
+                  <p className="text-xs text-rose-700 dark:text-rose-300 font-medium">Destructive & Irreversible Action</p>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                This will permanently delete account <strong className="font-mono text-slate-900">{data.user.email}</strong> and purge all habits, progress entries, and historical logs.
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                This will permanently delete account <strong className="font-mono text-slate-900 dark:text-white">{data.user.email}</strong> and purge all habits, progress entries, and historical logs.
               </p>
 
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Type <span className="font-mono font-bold text-rose-700">{data.user.email}</span> to confirm:
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Type <span className="font-mono font-bold text-rose-600 dark:text-rose-400">{data.user.email}</span> to confirm:
                 </label>
                 <input
                   type="text"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
                   placeholder="Enter user email exactly"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-rose-500 font-mono"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-rose-500 font-mono"
                 />
               </div>
 
@@ -525,7 +523,7 @@ export default function UserDetailsPage() {
                     setDeleteConfirmation('');
                   }}
                   disabled={deleteLoading}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 text-xs font-semibold disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -533,7 +531,7 @@ export default function UserDetailsPage() {
                   type="button"
                   onClick={handleDeleteUser}
                   disabled={deleteConfirmation !== data.user.email || deleteLoading}
-                  className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 text-xs font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 text-xs font-bold transition-colors shadow-md shadow-rose-600/20 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {deleteLoading ? 'Purging Data…' : 'Permanently Delete User'}
                 </button>

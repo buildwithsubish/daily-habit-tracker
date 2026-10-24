@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Zap, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Trophy, Rocket, Sparkles } from 'lucide-react';
+import { Zap, Check, AlertCircle, Layout, ChevronRight, ArrowLeft, Trophy, Rocket, Sparkles, ChevronDown, ChevronUp, CheckCircle2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -27,6 +27,11 @@ export default function PresetsPage() {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   useEffect(() => {
     fetchPresets();
@@ -231,13 +236,25 @@ export default function PresetsPage() {
                   </p>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
-                        <Trophy size={16} className="text-indigo-600 dark:text-indigo-400" />
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-xl flex items-center justify-center">
+                          <Trophy size={16} className="text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">
+                          <span className="text-zinc-900 dark:text-white">{preset.habitsCount || preset.structure?.habits?.length || 0}</span> Habits
+                        </span>
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                        <span className="text-zinc-900 dark:text-white">{preset.habitsCount || preset.structure?.habits?.length || 0}</span> Habits
-                      </span>
+                      {Boolean(preset.structure?.habits?.length) && (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(preset._id)}
+                          className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/50 transition-colors"
+                        >
+                          <span>{expandedIds[preset._id] ? 'Hide Habits' : 'View Habits'}</span>
+                          {expandedIds[preset._id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -264,6 +281,47 @@ export default function PresetsPage() {
                       </motion.button>
                     </div>
                   </div>
+
+                  <AnimatePresence>
+                    {expandedIds[preset._id] && preset.structure?.habits && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="mt-6 pt-6 border-t border-zinc-200/80 dark:border-zinc-800 space-y-3 overflow-hidden text-left"
+                      >
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                          Included Routine Habits ({preset.structure.habits.length})
+                        </h4>
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {preset.structure.habits.map((habit: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-start gap-3 p-3 rounded-2xl bg-zinc-50/80 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/60"
+                            >
+                              <CheckCircle2 size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                    {habit.name}
+                                  </span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-600 dark:text-zinc-300 shrink-0 uppercase tracking-wider">
+                                    {habit.category || 'General'}
+                                  </span>
+                                </div>
+                                {habit.steps && habit.steps[0]?.name && (
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">
+                                    {habit.steps[0].name}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             ))}

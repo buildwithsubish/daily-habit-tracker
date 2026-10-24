@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { 
   Bell, 
   BellOff, 
@@ -20,7 +21,10 @@ import {
   Activity,
   Heart,
   Save,
-  ShieldCheck
+  ShieldCheck,
+  Layers,
+  ArrowRight,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -667,6 +671,106 @@ export default function SettingsPage() {
             )}
           </button>
         </footer>
+      </section>
+
+      {/* 4. Habit Protocols & Curated Presets */}
+      <section className="rounded-3xl border border-slate-200/80 dark:border-white/[0.08] bg-white dark:bg-[#12141D] shadow-sm overflow-hidden">
+        <div className="p-5 sm:p-7 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-zinc-800/80">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-200/60 dark:border-indigo-800/40">
+                <Sparkles size={22} />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                  Curated Habit Protocols & Presets
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Ready-to-use routine templates designed for health, strength, focus, and recovery.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href="/presets"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs sm:text-sm font-bold shadow-md shadow-indigo-500/20 active:scale-95 transition-all self-start sm:self-auto"
+            >
+              <span>Explore All Protocols</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <Link
+              href="/presets"
+              className="group p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/30 border border-slate-200/60 dark:border-zinc-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-3"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                    Fitness
+                  </span>
+                  <Zap size={14} className="text-orange-500" />
+                </div>
+                <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  1-Year Hypertrophy PPL Protocol
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                  7-day split covering Push, Pull, Legs, Active Recovery, and periodized training weights.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                View & Apply <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+
+            <Link
+              href="/presets"
+              className="group p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/30 border border-slate-200/60 dark:border-zinc-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-3"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    Health
+                  </span>
+                  <Activity size={14} className="text-emerald-500" />
+                </div>
+                <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  Morning Intention Routine
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                  Hydration, morning sunlight, light movement, and prioritized daily focus planning.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                View & Apply <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+
+            <Link
+              href="/presets"
+              className="group p-4 rounded-2xl bg-slate-50/80 dark:bg-zinc-800/30 border border-slate-200/60 dark:border-zinc-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-3"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                    Diet
+                  </span>
+                  <Scale size={14} className="text-amber-500" />
+                </div>
+                <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  Lean Bulk Diet (2,220 kcal)
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
+                  133g protein target, 6 structured meals, water calibration, and restorative sleep.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                View & Apply <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+          </div>
+        </div>
       </section>
     </div>
   );

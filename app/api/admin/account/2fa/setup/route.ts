@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import QRCode from 'qrcode';
 import connectDB from '@/lib/mongodb';
 import Admin from '@/lib/models/Admin';
 import { requireAdmin, adminRateLimiter } from '@/lib/admin-middleware';
@@ -36,6 +37,22 @@ export async function POST(request: NextRequest) {
       admin.email
     )}?secret=${secret}&issuer=${encodeURIComponent(appName)}&algorithm=SHA1&digits=6&period=30`;
 
+    // Generate high-resolution QR code data URL (white background ensures camera readability)
+    let qrCode = '';
+    try {
+      qrCode = await QRCode.toDataURL(otpauthUri, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'M',
+      });
+    } catch (qrErr) {
+      console.error('Failed to generate 2FA QR code:', qrErr);
+    }
+
     void writeAuditLogFromRequest(request, {
       adminId: admin._id.toString(),
       targetResourceId: admin._id.toString(),
@@ -49,6 +66,7 @@ export async function POST(request: NextRequest) {
       success: true,
       secret,
       otpauthUri,
+      qrCode,
       backupCodes,
       twoFactorEnabled: admin.twoFactorEnabled,
     });
@@ -59,3 +77,4 @@ export async function POST(request: NextRequest) {
     return apiError('Failed to initiate 2FA setup', 'INTERNAL_ERROR', 500);
   }
 }
+

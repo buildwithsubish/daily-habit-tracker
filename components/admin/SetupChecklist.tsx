@@ -47,9 +47,9 @@ export function SetupChecklist() {
   if (dismissed || complete || isLoading) {
     if (isLoading && !dismissed) {
       return (
-        <Card className="border-indigo-200 bg-indigo-50/50">
-          <CardContent className="py-6 flex items-center gap-3 text-slate-600">
-            <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+        <Card className="border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/50 dark:bg-indigo-950/20">
+          <CardContent className="py-6 flex items-center gap-3 text-slate-600 dark:text-slate-400">
+            <Loader2 className="w-5 h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
             Checking setup status…
           </CardContent>
         </Card>
@@ -61,15 +61,15 @@ export function SetupChecklist() {
   if (checklist.length === 0) return null;
 
   return (
-    <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50 to-white shadow-sm">
+    <Card className="border-indigo-200 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/30 dark:to-slate-900 shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
         <div className="flex items-start gap-3">
-          <div className="p-2 bg-indigo-100 rounded-lg">
-            <Shield className="w-5 h-5 text-indigo-600" />
+          <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+            <Shield className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
           </div>
           <div>
-            <CardTitle className="text-lg text-slate-900">First-boot setup</CardTitle>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <CardTitle className="text-lg text-slate-900 dark:text-white">First-boot setup</CardTitle>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               {doneCount} of {checklist.length} complete — finish these to go live
             </p>
           </div>
@@ -80,7 +80,7 @@ export function SetupChecklist() {
             localStorage.setItem(DISMISS_KEY, '1');
             setDismissed(true);
           }}
-          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+          className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           aria-label="Dismiss checklist"
         >
           <X className="w-4 h-4" />
@@ -91,24 +91,24 @@ export function SetupChecklist() {
           {checklist.map((item) => (
             <li
               key={item.id}
-              className="flex items-start gap-3 p-3 rounded-lg bg-white/80 border border-slate-100"
+              className="flex items-start gap-3 p-3 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700/60"
             >
               {item.done ? (
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
               ) : (
-                <Circle className="w-5 h-5 text-slate-300 shrink-0 mt-0.5" />
+                <Circle className="w-5 h-5 text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />
               )}
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${item.done ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                <p className={`text-sm font-medium ${item.done ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100'}`}>
                   {item.label}
                 </p>
                 {!item.done && item.hint && (
-                  <p className="text-xs text-slate-500 mt-0.5">{item.hint}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.hint}</p>
                 )}
               </div>
               {!item.done && item.href && (
                 <Link href={item.href}>
-                  <Button size="sm" variant="outline" className="shrink-0 text-xs">
+                  <Button size="sm" variant="outline" className="shrink-0 text-xs border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700">
                     Fix
                   </Button>
                 </Link>
@@ -118,10 +118,10 @@ export function SetupChecklist() {
         </ul>
         <p className="text-xs text-slate-400 pt-2">
           Admin credentials use Option B: create once at{' '}
-          <Link href="/admin/setup" className="text-indigo-600 hover:underline">
+          <Link href="/admin/setup" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             /admin/setup
           </Link>{' '}
-          (production requires <code className="bg-slate-100 px-1 rounded">ADMIN_SETUP_TOKEN</code>).
+          (production requires <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-slate-700 dark:text-slate-300">ADMIN_SETUP_TOKEN</code>).
         </p>
       </CardContent>
     </Card>

@@ -80,17 +80,25 @@ export default function AdminLayout({
   // Show loading state
   if (authState.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0B0F19]">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Verifying access...</p>
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400 font-semibold text-sm">Verifying access...</p>
         </div>
       </div>
     );
   }
 
   if (authCheckFailed && !authState.isAuthenticated) {
-    return <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4"><section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8" role="alert"><h1 className="text-xl font-bold text-slate-950">Could not verify admin access</h1><p className="mt-2 text-sm leading-relaxed text-slate-600">The security check could not reach the server. Your session has not been cleared.</p><button type="button" onClick={() => void checkAuth()} className="mt-5 min-h-11 rounded-xl bg-indigo-700 px-5 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">Try again</button></section></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-[#0B0F19] p-4">
+        <section className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center shadow-sm sm:p-8" role="alert">
+          <h1 className="text-xl font-bold text-slate-950 dark:text-white">Could not verify admin access</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">The security check could not reach the server. Your session has not been cleared.</p>
+          <button type="button" onClick={() => void checkAuth()} className="mt-5 min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-semibold text-white hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-md shadow-indigo-600/20">Try again</button>
+        </section>
+      </div>
+    );
   }
 
   // Public pages that don't require authentication
@@ -100,20 +108,20 @@ export default function AdminLayout({
   // If not authenticated and not on a public page, show access denied
   if (!authState.isAuthenticated && !isPublicPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center max-w-md p-8">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0B0F19]">
+        <div className="text-center max-w-md p-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm mx-4">
+          <div className="w-16 h-16 bg-rose-100 dark:bg-rose-950/50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-200 dark:border-rose-900/50">
+            <svg className="w-8 h-8 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
-          <p className="text-slate-600 mb-6">You must be logged in to access this page.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Access Denied</h1>
+          <p className="text-slate-600 dark:text-slate-400 mb-6 text-sm">You must be logged in as an administrator to access this area.</p>
           <button
             onClick={() => router.push('/admin/login')}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="w-full py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20 active:scale-95"
           >
-            Log In
+            Log In to Admin
           </button>
         </div>
       </div>
@@ -127,7 +135,7 @@ export default function AdminLayout({
 
   return (
     <Providers>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0B0F19] text-slate-900 dark:text-slate-100 transition-colors">
         <AdminSidebar />
         <div 
           className={cn(

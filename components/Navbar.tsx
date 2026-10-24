@@ -57,6 +57,7 @@ export default function Navbar() {
   const navLinks = [
     { href: '/dashboard', label: 'Summary', icon: LayoutDashboard },
     { href: '/dashboard/habits', label: 'Habits', icon: Target },
+    { href: '/presets', label: 'Presets', icon: Sparkles },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/dashboard/achievements', label: 'Milestones', icon: Award },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },

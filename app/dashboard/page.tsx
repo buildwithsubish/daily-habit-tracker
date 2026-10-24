@@ -773,12 +773,21 @@ export default function DashboardPage() {
                 </h3>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{viewMode === 'weekly' ? 'Choose a day to review its progress.' : nextHabit ? `Begin with ${nextHabit.name}, then take the next step when you’re ready.` : filteredHabits.length ? 'You have completed everything scheduled for this day.' : 'No habits scheduled for this day.'}</p>
                 </div>
-                <button
-                  onClick={() => router.push('/dashboard/habits')}
-                  className="min-h-11 self-start rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-indigo-200 sm:self-auto"
-                >
-                  Manage Habits
-                </button>
+                <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+                  <button
+                    onClick={() => router.push('/presets')}
+                    className="min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50 dark:bg-indigo-950/40 px-3 text-sm font-semibold text-indigo-700 dark:text-indigo-300 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
+                  >
+                    <Sparkles size={14} />
+                    <span>Presets</span>
+                  </button>
+                  <button
+                    onClick={() => router.push('/dashboard/habits')}
+                    className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-colors hover:border-indigo-300 hover:text-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-indigo-200"
+                  >
+                    Manage Habits
+                  </button>
+                </div>
               </div>
 
               {filteredHabits.length ? (
@@ -793,8 +802,16 @@ export default function DashboardPage() {
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
                   <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300"><Target size={20}/></div>
                   <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-slate-100">A lighter day is still part of the rhythm.</p>
-                  <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-600 dark:text-slate-400">There’s nothing scheduled here. Add or adjust a habit if you want a small next step.</p>
-                  <button onClick={() => router.push('/dashboard/habits')} className="mt-4 min-h-11 rounded-lg bg-indigo-900 px-4 text-sm font-semibold text-white hover:bg-indigo-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:bg-indigo-200 dark:text-slate-950 dark:hover:bg-indigo-100">Manage habits</button>
+                  <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-slate-600 dark:text-slate-400">There’s nothing scheduled here. Add a custom habit or activate an engineered preset routine.</p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                    <button onClick={() => router.push('/presets')} className="min-h-11 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700 shadow-md shadow-indigo-600/20 active:scale-95 transition-all">
+                      <Sparkles size={14} />
+                      <span>Explore Presets</span>
+                    </button>
+                    <button onClick={() => router.push('/dashboard/habits')} className="min-h-11 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                      Manage habits
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
